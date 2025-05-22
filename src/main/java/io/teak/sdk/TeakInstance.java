@@ -63,7 +63,7 @@ public class TeakInstance implements Unobfuscable {
         }
 
         this.context = activity.getApplicationContext();
-        this.activityHashCode = activity.hashCode();
+        setMainActivity(activity);
         this.objectFactory = objectFactory;
         this.teakCore = TeakCore.get();
         PushState.init(this.context);
