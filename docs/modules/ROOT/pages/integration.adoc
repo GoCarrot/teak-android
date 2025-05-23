@@ -210,10 +210,11 @@ To receive events, declare methods with the `@Subscribe` annotation which take t
 @Subscribe
 public void onRewardClaim(Teak.RewardClaimEvent event) {
   TeakNotification.Reward rewardInfo = event.reward;
+  String rewardId = rewardInfo.json.getString("teakRewardId");
   switch(rewardInfo.status) {
     case TeakNotification.Reward.GRANT_REWARD: {
       Map<String, Object> reward = rewardInfo.json.getJSONObject("reward").toMap();
-      Log.d("TeakExample.Reward", "Reward Granted! " + reward.toString());
+      Log.d("TeakExample.Reward", "Reward with id " + rewardId + "Granted! " + reward.toString());
     } break;
     case TeakNotification.Reward.ALREADY_CLICKED: {
       Log.d("TeakExample.Reward", "You already claimed this reward!");

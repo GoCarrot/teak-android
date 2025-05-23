@@ -71,7 +71,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Subscribe
-    public void onRewardClaim(Teak.RewardClaimEvent event) {
+    public void doTheThing(Teak.RewardClaimEvent event) {
+        TeakNotification.Reward rewardInfo = event.reward;
+        String rewardId = rewardInfo.json.getString("teakRewardId");
+        switch(rewardInfo.status) {
+        case TeakNotification.Reward.GRANT_REWARD: {
+          Map<String, Object> reward = rewardInfo.json.getJSONObject("reward").toMap();
+          Log.d("TeakExample.Reward", "Reward with id " + rewardId + "Granted! " + reward.toString());
+        } break;
+        case TeakNotification.Reward.ALREADY_CLICKED: {
+          Log.d("TeakExample.Reward", "You already claimed this reward!");
+        } break;
+        case TeakNotification.Reward.EXPIRED: {
+          Log.d("TeakExample.Reward", "The reward has expired");
+        } break;
+        case TeakNotification.Reward.TOO_MANY_CLICKS: {
+          Log.d("TeakExample.Reward", "Too many other players already claimed this reward");
+        } break;
+        case TeakNotification.Reward.EXCEED_MAX_CLICKS_FOR_DAY: {
+          Log.d("TeakExample.Reward", "You've already claimed too many rewards today");
+        } break;
+        default: {
+          Log.d("TeakExample.Reward", "The reward was rejected for a different reason: " + rewardInfo.json.getString("status"));
+        }
+        }
         if (event.reward != null) {
             final StringBuilder rewardString = new StringBuilder("You got ");
             boolean isFirstEntry = true;
