@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="com.android.vending.BILLING" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
@@ -55,5 +56,8 @@
                 <data android:scheme="https" android:host="${teakShortDomain}" />
             </intent-filter>
         </activity>
+        <activity android:name="io.teak.sdk.activity.PermissionRequest"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="false" />
     </application>
 </manifest>
