@@ -1,0 +1,2 @@
+enhancement:
+  - Mark Teak.Channel.Category, Teak.Channel.Type, Teak.Channel.State, TeakEvent, TeakNotification.Reward, ChannelStatus, DeepLink, LaunchDataSource, and PushState as Unobfuscable
