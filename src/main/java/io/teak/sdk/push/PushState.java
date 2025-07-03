@@ -20,12 +20,13 @@ import androidx.core.app.NotificationManagerCompat;
 import io.teak.sdk.NotificationBuilder;
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakEvent;
+import io.teak.sdk.Unobfuscable;
 import io.teak.sdk.core.Executors;
 import io.teak.sdk.event.LifecycleEvent;
 import io.teak.sdk.json.JSONArray;
 import io.teak.sdk.json.JSONObject;
 
-public class PushState {
+public class PushState implements Unobfuscable {
     private static final String PUSH_STATE_CHAIN_KEY = "io.teak.sdk.Preferences.PushStateChain";
 
     public enum State {

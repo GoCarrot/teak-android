@@ -473,7 +473,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         /**
          * An individual category.
          */
-        public static class Category {
+        public static class Category implements Unobfuscable {
             public final String id;
             public final String name;
             public final String description;
@@ -502,7 +502,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         /**
          * Marketing channel type
          */
-        public enum Type {
+        public enum Type implements Unobfuscable {
             MobilePush("push"),            ///< Push notification channel for mobile devices
             DesktopPush("desktop_push"),   ///< Push notification channel for desktop devices
             PlatformPush("platform_push"), ///< Push notification channel for the current platform
@@ -534,7 +534,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         /**
          * State of marketing channel
          */
-        public enum State {
+        public enum State implements Unobfuscable {
             OptOut("opt_out"),
             Available("available"),
             OptIn("opt_in"),

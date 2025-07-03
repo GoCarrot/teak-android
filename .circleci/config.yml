@@ -3,6 +3,7 @@ version: 2.1
 orbs:
   teak: teak/sdk-utils@1
   buildomat: teak/buildomat@0.1
+  aws-cli: circleci/aws-cli@5.4.0
 
 jobs:
   build:
@@ -79,11 +80,7 @@ jobs:
       - run:
           name: Install Sentry CLI
           command: curl -sL https://sentry.io/get-cli/ | bash
-      - run:
-          name: Install AWS CLI
-          command: |
-            sudo apt-get update
-            sudo apt-get -y -qq install awscli
+      - aws-cli/setup
       - attach_workspace:
           at: .
       - sentry_upload_proguard
@@ -104,11 +101,7 @@ jobs:
       - run:
           name: Install Sentry CLI
           command: curl -sL https://sentry.io/get-cli/ | bash
-      - run:
-          name: Install AWS CLI
-          command: |
-            sudo apt-get update
-            sudo apt-get -y -qq install awscli
+      - aws-cli/setup
       - attach_workspace:
           at: .
       - sentry_upload_proguard

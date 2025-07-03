@@ -4,12 +4,13 @@ import java.util.Map;
 
 import io.teak.sdk.Helpers;
 import io.teak.sdk.Teak;
+import io.teak.sdk.Unobfuscable;
 import io.teak.sdk.json.JSONObject;
 
 /**
  * Encapsulation of the state of a channel.
  */
-public class ChannelStatus {
+public class ChannelStatus implements Unobfuscable {
     public final Teak.Channel.State state;
     public final boolean deliveryFault;
     public final Map<String, Object> categories;

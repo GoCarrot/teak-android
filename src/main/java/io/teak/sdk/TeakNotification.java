@@ -69,7 +69,7 @@ public class TeakNotification implements Unobfuscable {
     }
 
     @SuppressWarnings("WeakerAccess")
-    public static class Reward {
+    public static class Reward implements Unobfuscable {
 
         /**
          * An unknown error occured while processing the reward.

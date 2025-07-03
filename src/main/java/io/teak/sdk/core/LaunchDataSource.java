@@ -25,11 +25,12 @@ import androidx.annotation.Nullable;
 import io.teak.sdk.Helpers;
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakConfiguration;
+import io.teak.sdk.Unobfuscable;
 import io.teak.sdk.json.JSONObject;
 import io.teak.sdk.referrer.InstallReferrerFuture;
 import io.teak.sdk.io.DefaultAndroidNotification;
 
-public class LaunchDataSource implements Future<Teak.LaunchData> {
+public class LaunchDataSource implements Future<Teak.LaunchData>, Unobfuscable {
     public static final LaunchDataSource Unattributed = new LaunchDataSource(Helpers.futureForValue(Teak.LaunchData.Unattributed));
 
     private final Future<Teak.LaunchData> launchDataFuture;
