@@ -2,4 +2,5 @@
 <resources>
     <string name="io_teak_app_id">613659812345256</string>
     <string name="io_teak_api_key">41ff00cfd4cb85702e265aa3d5ab7858</string>
+    <drawable name="io_teak_small_notification_icon">@mipmap/icon_white</drawable>
 </resources>
