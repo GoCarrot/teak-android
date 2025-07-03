@@ -17,8 +17,9 @@ import java.util.regex.Pattern;
 import io.teak.sdk.Helpers;
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakConfiguration;
+import io.teak.sdk.Unobfuscable;
 
-public class DeepLink {
+public class DeepLink implements Unobfuscable {
     /**
      * The name of the key used to store the incoming path which was used to parse a deep link.
      */

@@ -9,7 +9,7 @@ import androidx.annotation.NonNull;
 import io.teak.sdk.core.Executors;
 import io.teak.sdk.core.ThreadFactory;
 
-public class TeakEvent {
+public class TeakEvent implements Unobfuscable {
     public final String eventType;
 
     public static final TeakEvent StopEvent = new TeakEvent(null);
