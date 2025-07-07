@@ -1,0 +1,2 @@
+enhancement:
+  - No longer obfuscate any public classes prior to release.
