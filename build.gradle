@@ -188,7 +188,7 @@ dependencies {
     compileOnly "com.android.billingclient:billing:5.0.0"
 
     // Optional Facebook dependency
-    compileOnly 'com.facebook.android:facebook-common:9+'
+    compileOnly 'com.facebook.android:facebook-login:9+'
 
     // Optional Amazon dependencies
     compileOnly files('libs/amazon-device-messaging-1.1.0.jar')
