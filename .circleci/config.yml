@@ -114,8 +114,6 @@ jobs:
             aws s3 cp teak-release.sha512 s3://teak-build-artifacts/android/teak.sha512 --acl public-read
 
 workflows:
-  version: 2
-
   nightly:
     triggers:
       - schedule:
