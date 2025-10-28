@@ -691,6 +691,8 @@ public class TeakNotification implements Unobfuscable {
     public final NotificationPlacement notificationPlacement;
 
     public TeakNotification(Bundle bundle, boolean appInForeground) {
+        // bundle can _ONLY_ contain strings. Calling anything other than getString() here is a bug and _WILL_
+        // cause problems.
         this.message = bundle.getString("message");
         this.title = bundle.getString("title");
         this.longText = bundle.getString("longText");
