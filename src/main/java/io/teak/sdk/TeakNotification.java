@@ -700,8 +700,8 @@ public class TeakNotification implements Unobfuscable {
         this.teakCreativeName = bundle.getString("teakCreativeName");
         this.teakOptOutCategory = bundle.getString("teakOptOutCategory", "teak");
         this.groupKey = bundle.getString("teakGroupKey", "teak");
-        this.minGroupSize = bundle.getInt("teakGroupMinSize", 2);
-        this.groupSummaryId = bundle.getInt("groupSummaryId", 0);
+        this.minGroupSize = Integer.parseInt(bundle.getString("teakGroupMinSize", "2"));
+        this.groupSummaryId = Integer.parseInt(bundle.getString("groupSummaryId", "0"));
         this.groupTitle = bundle.getString("teakGroupTitle");
         this.groupMessage = bundle.getString("teakGroupMessage", "{{notification_count}} new messages");
         this.isAnimated = false;

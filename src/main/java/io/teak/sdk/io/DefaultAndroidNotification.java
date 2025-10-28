@@ -234,7 +234,8 @@ public class DefaultAndroidNotification implements IAndroidNotification {
     @Override
     public void displayNotification(@NonNull final Context context, @NonNull final TeakNotification teakNotification, @NonNull final Notification nativeNotification) {
         // Send it out
-        Teak.log.i("notification.display", Helpers.mm.h("teakNotifId", teakNotification.teakNotifId, "platformId", teakNotification.platformId));
+        final int platformId = teakNotification.platformId;
+        Teak.log.i("notification.display", Helpers.mm.h("teakNotifId", teakNotification.teakNotifId, "platformId", platformId));
 
         // This should only be the case during unit tests, but catch it here anyway
         if (this.handler == null) {
@@ -247,7 +248,7 @@ public class DefaultAndroidNotification implements IAndroidNotification {
             Helpers.runAndLogGC("display_notification.gc");
 
             try {
-                DefaultAndroidNotification.this.notificationManager.notify(NOTIFICATION_TAG, teakNotification.platformId, nativeNotification);
+                DefaultAndroidNotification.this.notificationManager.notify(NOTIFICATION_TAG, platformId, nativeNotification);
 
                 if (teakNotification.isAnimated) {
                     synchronized (DefaultAndroidNotification.this.animatedNotifications) {
@@ -264,9 +265,15 @@ public class DefaultAndroidNotification implements IAndroidNotification {
                     final StatusBarNotification groupSummary = groupInfo.summary;
                     final StatusBarNotification[] extantNotifications = groupInfo.children;
                     final ArrayList<Notification> ourNotifications = new ArrayList<Notification>();
-                    ourNotifications.add(nativeNotification);
+                    boolean listNeedsUs = true;
                     for(StatusBarNotification n : extantNotifications) {
+                        if(n.getId() == platformId) {
+                            listNeedsUs = false;
+                        }
                         ourNotifications.add(n.getNotification());
+                    }
+                    if(listNeedsUs) {
+                        ourNotifications.add(0, nativeNotification);
                     }
 
                     final int notificationCount = ourNotifications.size();
