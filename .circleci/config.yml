@@ -8,7 +8,7 @@ orbs:
 jobs:
   build:
     docker:
-      - image: cimg/android:2023.07
+      - image: cimg/android:2026.02.1
         environment:
           ANDROID_HOME=/opt/android/sdk
     steps:
@@ -17,7 +17,7 @@ jobs:
           name: Check for any usage of the org.json.* namespace
           command: ./org_json_check
       - restore_cache:
-          key: v0-{{ checksum "build.gradle" }}-{{ checksum  "test_app/build.gradle" }}-{{ checksum "Gemfile.lock" }}
+          key: v1-{{ checksum "build.gradle" }}-{{ checksum  "test_app/build.gradle" }}-{{ checksum "Gemfile.lock" }}
       - run:
           name: Install Sentry CLI
           command: curl -sL https://sentry.io/get-cli/ | bash
@@ -32,7 +32,7 @@ jobs:
       - save_cache:
           paths:
             - ~/.gradle
-          key: v0-{{ checksum "build.gradle" }}-{{ checksum  "test_app/build.gradle" }}-{{ checksum "Gemfile.lock" }}
+          key: v1-{{ checksum "build.gradle" }}-{{ checksum  "test_app/build.gradle" }}-{{ checksum "Gemfile.lock" }}
       - run:
           name: Build Teak SDK
           command: ./gradlew assemble
@@ -58,7 +58,7 @@ jobs:
           command: ./check_thread_use
       - run:
           name: Run Teak SDK Unit Tests
-          command: (cd test_app; ./gradlew test --continue)
+          command: (cd test_app; ./gradlew testDebugUnitTest --continue)
       - store_test_results:
           path: test_app/app/build/test-results/
 
