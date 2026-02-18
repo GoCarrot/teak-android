@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import io.teak.sdk.Helpers;
 import io.teak.sdk.Teak;
 import io.teak.sdk.core.DeepLink;
 
@@ -63,144 +64,58 @@ public class DeepLinkRoutes extends TeakUnitTest {
         verify(callback, timeout(100)).call(arg);
     }
 
+    // CGI.escape on the server encodes spaces as '+'.
     @Test
     public void queryWithPlusForSpace() throws Exception {
-        io.teak.sdk.core.DeepLink.routes.clear();
-
-        final Teak.DeepLink callback = mock(Teak.DeepLink.class);
-        Teak.registerDeepLink("/store/:sku", "", "", callback);
-        Thread.sleep(10);
-
-        // CGI.escape on the server encodes spaces as '+'. This is the most
-        // common encoding in real Teak URLs.
-        final URI uri = new URI("teak" + TestAppId + ":///store/item123?offer=Summer+Sale");
-        assertNotNull(uri);
-        assertTrue(io.teak.sdk.core.DeepLink.processUri(uri));
-
-        final Map<String, Object> arg = new HashMap<>();
-        arg.put("sku", "item123");
-        arg.put("offer", "Summer Sale");
-        arg.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
-        arg.put(DeepLink.INCOMING_URL_KEY, uri.toString());
-        verify(callback, timeout(100)).call(arg);
+        assertQueryDecoding("/store/item123?offer=Summer+Sale",
+            "sku", "item123", "offer", "Summer Sale");
     }
 
+    // %20 encodes a space.
     @Test
     public void queryWithEncodedSpace() throws Exception {
-        io.teak.sdk.core.DeepLink.routes.clear();
-
-        final Teak.DeepLink callback = mock(Teak.DeepLink.class);
-        Teak.registerDeepLink("/store/:sku", "", "", callback);
-        Thread.sleep(10);
-
-        // %20 encodes a space. This should decode correctly.
-        final URI uri = new URI("teak" + TestAppId + ":///store/item123?offer=Spring%20Sale");
-        assertNotNull(uri);
-        assertTrue(io.teak.sdk.core.DeepLink.processUri(uri));
-
-        final Map<String, Object> arg = new HashMap<>();
-        arg.put("sku", "item123");
-        arg.put("offer", "Spring Sale");
-        arg.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
-        arg.put(DeepLink.INCOMING_URL_KEY, uri.toString());
-        verify(callback, timeout(100)).call(arg);
+        assertQueryDecoding("/store/item123?offer=Spring%20Sale",
+            "sku", "item123", "offer", "Spring Sale");
     }
 
+    // %26 encodes a literal '&' inside a value.
     @Test
     public void queryWithEncodedAmpersand() throws Exception {
-        io.teak.sdk.core.DeepLink.routes.clear();
-
-        final Teak.DeepLink callback = mock(Teak.DeepLink.class);
-        Teak.registerDeepLink("/store/:sku", "", "", callback);
-        Thread.sleep(10);
-
-        // %26 encodes a literal '&' inside a value. This should decode correctly.
-        final URI uri = new URI("teak" + TestAppId + ":///store/item123?offer=Buy%26Save");
-        assertNotNull(uri);
-        assertTrue(io.teak.sdk.core.DeepLink.processUri(uri));
-
-        final Map<String, Object> arg = new HashMap<>();
-        arg.put("sku", "item123");
-        arg.put("offer", "Buy&Save");
-        arg.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
-        arg.put(DeepLink.INCOMING_URL_KEY, uri.toString());
-        verify(callback, timeout(100)).call(arg);
+        assertQueryDecoding("/store/item123?offer=Buy%26Save",
+            "sku", "item123", "offer", "Buy&Save");
     }
 
+    // %25 encodes literal '%', %20 encodes space. "50% Off" → 50%25%20Off
     @Test
     public void queryWithPercentInValue() throws Exception {
-        io.teak.sdk.core.DeepLink.routes.clear();
-
-        final Teak.DeepLink callback = mock(Teak.DeepLink.class);
-        Teak.registerDeepLink("/store/:sku", "", "", callback);
-        Thread.sleep(10);
-
-        // "50% Off" is percent-encoded by the server as 50%25%20Off.
-        // %25 encodes literal '%', %20 encodes space.
-        final URI uri = new URI("teak" + TestAppId + ":///store/item123?offer=50%25%20Off");
-        assertNotNull(uri);
-        assertTrue(io.teak.sdk.core.DeepLink.processUri(uri));
-
-        final Map<String, Object> arg = new HashMap<>();
-        arg.put("sku", "item123");
-        arg.put("offer", "50% Off");
-        arg.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
-        arg.put(DeepLink.INCOMING_URL_KEY, uri.toString());
-        verify(callback, timeout(100)).call(arg);
+        assertQueryDecoding("/store/item123?offer=50%25%20Off",
+            "sku", "item123", "offer", "50% Off");
     }
 
+    // teak_creative_name "50% Off Sale" with other teak params alongside.
     @Test
     public void queryWithPercentInTeakCreativeName() throws Exception {
-        io.teak.sdk.core.DeepLink.routes.clear();
-
-        final Teak.DeepLink callback = mock(Teak.DeepLink.class);
-        Teak.registerDeepLink("/store/:sku", "", "", callback);
-        Thread.sleep(10);
-
-        // An email/link launch where teak_creative_name is "50% Off Sale",
-        // properly encoded by the server. The non-percent params should still
-        // arrive even if the percent-containing one is broken.
-        final URI uri = new URI("teak" + TestAppId + ":///store/item123"
-            + "?teak_notif_id=99999"
-            + "&teak_creative_name=50%25%20Off%20Sale"
-            + "&teak_schedule_name=Summer%20Promo");
-        assertNotNull(uri);
-        assertTrue(io.teak.sdk.core.DeepLink.processUri(uri));
-
-        final Map<String, Object> arg = new HashMap<>();
-        arg.put("sku", "item123");
-        arg.put("teak_notif_id", "99999");
-        arg.put("teak_creative_name", "50% Off Sale");
-        arg.put("teak_schedule_name", "Summer Promo");
-        arg.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
-        arg.put(DeepLink.INCOMING_URL_KEY, uri.toString());
-        verify(callback, timeout(100)).call(arg);
+        assertQueryDecoding("/store/item123"
+                + "?teak_notif_id=99999"
+                + "&teak_creative_name=50%25%20Off%20Sale"
+                + "&teak_schedule_name=Summer%20Promo",
+            "sku", "item123",
+            "teak_notif_id", "99999",
+            "teak_creative_name", "50% Off Sale",
+            "teak_schedule_name", "Summer Promo");
     }
 
+    // teak_schedule_name "100% Boost Weekend" with % in the name.
     @Test
     public void queryWithPercentInTeakScheduleName() throws Exception {
-        io.teak.sdk.core.DeepLink.routes.clear();
-
-        final Teak.DeepLink callback = mock(Teak.DeepLink.class);
-        Teak.registerDeepLink("/store/:sku", "", "", callback);
-        Thread.sleep(10);
-
-        // Schedule name "100% Boost Weekend" with % in the name.
-        final URI uri = new URI("teak" + TestAppId + ":///store/item123"
-            + "?teak_notif_id=88888"
-            + "&teak_creative_name=Weekend%20Creative"
-            + "&teak_schedule_name=100%25%20Boost%20Weekend");
-        assertNotNull(uri);
-        assertTrue(io.teak.sdk.core.DeepLink.processUri(uri));
-
-        final Map<String, Object> arg = new HashMap<>();
-        arg.put("sku", "item123");
-        arg.put("teak_notif_id", "88888");
-        arg.put("teak_creative_name", "Weekend Creative");
-        arg.put("teak_schedule_name", "100% Boost Weekend");
-        arg.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
-        arg.put(DeepLink.INCOMING_URL_KEY, uri.toString());
-        verify(callback, timeout(100)).call(arg);
+        assertQueryDecoding("/store/item123"
+                + "?teak_notif_id=88888"
+                + "&teak_creative_name=Weekend%20Creative"
+                + "&teak_schedule_name=100%25%20Boost%20Weekend",
+            "sku", "item123",
+            "teak_notif_id", "88888",
+            "teak_creative_name", "Weekend Creative",
+            "teak_schedule_name", "100% Boost Weekend");
     }
 
     @Test
@@ -222,5 +137,26 @@ public class DeepLinkRoutes extends TeakUnitTest {
         arg.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
         arg.put(DeepLink.INCOMING_URL_KEY, uri.toString());
         verify(callback, timeout(100)).call(arg);
+    }
+
+    /**
+     * Register a /store/:sku route, process a deep link, and verify the callback
+     * receives the expected key/value pairs.
+     */
+    private void assertQueryDecoding(String pathAndQuery, Object... keysAndValues) throws Exception {
+        io.teak.sdk.core.DeepLink.routes.clear();
+
+        final Teak.DeepLink callback = mock(Teak.DeepLink.class);
+        Teak.registerDeepLink("/store/:sku", "", "", callback);
+        Thread.sleep(10);
+
+        final URI uri = new URI("teak" + TestAppId + "://" + pathAndQuery);
+        assertNotNull(uri);
+        assertTrue(io.teak.sdk.core.DeepLink.processUri(uri));
+
+        final Map<String, Object> expected = Helpers.mm.h(keysAndValues);
+        expected.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
+        expected.put(DeepLink.INCOMING_URL_KEY, uri.toString());
+        verify(callback, timeout(100)).call(expected);
     }
 }
