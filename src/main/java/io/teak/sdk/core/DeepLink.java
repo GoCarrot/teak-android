@@ -135,8 +135,8 @@ public static boolean processUri(URI uri) {
                 }
 
                 Map<String, String> query = new HashMap<>();
-                if (uri.getQuery() != null) {
-                    String[] pairs = uri.getQuery().split("&");
+                if (uri.getRawQuery() != null) {
+                    String[] pairs = uri.getRawQuery().split("&");
                     for (String pair : pairs) {
                         int eqIdx = pair.indexOf("=");
                         try {
