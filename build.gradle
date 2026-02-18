@@ -4,7 +4,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.2.2'
+        classpath 'com.android.tools.build:gradle:8.7.0'
     }
 }
 
@@ -28,7 +28,7 @@ gradle.projectsEvaluated {
 
             // Compute UUID
             def sentry_debug_meta_properties = "${project.rootDir.toPath()}/build/intermediates/assets" +
-                    "/${variant.dirName}/sentry-debug-meta.properties"
+                    "/${variant.name}/sentry-debug-meta.properties"
             def sentryProguardTask = project.tasks.create(
                     name: "processSentryR8For${variantName}",
                     type: Exec) {
@@ -103,7 +103,7 @@ android.libraryVariants.all { variant ->
             source = project.android.sourceSets.main.java.srcDirs
 
             // Classpath from the variant + android.jar
-            classpath = variant.javaCompileProvider.get().classpath + files(project.android.getBootClasspath()) + files("$buildDir/intermediates/classes/release")
+            classpath = variant.javaCompileProvider.get().classpath + files(android.bootClasspath) + files("${project.layout.buildDirectory.get().asFile}/intermediates/classes/release")
 
             // Include only public facing API classes
             include "**/Teak.java"
@@ -133,10 +133,10 @@ def getVersionName = { ->
 }
 
 android {
-    compileSdkVersion 31
+    compileSdk 35
 
     defaultConfig {
-        minSdkVersion 16
+        minSdk 21
         versionCode 2
         versionName getVersionName()
         consumerProguardFiles 'proguard.txt'
@@ -158,12 +158,12 @@ android {
         }
     }
 
-    lintOptions {
+    lint {
         abortOnError false
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
     namespace 'io.teak.sdk'
