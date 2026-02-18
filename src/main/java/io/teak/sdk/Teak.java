@@ -1509,6 +1509,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             }
 
             json.put("channelCategories", categories);
+            json.put("deviceId", TeakConfiguration.get().deviceConfiguration.deviceId);
             return json;
         }
     }
@@ -1665,6 +1666,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             json.put("pushStatus", this.pushStatus.toJSON());
             json.put("smsStatus", this.smsStatus.toJSON());
             json.put("pushRegistration", this.pushRegistration);
+            json.put("deviceId", TeakConfiguration.get().deviceConfiguration.deviceId);
             return json;
         }
         /// @endcond
