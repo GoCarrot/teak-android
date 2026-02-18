@@ -30,7 +30,7 @@ public class DeviceIdInEvents extends TeakUnitTest {
     @Test
     public void configurationDataEvent_toJSON_containsDeviceId() {
         RemoteConfiguration remoteConfig = createMockRemoteConfiguration();
-        Teak.ConfigurationDataEvent event = new Teak.ConfigurationDataEvent(remoteConfig);
+        Teak.ConfigurationDataEvent event = new Teak.ConfigurationDataEvent(remoteConfig, "unit_test_mock_device");
 
         JSONObject json = event.toJSON();
 
@@ -47,7 +47,8 @@ public class DeviceIdInEvents extends TeakUnitTest {
             ChannelStatus.Unknown,
             ChannelStatus.Unknown,
             ChannelStatus.Unknown,
-            new HashMap<String, String>());
+            new HashMap<String, String>(),
+            "unit_test_mock_device");
 
         JSONObject json = event.toJSON();
 
