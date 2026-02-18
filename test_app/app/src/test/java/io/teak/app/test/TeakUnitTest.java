@@ -29,6 +29,8 @@ public class TeakUnitTest {
     TestTeakEventListener eventListener;
     IAndroidNotification androidNotification;
     TeakCore teakCore;
+    Context context;
+    IObjectFactory objectFactory;
 
     protected static final String TestAppId = "1136371193060244";
 
@@ -49,7 +51,7 @@ public class TeakUnitTest {
         // TODO: getInstallerPackageName ?
 
         // Context mock
-        Context context = mock(Context.class);
+        context = mock(Context.class);
         when(context.getPackageName()).thenReturn("io.teak.app.test");
         when(context.getPackageManager()).thenReturn(packageManager);
         when(context.getApplicationContext()).thenReturn(context);
@@ -81,7 +83,7 @@ public class TeakUnitTest {
         eventListener = spy(TestTeakEventListener.class);
         TeakEvent.addEventListener(eventListener);
 
-        IObjectFactory objectFactory = new IObjectFactory() {
+        objectFactory = new IObjectFactory() {
             @Nullable
             @Override
             public IStore getIStore() {
