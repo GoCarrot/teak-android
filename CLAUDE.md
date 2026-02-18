@@ -14,8 +14,11 @@ Teak Android SDK — a native Android library (AAR) providing push notifications
 ./format-code                               # Format all Java files with clang-format
 
 # Tests live in the test_app/ subproject
-(cd test_app && ./gradlew test --continue)                                    # Run all unit tests
-(cd test_app && ./gradlew test --tests "io.teak.app.test.DeepLinkRoutes")    # Run single test class
+(cd test_app && ./gradlew testDebugUnitTest)                                              # Run all unit tests (debug)
+(cd test_app && ./gradlew testDebugUnitTest --tests "io.teak.app.test.DeepLinkRoutes")    # Run single test class
+
+# NOTE: Release unit tests (testReleaseUnitTest) currently fail due to ProGuard/obfuscation
+# stripping fields used by test setup (NoSuchFieldException: eventListeners). Use debug tests.
 ```
 
 ## CI Checks to Know About
