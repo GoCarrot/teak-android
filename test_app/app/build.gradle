@@ -1,12 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 31
+    compileSdk 35
+    namespace 'io.teak.app.test'
 
     defaultConfig {
         applicationId "io.teak.app.test"
-        minSdkVersion 16
-        targetSdkVersion 31
+        minSdk 21
+        targetSdk 35
         multiDexEnabled true
         versionCode 1
         versionName "1.0"
@@ -47,13 +48,13 @@ dependencies {
     implementation "com.android.billingclient:billing:3.0.0"
 
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.mockito:mockito-core:2.22.0'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
 
     // TODO: Investigate using Robolectric
 //    testImplementation "org.robolectric:robolectric:4.6.1"
 
     // This is for HTTP mocking/testing
-    implementation("com.github.tomakehurst:wiremock:2.18.0") {
+    implementation("com.github.tomakehurst:wiremock:2.27.2") {
         exclude group: 'org.apache.httpcomponents', module: 'httpclient'
         exclude group: 'asm', module: 'asm'
         exclude group: 'org.json', module: 'json'
