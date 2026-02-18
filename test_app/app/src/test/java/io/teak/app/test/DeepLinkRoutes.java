@@ -64,6 +64,28 @@ public class DeepLinkRoutes extends TeakUnitTest {
     }
 
     @Test
+    public void queryWithPlusForSpace() throws Exception {
+        io.teak.sdk.core.DeepLink.routes.clear();
+
+        final Teak.DeepLink callback = mock(Teak.DeepLink.class);
+        Teak.registerDeepLink("/store/:sku", "", "", callback);
+        Thread.sleep(10);
+
+        // CGI.escape on the server encodes spaces as '+'. This is the most
+        // common encoding in real Teak URLs.
+        final URI uri = new URI("teak" + TestAppId + ":///store/item123?offer=Summer+Sale");
+        assertNotNull(uri);
+        assertTrue(io.teak.sdk.core.DeepLink.processUri(uri));
+
+        final Map<String, Object> arg = new HashMap<>();
+        arg.put("sku", "item123");
+        arg.put("offer", "Summer Sale");
+        arg.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
+        arg.put(DeepLink.INCOMING_URL_KEY, uri.toString());
+        verify(callback, timeout(100)).call(arg);
+    }
+
+    @Test
     public void queryWithEncodedSpace() throws Exception {
         io.teak.sdk.core.DeepLink.routes.clear();
 
