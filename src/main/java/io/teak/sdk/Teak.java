@@ -1494,7 +1494,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
 
     public static class ConfigurationDataEvent extends Event implements Unobfuscable {
         private final RemoteConfiguration remoteConfiguration;
-        private final String deviceId;
+        public final String deviceId;
 
         public ConfigurationDataEvent(@NonNull final RemoteConfiguration configuration, @NonNull final String deviceId) {
             super(null, null);
@@ -1660,7 +1660,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             final ChannelStatus push,
             final ChannelStatus sms,
             final Map<String, String> pushRegistration,
-            final String deviceId) {
+            @NonNull final String deviceId) {
             this.additionalData = additionalData == null ? new JSONObject() : additionalData;
             this.emailStatus = email;
             this.pushStatus = push;
