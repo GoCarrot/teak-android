@@ -18,6 +18,7 @@ public class DebugConfiguration {
 
     private boolean logLocal;
     private boolean logRemote;
+    private final boolean forceLocalLogging;
     private final boolean isDevelopmentBuild;
 
     public DebugConfiguration(@NonNull Context context, @NonNull IAndroidResources androidResources) {
@@ -40,7 +41,8 @@ public class DebugConfiguration {
         // Force debug output via Android resource
         {
             final Boolean forceDebugOutput = androidResources.getBooleanResource(TEAK_FORCE_DEBUG_OUTPUT);
-            if (forceDebugOutput != null && forceDebugOutput) {
+            this.forceLocalLogging = forceDebugOutput != null && forceDebugOutput;
+            if (this.forceLocalLogging) {
                 this.logLocal = true;
             }
         }
@@ -61,7 +63,10 @@ public class DebugConfiguration {
     }
 
     public void setLogPreferences(boolean logLocal, boolean logRemote) {
-        if (logLocal != this.logLocal) {
+        // Preserve local logging if forced by the io_teak_force_debug_output resource.
+        logLocal = this.forceLocalLogging || logLocal;
+
+        if (logLocal != this.logLocal || logRemote != this.logRemote) {
             try {
                 synchronized (Teak.PREFERENCES_FILE) {
                     SharedPreferences.Editor editor = this.preferences.edit();
