@@ -10,7 +10,7 @@ Teak Android SDK — a native Android library (AAR) providing push notifications
 
 ```bash
 ./gradlew assemble                          # Build AAR (output: build/outputs/aar/teak-release.aar)
-./gradlew clean assemble generateApiDoc     # Full build with Javadoc (same as ./compile)
+./gradlew clean assemble generateApiDoc     # Full build with Javadoc
 ./format-code                               # Format all Java files with clang-format
 
 # Tests live in the test_app/ subproject
@@ -129,10 +129,10 @@ The changelog is published to the documentation site. Source of truth is YAML fi
 
 ## Version Management
 
-- `VERSION` file at repo root (currently `4.3.9`)
-- Build version from `git describe --tags --always` → `BuildConfig.VERSION_NAME`
-- `./release` script: validates clean tree, creates annotated git tag, pushes
-- CI auto-tags on successful builds; manual approval gate before promoting to "latest" on S3
+- **Git tags are the single source of truth** for version numbers
+- `build.gradle` derives `versionName` from `git describe --tags --always` → `BuildConfig.VERSION_NAME`
+- CI uses `teak/tag-promote` orb to create tags from "Promote to: X.Y.Z" commit messages
+- Tagged builds deploy versioned artifacts to S3; manual approval gate before promoting to "latest"
 
 ## Commit Message Format
 
