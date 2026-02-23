@@ -1,2 +1,0 @@
-new:
-  - "Added `io_teak_force_debug_output` boolean Android resource to force-enable local debug logging on production builds without requiring server contact or a debuggable APK."
