@@ -1509,10 +1509,12 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
 
     public static class ConfigurationDataEvent extends Event implements Unobfuscable {
         private final RemoteConfiguration remoteConfiguration;
+        public final String deviceId;
 
-        public ConfigurationDataEvent(@NonNull final RemoteConfiguration configuration) {
+        public ConfigurationDataEvent(@NonNull final RemoteConfiguration configuration, @NonNull final String deviceId) {
             super(null, null);
             this.remoteConfiguration = configuration;
+            this.deviceId = deviceId;
         }
 
         @Override
@@ -1524,6 +1526,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             }
 
             json.put("channelCategories", categories);
+            json.put("deviceId", this.deviceId);
             return json;
         }
     }
@@ -1652,6 +1655,11 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
          */
         public final Map<String, String> pushRegistration;
 
+        /**
+         * The device's persistent random ID.
+         */
+        public final String deviceId;
+
         /// @cond hide_from_doxygen
         /**
          * Constructor.
@@ -1660,17 +1668,20 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
          * @param push             Push opt out state.
          * @param sms              SMS opt out state.
          * @param pushRegistration Push registration dictionary
+         * @param deviceId         The device's persistent random ID.
          */
         public UserDataEvent(final JSONObject additionalData,
             final ChannelStatus email,
             final ChannelStatus push,
             final ChannelStatus sms,
-            final Map<String, String> pushRegistration) {
+            final Map<String, String> pushRegistration,
+            @NonNull final String deviceId) {
             this.additionalData = additionalData == null ? new JSONObject() : additionalData;
             this.emailStatus = email;
             this.pushStatus = push;
             this.smsStatus = sms;
             this.pushRegistration = pushRegistration;
+            this.deviceId = deviceId;
         }
 
         public JSONObject toJSON() {
@@ -1680,6 +1691,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             json.put("pushStatus", this.pushStatus.toJSON());
             json.put("smsStatus", this.smsStatus.toJSON());
             json.put("pushRegistration", this.pushRegistration);
+            json.put("deviceId", this.deviceId);
             return json;
         }
         /// @endcond

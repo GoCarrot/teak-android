@@ -37,7 +37,7 @@ public class TeakConfiguration {
     public DataCollectionConfiguration dataCollectionConfiguration;
 
     private TeakConfiguration(@NonNull Context context, @NonNull IObjectFactory objectFactory) throws IntegrationChecker.InvalidConfigurationException {
-        this.debugConfiguration = new DebugConfiguration(context);
+        this.debugConfiguration = new DebugConfiguration(context, objectFactory.getAndroidResources());
         this.appConfiguration = new AppConfiguration(context, objectFactory.getAndroidResources());
         this.deviceConfiguration = new DeviceConfiguration(context, objectFactory);
         this.dataCollectionConfiguration = new DataCollectionConfiguration(context, objectFactory.getAndroidResources());

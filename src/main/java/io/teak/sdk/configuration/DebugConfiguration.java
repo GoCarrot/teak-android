@@ -5,18 +5,23 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import androidx.annotation.NonNull;
 import io.teak.sdk.Teak;
+import io.teak.sdk.io.IAndroidResources;
 
 public class DebugConfiguration {
     private static final String PREFERENCE_LOG_LOCAL = "io.teak.sdk.Preferences.LogLocal";
     private static final String PREFERENCE_LOG_REMOTE = "io.teak.sdk.Preferences.LogRemote";
 
+    @SuppressWarnings("WeakerAccess")
+    public static final String TEAK_FORCE_DEBUG_OUTPUT = "io_teak_force_debug_output";
+
     private final SharedPreferences preferences;
 
     private boolean logLocal;
     private boolean logRemote;
+    private final boolean forceLocalLogging;
     private final boolean isDevelopmentBuild;
 
-    public DebugConfiguration(@NonNull Context context) {
+    public DebugConfiguration(@NonNull Context context, @NonNull IAndroidResources androidResources) {
         SharedPreferences tempPreferences = null;
         try {
             tempPreferences = context.getSharedPreferences(Teak.PREFERENCES_FILE, Context.MODE_PRIVATE);
@@ -31,6 +36,15 @@ public class DebugConfiguration {
         } else {
             this.logLocal = Teak.forceDebug || this.preferences.getBoolean(PREFERENCE_LOG_LOCAL, false);
             this.logRemote = Teak.forceDebug || this.preferences.getBoolean(PREFERENCE_LOG_REMOTE, false);
+        }
+
+        // Force debug output via Android resource
+        {
+            final Boolean forceDebugOutput = androidResources.getBooleanResource(TEAK_FORCE_DEBUG_OUTPUT);
+            this.forceLocalLogging = forceDebugOutput != null && forceDebugOutput;
+            if (this.forceLocalLogging) {
+                this.logLocal = true;
+            }
         }
 
         boolean tempDevelopmentBuild = false;
@@ -49,7 +63,10 @@ public class DebugConfiguration {
     }
 
     public void setLogPreferences(boolean logLocal, boolean logRemote) {
-        if (logLocal != this.logLocal) {
+        // Preserve local logging if forced by the io_teak_force_debug_output resource.
+        logLocal = this.forceLocalLogging || logLocal;
+
+        if (logLocal != this.logLocal || logRemote != this.logRemote) {
             try {
                 synchronized (Teak.PREFERENCES_FILE) {
                     SharedPreferences.Editor editor = this.preferences.edit();

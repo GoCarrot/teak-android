@@ -1,0 +1,8 @@
+new:
+  - "Added `io_teak_force_debug_output` boolean Android resource to force-enable local debug logging on production builds without requiring server contact or a debuggable APK."
+  - "Added `deviceId` to `ConfigurationData` and `UserData` event payloads."
+breaking:
+  - "Minimum supported Android version is now Android 5.0 (API 21), up from Android 4.1 (API 16)."
+bug:
+  - "Fixed double-decoding of query parameters in deep link URI processing."
+  - "Fixed server `verbose_logging=false` overriding local `io_teak_force_debug_output` resource."

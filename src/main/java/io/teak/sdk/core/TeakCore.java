@@ -110,7 +110,7 @@ public class TeakCore {
                 }
                 case RemoteConfigurationEvent.Type: {
                     final RemoteConfiguration configuration = ((RemoteConfigurationEvent) event).remoteConfiguration;
-                    final Teak.ConfigurationDataEvent sdkEvent = new Teak.ConfigurationDataEvent(configuration);
+                    final Teak.ConfigurationDataEvent sdkEvent = new Teak.ConfigurationDataEvent(configuration, TeakConfiguration.get().deviceConfiguration.deviceId);
                     new Handler(Looper.getMainLooper()).post(() -> {
                         EventBus.getDefault().post(sdkEvent);
                     });
