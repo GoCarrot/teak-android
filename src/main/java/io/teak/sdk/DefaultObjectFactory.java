@@ -106,7 +106,7 @@ public class DefaultObjectFactory implements IObjectFactory {
             try {
                 Class.forName("com.amazon.device.iap.PurchasingListener");
                 clazz = Class.forName("io.teak.sdk.store.Amazon");
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 Teak.log.exception(e);
             }
         } else {
