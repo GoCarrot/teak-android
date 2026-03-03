@@ -112,13 +112,12 @@ public class DefaultObjectFactory implements IObjectFactory {
         } else {
             try {
                 // Check if the billing library is present at all
-                Class.forName("com.android.billingclient.api.BillingClient");
+                Class<?> billingClientClass = Class.forName("com.android.billingclient.api.BillingClient");
 
                 try {
                     // If the 'BillingClient.queryProductDetailsAsync' method is present
                     // this is Google Play Billing v5 so use that instead.
-                    Class<?> gpbv5 = Class.forName("com.android.billingclient.api.BillingClient");
-                    gpbv5.getMethod("queryProductDetailsAsync");
+                    billingClientClass.getMethod("queryProductDetailsAsync");
                     clazz = Class.forName("io.teak.sdk.store.GooglePlayBillingV5");
                 } catch (NoSuchMethodException ignored) {
                 }
