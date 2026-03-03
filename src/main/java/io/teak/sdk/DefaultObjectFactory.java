@@ -75,7 +75,7 @@ public class DefaultObjectFactory implements IObjectFactory {
 
     ///// Helpers
 
-    private IStore createStore(@NonNull Context context) {
+    static IStore createStore(@NonNull Context context) {
         // If automatic purchase collection is disabled, just return null
         //
         // Note that we cannot use TeakConfiguration here because this happens before it is initialized.
