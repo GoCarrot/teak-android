@@ -1,5 +1,9 @@
 = Integration
 
+== Requirements
+
+* [x] Android 5.0 (API level 21) or newer
+
 The latest version of the Teak Android SDK is always available at:
 
 * http://sdks.teakcdn.com/android/teak.aar
