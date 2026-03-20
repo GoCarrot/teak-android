@@ -2,7 +2,7 @@
 
 == Requirements
 
-* [x] Android 5.0 (API level 21) or newer
+* [x] Android {min-android-name} (API level {min-android-sdk}) or newer
 
 The latest version of the Teak Android SDK is always available at:
 
