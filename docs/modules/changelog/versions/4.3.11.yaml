@@ -1,0 +1,2 @@
+bug:
+  - Fix crash (`NoClassDefFoundError`) when the Google Play Billing library is not included in the game's dependencies.

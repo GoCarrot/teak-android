@@ -75,7 +75,7 @@ public class DefaultObjectFactory implements IObjectFactory {
 
     ///// Helpers
 
-    private IStore createStore(@NonNull Context context) {
+    static IStore createStore(@NonNull Context context) {
         // If automatic purchase collection is disabled, just return null
         //
         // Note that we cannot use TeakConfiguration here because this happens before it is initialized.
@@ -106,29 +106,28 @@ public class DefaultObjectFactory implements IObjectFactory {
             try {
                 Class.forName("com.amazon.device.iap.PurchasingListener");
                 clazz = Class.forName("io.teak.sdk.store.Amazon");
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 Teak.log.exception(e);
             }
         } else {
             try {
-                // If the 'BillingClient.queryProductDetailsAsync' method is present
-                // this is Google Play Billing v5 so use that instead.
-                Class<?> gpbv5 = Class.forName("com.android.billingclient.api.BillingClient");
-                gpbv5.getMethod("queryProductDetailsAsync");
-                clazz = Class.forName("io.teak.sdk.store.GooglePlayBillingV5");
-            } catch (NoSuchMethodException ignored) {
+                // Check if the billing library is present at all
+                Class<?> billingClientClass = Class.forName("com.android.billingclient.api.BillingClient");
 
-            } catch (Exception e) {
-                Teak.log.exception(e);
-            }
-
-            if (clazz == null) {
                 try {
+                    // If the 'BillingClient.queryProductDetailsAsync' method is present
+                    // this is Google Play Billing v5 so use that instead.
+                    billingClientClass.getMethod("queryProductDetailsAsync");
+                    clazz = Class.forName("io.teak.sdk.store.GooglePlayBillingV5");
+                } catch (NoSuchMethodException ignored) {
+                }
+
+                if (clazz == null) {
                     // Default to Billing v4
                     clazz = Class.forName("io.teak.sdk.store.GooglePlayBillingV4");
-                } catch (Exception e) {
-                    Teak.log.exception(e);
                 }
+            } catch (Throwable e) {
+                Teak.log.exception(e);
             }
         }
 
