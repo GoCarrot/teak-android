@@ -1,3 +1,3 @@
 new:
-  - "Added ``io_teak_claim_mode`` string resource. When set, the SDK declares its claim mode on every reward click and warns at init if the configured value isn't in the game's ``supported_claim_modes``. Defaults to ``legacy``."
+  - "Added ``io_teak_reward_claim_mode`` string resource. When set, the SDK declares its claim mode on every reward click and warns at init if the configured value isn't in the game's ``supported_claim_modes``. Defaults to ``legacy``."
   - "``TeakNotification.Reward`` now exposes ``PLAYER_INELIGIBLE`` (-7), ``NO_REWARD_AVAILABLE`` (-8), and ``CLAIM_MODE_UNSUPPORTED`` (-9) status values for the new server reward states."

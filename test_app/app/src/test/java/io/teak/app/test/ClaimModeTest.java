@@ -45,7 +45,7 @@ public class ClaimModeTest extends TeakUnitTest {
 
     @Test
     public void claimMode_defaultsToLegacy_whenResourceAbsent() {
-        // androidResources is unmocked for io_teak_claim_mode in TeakUnitTest -> returns null.
+        // androidResources is unmocked for io_teak_reward_claim_mode in TeakUnitTest -> returns null.
         assertEquals(AppConfiguration.DefaultClaimMode,
             TeakConfiguration.get().appConfiguration.claimMode);
         assertEquals("legacy", TeakConfiguration.get().appConfiguration.claimMode);

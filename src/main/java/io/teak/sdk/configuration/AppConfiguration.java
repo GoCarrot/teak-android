@@ -63,7 +63,7 @@ public class AppConfiguration {
     @SuppressWarnings("WeakerAccess")
     public static final String TEAK_SDK_5_BEHAVIORS = "io_teak_sdk5_behaviors";
     @SuppressWarnings("WeakerAccess")
-    public static final String TEAK_CLAIM_MODE_RESOURCE = "io_teak_claim_mode";
+    public static final String TEAK_CLAIM_MODE_RESOURCE = "io_teak_reward_claim_mode";
 
     @SuppressWarnings("WeakerAccess")
     public static final String DefaultClaimMode = "legacy";
