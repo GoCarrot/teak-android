@@ -8,6 +8,7 @@ import java.util.Map;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import io.teak.sdk.IntegrationChecker;
 import io.teak.sdk.Request;
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakConfiguration;
@@ -18,6 +19,7 @@ import io.teak.sdk.event.DeepLinksReadyEvent;
 import io.teak.sdk.event.RemoteConfigurationEvent;
 import io.teak.sdk.io.AndroidResources;
 import io.teak.sdk.io.DefaultAndroidResources;
+import io.teak.sdk.json.JSONArray;
 import io.teak.sdk.json.JSONObject;
 
 public class RemoteConfiguration {
@@ -237,6 +239,10 @@ public class RemoteConfiguration {
                                 categories,
                                 false);
 
+                            // Warn if the configured claim_mode isn't in the game's supported_claim_modes.
+                            warnIfClaimModeUnsupported(teakConfiguration.appConfiguration.claimMode,
+                                response.optJSONArray("supported_claim_modes"));
+
                             Teak.log.i("configuration.remote", configuration.toHash());
                             TeakEvent.postEvent(new RemoteConfigurationEvent(configuration));
                         } catch (Exception e) {
@@ -267,6 +273,30 @@ public class RemoteConfiguration {
         return RemoteConfiguration.defaultHostname;
     }
     // endregion
+
+    private static void warnIfClaimModeUnsupported(@NonNull String configuredClaimMode, @Nullable JSONArray supportedClaimModes) {
+        if (supportedClaimModes == null) {
+            return;
+        }
+
+        boolean found = false;
+        for (int i = 0; i < supportedClaimModes.length(); i++) {
+            final Object entry = supportedClaimModes.opt(i);
+            if (entry instanceof String && configuredClaimMode.equals(entry)) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            final HashMap<String, Object> data = new HashMap<>();
+            data.put("configured_claim_mode", configuredClaimMode);
+            data.put("supported_claim_modes", supportedClaimModes.toString());
+            Teak.log.w(IntegrationChecker.LOG_TAG,
+                "Configured " + AppConfiguration.TEAK_CLAIM_MODE_RESOURCE + " '" + configuredClaimMode + "' is not in this game's supported_claim_modes. Reward claims may fail with claim_mode_unsupported.",
+                data);
+        }
+    }
 
     private Map<String, Object> toHash() {
         HashMap<String, Object> ret = new HashMap<>();

@@ -49,6 +49,8 @@ public class AppConfiguration {
     public final Set<String> urlSchemes;
     @SuppressWarnings("WeakerAccess")
     public final boolean sdk5Behaviors;
+    @SuppressWarnings("WeakerAccess")
+    public final String claimMode;
 
     @SuppressWarnings("WeakerAccess")
     public static final String TEAK_API_KEY_RESOURCE = "io_teak_api_key";
@@ -60,6 +62,11 @@ public class AppConfiguration {
     public static final String TEAK_TRACE_LOG_RESOURCE = "io_teak_log_trace";
     @SuppressWarnings("WeakerAccess")
     public static final String TEAK_SDK_5_BEHAVIORS = "io_teak_sdk5_behaviors";
+    @SuppressWarnings("WeakerAccess")
+    public static final String TEAK_CLAIM_MODE_RESOURCE = "io_teak_claim_mode";
+
+    @SuppressWarnings("WeakerAccess")
+    public static final String DefaultClaimMode = "legacy";
 
     @SuppressWarnings("WeakerAccess")
     public static final String GooglePlayStoreId = "google_play";
@@ -182,6 +189,12 @@ public class AppConfiguration {
             final Boolean sdk5Behaviors = androidResources.getTeakBoolResource(TEAK_SDK_5_BEHAVIORS, true);
             this.sdk5Behaviors = sdk5Behaviors != null ? sdk5Behaviors : true;
         }
+
+        // Claim mode
+        {
+            final String configuredClaimMode = androidResources.getTeakStringResource(TEAK_CLAIM_MODE_RESOURCE);
+            this.claimMode = (configuredClaimMode == null || configuredClaimMode.trim().isEmpty()) ? DefaultClaimMode : configuredClaimMode;
+        }
     }
 
     @SuppressWarnings("deprecation")
@@ -204,6 +217,7 @@ public class AppConfiguration {
         ret.put("targetSdkVersion", this.targetSdkVersion);
         ret.put("traceLog", this.traceLog);
         ret.put("sdk5Behaviors", this.sdk5Behaviors);
+        ret.put("claimMode", this.claimMode);
         return ret;
     }
 
