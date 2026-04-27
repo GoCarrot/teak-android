@@ -112,6 +112,21 @@ public class TeakNotification implements Unobfuscable {
         public static final int INVALID_POST = -6;
 
         /**
+         * The clicking user is not eligible to claim this reward.
+         */
+        public static final int PLAYER_INELIGIBLE = -7;
+
+        /**
+         * No reward is currently available for this user from this notification.
+         */
+        public static final int NO_REWARD_AVAILABLE = -8;
+
+        /**
+         * The configured claim mode is not supported by this game.
+         */
+        public static final int CLAIM_MODE_UNSUPPORTED = -9;
+
+        /**
          * Status of this reward.
          *
          * One of the following status codes:
@@ -123,6 +138,9 @@ public class TeakNotification implements Unobfuscable {
          * {@link Reward#EXCEED_MAX_CLICKS_FOR_DAY}
          * {@link Reward#EXPIRED}
          * {@link Reward#INVALID_POST}
+         * {@link Reward#PLAYER_INELIGIBLE}
+         * {@link Reward#NO_REWARD_AVAILABLE}
+         * {@link Reward#CLAIM_MODE_UNSUPPORTED}
          *
          * If status is {@link Reward#GRANT_REWARD}, the 'reward' field will contain the reward that should be granted.
          */
@@ -153,6 +171,12 @@ public class TeakNotification implements Unobfuscable {
                 status = EXPIRED;
             } else if (INVALID_POST_STRING.equals(statusString)) {
                 status = INVALID_POST;
+            } else if (PLAYER_INELIGIBLE_STRING.equals(statusString)) {
+                status = PLAYER_INELIGIBLE;
+            } else if (NO_REWARD_AVAILABLE_STRING.equals(statusString)) {
+                status = NO_REWARD_AVAILABLE;
+            } else if (CLAIM_MODE_UNSUPPORTED_STRING.equals(statusString)) {
+                status = CLAIM_MODE_UNSUPPORTED;
             } else {
                 status = UNKNOWN;
             }
@@ -171,6 +195,9 @@ public class TeakNotification implements Unobfuscable {
         private static final String EXCEED_MAX_CLICKS_FOR_DAY_STRING = "exceed_max_clicks_for_day";
         private static final String EXPIRED_STRING = "expired";
         private static final String INVALID_POST_STRING = "invalid_post";
+        private static final String PLAYER_INELIGIBLE_STRING = "player_ineligible";
+        private static final String NO_REWARD_AVAILABLE_STRING = "no_reward_available";
+        private static final String CLAIM_MODE_UNSUPPORTED_STRING = "claim_mode_unsupported";
 
         /**
          * @return A {@link Future} which will contain the reward that should be granted, or <code>null</code> if there is no associated reward.
@@ -205,9 +232,11 @@ public class TeakNotification implements Unobfuscable {
 
                 try {
                     // https://rewards.gocarrot.com/<<teak_reward_id>>/clicks?clicking_user_id=<<your_user_id>>
-                    //String requestBody = "clicking_user_id=" + URLEncoder.encode(session.userId(), "UTF-8");
+                    // String requestBody = "clicking_user_id=" + URLEncoder.encode(session.userId(), "UTF-8");
+                    final TeakConfiguration teakConfiguration = TeakConfiguration.get();
                     HashMap<String, Object> payload = new HashMap<>();
                     payload.put("clicking_user_id", session.userId());
+                    payload.put("claim_mode", teakConfiguration.appConfiguration.claimMode);
 
                     Request.submit("rewards.gocarrot.com", "/" + teakRewardId + "/clicks", payload, session,
                         (responseCode, responseBody) -> {
