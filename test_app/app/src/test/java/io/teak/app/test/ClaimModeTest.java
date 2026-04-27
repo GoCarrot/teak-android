@@ -62,18 +62,18 @@ public class ClaimModeTest extends TeakUnitTest {
 
     @Test
     public void claimMode_readsConfiguredValue() throws Exception {
-        when(androidResources.getStringResource(AppConfiguration.TEAK_CLAIM_MODE_RESOURCE)).thenReturn("server_authoritative");
+        when(androidResources.getStringResource(AppConfiguration.TEAK_CLAIM_MODE_RESOURCE)).thenReturn("client_jwt");
         reinitializeWithCurrentMocks();
 
-        assertEquals("server_authoritative", TeakConfiguration.get().appConfiguration.claimMode);
+        assertEquals("client_jwt", TeakConfiguration.get().appConfiguration.claimMode);
     }
 
     @Test
     public void claimMode_appearsInToMap() throws Exception {
-        when(androidResources.getStringResource(AppConfiguration.TEAK_CLAIM_MODE_RESOURCE)).thenReturn("server_authoritative");
+        when(androidResources.getStringResource(AppConfiguration.TEAK_CLAIM_MODE_RESOURCE)).thenReturn("client_jwt");
         reinitializeWithCurrentMocks();
 
-        assertEquals("server_authoritative",
+        assertEquals("client_jwt",
             TeakConfiguration.get().appConfiguration.toMap().get("claimMode"));
     }
 

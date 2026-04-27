@@ -275,27 +275,16 @@ public class RemoteConfiguration {
     // endregion
 
     private static void warnIfClaimModeUnsupported(@NonNull String configuredClaimMode, @Nullable JSONArray supportedClaimModes) {
-        if (supportedClaimModes == null) {
+        if (supportedClaimModes == null || supportedClaimModes.toList().contains(configuredClaimMode)) {
             return;
         }
 
-        boolean found = false;
-        for (int i = 0; i < supportedClaimModes.length(); i++) {
-            final Object entry = supportedClaimModes.opt(i);
-            if (entry instanceof String && configuredClaimMode.equals(entry)) {
-                found = true;
-                break;
-            }
-        }
-
-        if (!found) {
-            final HashMap<String, Object> data = new HashMap<>();
-            data.put("configured_claim_mode", configuredClaimMode);
-            data.put("supported_claim_modes", supportedClaimModes.toString());
-            Teak.log.w(IntegrationChecker.LOG_TAG,
-                "Configured " + AppConfiguration.TEAK_CLAIM_MODE_RESOURCE + " '" + configuredClaimMode + "' is not in this game's supported_claim_modes. Reward claims may fail with claim_mode_unsupported.",
-                data);
-        }
+        final HashMap<String, Object> data = new HashMap<>();
+        data.put("configured_claim_mode", configuredClaimMode);
+        data.put("supported_claim_modes", supportedClaimModes.toString());
+        Teak.log.w(IntegrationChecker.LOG_TAG,
+            "Configured " + AppConfiguration.TEAK_CLAIM_MODE_RESOURCE + " '" + configuredClaimMode + "' is not in this game's supported_claim_modes. Reward claims may fail with claim_mode_unsupported.",
+            data);
     }
 
     private Map<String, Object> toHash() {
