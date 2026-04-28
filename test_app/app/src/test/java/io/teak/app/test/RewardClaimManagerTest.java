@@ -20,7 +20,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-@RunWith(MockitoJUnitRunner.class)
+// .Silent: makeFakeLaunchData stubs every Uri queryParameter the
+// AttributedLaunchData constructor reads, but tests that don't consume launchData
+// would otherwise trip strict-mode "unnecessary stubbings".
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class RewardClaimManagerTest extends TeakUnitTest {
 
     private RecordingSender sender;
@@ -128,27 +131,46 @@ public class RewardClaimManagerTest extends TeakUnitTest {
     // --- Expiring → Active flicker keeps polling alive ---
 
     @Test
-    public void sessionStateListener_onlyDropsOnExpired_notExpiring() throws Exception {
+    public void expiringFlicker_keepsPollingAlive_andExpiredCancelsIt() throws Exception {
         // Wire the manager's static listener; TeakUnitTest.@Before strips event listeners
         // every test, so we re-register inside the test body.
         RewardClaimManager.registerStaticEventListeners();
 
         final Session session = makeSyntheticSession();
-        RewardClaimManager.get().startPoll("evt-1", "reward-1", session, null);
-        assertEquals(1, RewardClaimManager.get().inFlightCount());
+        setCurrentSession(session);
+        try {
+            RewardClaimManager.get().startPoll("evt-1", "reward-1", session, null);
+            assertEquals(1, RewardClaimManager.get().inFlightCount());
 
-        // Expiring transition: no cancellation should happen. An Expiring→Active flicker
-        // keeps the same Session instance and we want polling to continue across it.
-        io.teak.sdk.TeakEvent.postEvent(
-            new io.teak.sdk.event.SessionStateEvent(session, Session.State.Expiring, Session.State.UserIdentified));
-        waitForEventQueueToDrain();
-        assertEquals("Expiring should not cancel polling", 1, RewardClaimManager.get().inFlightCount());
+            // First scheduled poll fires.
+            scheduler.runNext();
+            assertEquals(1, sender.polls.size());
 
-        // Expired transition: cancellation fires.
-        io.teak.sdk.TeakEvent.postEvent(
-            new io.teak.sdk.event.SessionStateEvent(session, Session.State.Expired, Session.State.Expiring));
-        waitForEventQueueToDrain();
-        assertEquals("Expired should cancel polling", 0, RewardClaimManager.get().inFlightCount());
+            // Expiring transition while a poll is in flight. An Expiring→Active flicker
+            // (e.g., notification-center swipe) preserves the Session instance — so the
+            // weak originating-session ref still matches and the manager must keep polling.
+            io.teak.sdk.TeakEvent.postEvent(
+                new io.teak.sdk.event.SessionStateEvent(session, Session.State.Expiring, Session.State.UserIdentified));
+            waitForEventQueueToDrain();
+            assertEquals("Expiring must not cancel an in-flight poll",
+                1, RewardClaimManager.get().inFlightCount());
+
+            // Server replies pending → onPollReply schedules the next poll. The reply-
+            // landing stale check must pass (currentSession is still the originating
+            // session, even though the state has been Expiring).
+            sender.completeLastPoll(200, "{\"status\":\"pending\"}");
+            scheduler.runNext();
+            assertEquals("After Expiring, the next poll must still fire — flicker proof",
+                2, sender.polls.size());
+
+            // Expired transition (post-flicker timeout): cancellation fires.
+            io.teak.sdk.TeakEvent.postEvent(
+                new io.teak.sdk.event.SessionStateEvent(session, Session.State.Expired, Session.State.Expiring));
+            waitForEventQueueToDrain();
+            assertEquals("Expired must cancel polling", 0, RewardClaimManager.get().inFlightCount());
+        } finally {
+            setCurrentSession(null);
+        }
     }
 
     private static void waitForEventQueueToDrain() throws InterruptedException {
@@ -216,23 +238,102 @@ public class RewardClaimManagerTest extends TeakUnitTest {
     @Test
     public void ack_carriesOriginatingClickingUserId_evenAfterGlobalSessionRotation() throws Exception {
         final Session originatingSession = makeSyntheticSessionWithUser("player-original");
-        final Teak.AttributedLaunchData launchData = null;
+        setCurrentSession(originatingSession);
+        try {
+            RewardClaimManager.get().startPoll("evt-1", "reward-1", originatingSession, null);
+            scheduler.runNext();
+            sender.completeLastPoll(200, "{\"status\":\"completed\",\"reward\":{}}");
+            // onPollReply ran synchronously: resolved event posted, ack scheduled.
 
-        RewardClaimManager.get().startPoll("evt-1", "reward-1", originatingSession, launchData);
-        scheduler.runNext();
-        sender.completeLastPoll(200, "{\"status\":\"completed\",\"reward\":{}}");
+            // Rotate the global session before the ack fires. A new Session instance with
+            // a different user is what a logout/login swap or a fresh attributed launch
+            // produces in production. The ack must continue to carry the *originating*
+            // session's clicking_user_id by value, not late-bind to whatever
+            // Session.currentSession resolves to at retry-send time.
+            final Session rotatedSession = makeSyntheticSessionWithUser("player-different");
+            setCurrentSession(rotatedSession);
 
-        // Even if the global session changes between poll and ack, the ack carries the
-        // originating session's clicking_user_id.
-        scheduler.runNext();
-        assertEquals(1, sender.acks.size());
-        assertEquals("player-original", sender.acks.get(0).clickingUserId);
+            scheduler.runNext();
+            assertEquals(1, sender.acks.size());
+            assertEquals("player-original", sender.acks.get(0).clickingUserId);
 
-        // Drive a 5xx retry; same clicking_user_id even on the retried POST.
-        sender.completeLastAck(500, "");
-        scheduler.runNext();
-        assertEquals(2, sender.acks.size());
-        assertEquals("player-original", sender.acks.get(1).clickingUserId);
+            // Drive a 5xx retry under the same rotated current-session: still the
+            // originating clicking_user_id.
+            sender.completeLastAck(500, "");
+            scheduler.runNext();
+            assertEquals(2, sender.acks.size());
+            assertEquals("player-original", sender.acks.get(1).clickingUserId);
+        } finally {
+            setCurrentSession(null);
+        }
+    }
+
+    // --- two-reward-id-flavors coexistence on the resolved event ---
+
+    @Test
+    public void resolvedEvent_carriesBothCamelCaseAttributionAndSnakeCaseGrant() throws Exception {
+        // Distinct values on each axis: teakRewardId (camelCase) is what this launch was
+        // attributed to from the URL; teak_reward_id (snake_case) is what the server
+        // authoritatively granted on this click. Proxy-reward routes can return a
+        // different reward id than the URL's attribution; both must surface to the host.
+        final Teak.AttributedLaunchData launchData = makeFakeLaunchData("attribution-id");
+        final Session session = makeSyntheticSession();
+        setCurrentSession(session);
+        try {
+            clearEventBusQueue();
+            RewardClaimManager.get().startPoll("evt-1", "attribution-id", session, launchData);
+            scheduler.runNext();
+            sender.completeLastPoll(200,
+                "{\"status\":\"completed\",\"teak_reward_id\":\"server-authoritative-id\",\"reward\":{}}");
+
+            // The resolved event posts to userIdReadyEventBusQueue (currentSession is set
+            // but state isn't UserIdentified here, so it queues rather than dispatches).
+            final Teak.RewardClaimResolvedEvent resolved = findResolvedEvent();
+            assertNotNull("RewardClaimResolvedEvent should have been queued", resolved);
+
+            final io.teak.sdk.json.JSONObject payload = resolved.toJSON();
+            assertEquals("attribution-id", payload.getString("teakRewardId"));
+            assertEquals("server-authoritative-id", payload.getString("teak_reward_id"));
+        } finally {
+            setCurrentSession(null);
+        }
+    }
+
+    private static Teak.AttributedLaunchData makeFakeLaunchData(String teakRewardId) {
+        final android.net.Uri uri = org.mockito.Mockito.mock(android.net.Uri.class);
+        org.mockito.Mockito.when(uri.isOpaque()).thenReturn(false);
+        org.mockito.Mockito.when(uri.isHierarchical()).thenReturn(true);
+        // toString flows through DeepLink.willProcessUri -> URI.create, which rejects
+        // Mockito's default "Mock for Uri" toString. Stub a valid URI string.
+        org.mockito.Mockito.when(uri.toString()).thenReturn("teak123://launch");
+        org.mockito.Mockito.when(uri.getQueryParameter("teak_reward_id")).thenReturn(teakRewardId);
+        org.mockito.Mockito.when(uri.getQueryParameter("teak_channel_name")).thenReturn("android_push");
+        org.mockito.Mockito.when(uri.getQueryParameter("teak_creative_name")).thenReturn("fixture-creative");
+        org.mockito.Mockito.when(uri.getQueryParameter("teak_creative_id")).thenReturn("fixture-creative-id");
+        org.mockito.Mockito.when(uri.getQueryParameter("teak_schedule_name")).thenReturn(null);
+        org.mockito.Mockito.when(uri.getQueryParameter("teak_schedule_id")).thenReturn(null);
+        org.mockito.Mockito.when(uri.getQueryParameter("teak_deep_link")).thenReturn(null);
+        org.mockito.Mockito.when(uri.getQueryParameter("teak_opt_out_category")).thenReturn(null);
+        return new Teak.RewardlinkLaunchData(uri, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void clearEventBusQueue() throws Exception {
+        final java.lang.reflect.Field f = Session.class.getDeclaredField("userIdReadyEventBusQueue");
+        f.setAccessible(true);
+        ((List<Object>) f.get(null)).clear();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Teak.RewardClaimResolvedEvent findResolvedEvent() throws Exception {
+        final java.lang.reflect.Field f = Session.class.getDeclaredField("userIdReadyEventBusQueue");
+        f.setAccessible(true);
+        for (Object o : (List<Object>) f.get(null)) {
+            if (o instanceof Teak.RewardClaimResolvedEvent) {
+                return (Teak.RewardClaimResolvedEvent) o;
+            }
+        }
+        return null;
     }
 
     // --- helpers ---
@@ -257,6 +358,16 @@ public class RewardClaimManagerTest extends TeakUnitTest {
         } catch (Exception ignored) {
         }
         return session;
+    }
+
+    /**
+     * Set the static {@code Session.currentSession} field so {@link Session#getCurrentSessionOrNull()}
+     * returns it. The field is private; reflection is the only way in from the test package.
+     */
+    private static void setCurrentSession(Session session) throws Exception {
+        final java.lang.reflect.Field f = Session.class.getDeclaredField("currentSession");
+        f.setAccessible(true);
+        f.set(null, session);
     }
 
 

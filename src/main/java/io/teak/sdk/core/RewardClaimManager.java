@@ -135,8 +135,18 @@ public class RewardClaimManager {
     }
 
     /**
-     * Cancel and drop every claim whose originating session is the supplied session. Called
-     * from the SessionStateEvent listener when a session moves to {@link Session.State#Expired}.
+     * Drop polling for every claim whose originating session is the supplied session.
+     * Called from the SessionStateEvent listener when a session moves to
+     * {@link Session.State#Expired}.
+     *
+     * <p>Polling is session-bound — the resolved-event surfaces launch-data context tied to
+     * a specific click, so a session that's gone makes the poll context stale. Acknowledgement
+     * is delivery-confirmation, not session-bound: the claim's {@code originatingClickingUserId}
+     * was snapshotted at click time and is sent by value. So if a claim has already advanced
+     * past poll resolution (a terminal /claim_status reply landed and the resolved event fired),
+     * the in-process ack retry budget is allowed to play out even after the session ends.
+     * Anything that fails to ack within the budget falls through to the session-start sweep
+     * for at-least-once delivery on the next launch.
      */
     public void cancelClaimsForSession(@NonNull Session expiredSession) {
         synchronized (inFlightLock) {
@@ -144,10 +154,20 @@ public class RewardClaimManager {
             while (iter.hasNext()) {
                 final RewardClaim claim = iter.next().getValue();
                 final Session origin = claim.originatingSession.get();
-                if (origin == null || origin == expiredSession) {
-                    cancelFutures(claim);
+                if (origin != null && origin != expiredSession) continue;
+
+                if (claim.nextPollFuture != null) {
+                    claim.nextPollFuture.cancel(false);
+                    claim.nextPollFuture = null;
+                }
+
+                if (claim.resolvedReply == null) {
+                    // Still polling — no ack scheduled, so nothing to preserve. Drop the
+                    // entry alongside its cancelled poll.
                     iter.remove();
                 }
+                // Otherwise: keep the entry alive so the in-flight ack future can complete.
+                // onAckReply will dropClaim once it terminates (success or budget exhausted).
             }
         }
     }
@@ -254,10 +274,16 @@ public class RewardClaimManager {
     }
 
     private void fireAck(@NonNull final RewardClaim claim) {
+        // Defense-in-depth against TOCTOU on scheduleAck assignment outside the lock: if
+        // the claim has been dropped from the dictionary between schedule and fire, no-op.
+        synchronized (inFlightLock) {
+            if (!inFlight.containsKey(claim.eventId)) return;
+        }
+
         final ClaimRequestSender s = effectiveSender();
         if (s == null) {
-            // Cannot ack without a sender; drop and rely on the next session-start sweep
-            // (C-702) to re-surface this claim.
+            // Cannot ack without a sender; drop and rely on the session-start sweep on the
+            // next launch to re-surface this claim.
             dropClaim(claim);
             return;
         }
@@ -285,7 +311,8 @@ public class RewardClaimManager {
         claim.ackAttempt++;
         final boolean isServerRetriable = statusCode == 0 || (statusCode >= 500 && statusCode < 600);
         if (!isServerRetriable || claim.ackAttempt >= ACK_MAX_ATTEMPTS) {
-            // Drop. Session-start sweep (C-702) will re-surface unacked terminal claims.
+            // Drop. The session-start sweep on the next launch will re-surface unacked
+            // terminal claims for at-least-once delivery.
             final Map<String, Object> data = new HashMap<>();
             data.put("event_id", claim.eventId);
             data.put("attempts", claim.ackAttempt);
