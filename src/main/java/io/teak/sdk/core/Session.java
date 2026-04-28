@@ -1053,18 +1053,12 @@ public class Session {
     private void checkLaunchDataForRewardAndPostEvents(final Teak.AttributedLaunchData attributedLaunchData) {
         try {
             if (attributedLaunchData.rewardId != null) {
-                final Future<TeakNotification.Reward> rewardFuture = TeakNotification.Reward.rewardFromRewardId(attributedLaunchData.rewardId);
-
-                if (rewardFuture != null) {
-                    Session.this.executionQueue.execute(() -> {
-                        try {
-                            final TeakNotification.Reward reward = rewardFuture.get();
-                            Session.whenUserIdIsReadyPost(new Teak.RewardClaimEvent(attributedLaunchData, reward));
-                        } catch (Exception e) {
-                            Teak.log.exception(e);
-                        }
-                    });
-                }
+                // The click POST and per-status event dispatch live inside Reward; this is
+                // the SDK-driven (not game-driven) entry point that supplies the launch
+                // attribution. The Future return value is ignored on this path — events
+                // are the contract with host games.
+                TeakNotification.Reward.fireClickFromLaunchData(attributedLaunchData.rewardId,
+                    attributedLaunchData);
             }
         } catch (Exception e) {
             Teak.log.exception(e);

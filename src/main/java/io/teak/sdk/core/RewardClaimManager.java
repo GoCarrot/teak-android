@@ -5,12 +5,18 @@ import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import io.teak.sdk.Teak;
+import io.teak.sdk.TeakConfiguration;
 import io.teak.sdk.TeakEvent;
 import io.teak.sdk.event.SessionStateEvent;
+import io.teak.sdk.json.JSONObject;
 
 /**
  * Owns the click-time poll-and-ack lifecycle for server JWT reward claims.
@@ -64,6 +70,9 @@ public class RewardClaimManager {
         void onReply(int statusCode, @Nullable String body);
     }
 
+    /**
+     * Test hook: returns a snapshot of currently-known event ids. Order is not stable.
+     */
     @NonNull
     public List<String> inFlightEventIdsForTest() {
         synchronized (inFlightLock) {
@@ -71,24 +80,31 @@ public class RewardClaimManager {
         }
     }
 
+    /** Test hook: number of in-flight claims at this moment. */
     public int inFlightCount() {
         synchronized (inFlightLock) {
             return inFlight.size();
         }
     }
 
+    /** Test hook: clear all in-flight state without firing cancellation logic. */
     public void resetForTest() {
         synchronized (inFlightLock) {
+            for (RewardClaim claim : inFlight.values()) {
+                cancelFutures(claim);
+            }
             inFlight.clear();
         }
     }
 
+    /** Test hook: substitute the HTTP sender. */
     public void setSenderForTest(@Nullable ClaimRequestSender sender) {
         this.sender = sender;
     }
 
-    public void setSchedulerForTest(@NonNull java.util.concurrent.ScheduledExecutorService scheduler) {
-        // Skeleton: scheduler hook lands in the implementation commit.
+    /** Test hook: substitute the scheduler. */
+    public void setSchedulerForTest(@NonNull ScheduledExecutorService scheduler) {
+        this.scheduler = scheduler;
     }
 
     private final Map<String, RewardClaim> inFlight = new HashMap<>();
@@ -96,6 +112,9 @@ public class RewardClaimManager {
 
     @Nullable
     private ClaimRequestSender sender;
+
+    @NonNull
+    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     private RewardClaimManager() {}
 
@@ -106,7 +125,13 @@ public class RewardClaimManager {
      */
     public void startPoll(@NonNull String eventId, @Nullable String teakRewardId,
         @NonNull Session originatingSession, @Nullable Teak.AttributedLaunchData launchData) {
-        // Implementation lands in the green commit.
+        synchronized (inFlightLock) {
+            if (inFlight.containsKey(eventId)) return;
+
+            final RewardClaim claim = new RewardClaim(eventId, teakRewardId, originatingSession, launchData);
+            inFlight.put(eventId, claim);
+            schedulePoll(claim);
+        }
     }
 
     /**
@@ -114,7 +139,217 @@ public class RewardClaimManager {
      * from the SessionStateEvent listener when a session moves to {@link Session.State#Expired}.
      */
     public void cancelClaimsForSession(@NonNull Session expiredSession) {
-        // Implementation lands in the green commit.
+        synchronized (inFlightLock) {
+            final Iterator<Map.Entry<String, RewardClaim>> iter = inFlight.entrySet().iterator();
+            while (iter.hasNext()) {
+                final RewardClaim claim = iter.next().getValue();
+                final Session origin = claim.originatingSession.get();
+                if (origin == null || origin == expiredSession) {
+                    cancelFutures(claim);
+                    iter.remove();
+                }
+            }
+        }
+    }
+
+    private void schedulePoll(@NonNull final RewardClaim claim) {
+        final long delayMs = computeBackoffMs(claim.pollAttempt,
+            currentInitialMs(), currentCeilingMs());
+        claim.nextPollFuture = scheduler.schedule(new Runnable() {
+            @Override
+            public void run() {
+                firePoll(claim);
+            }
+        }, delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    private void firePoll(@NonNull final RewardClaim claim) {
+        // Stale-check site #1 (timer-fire / pre-send): catches the cancelled-and-cleared
+        // dictionary case, where another path has already removed this claim.
+        synchronized (inFlightLock) {
+            if (!inFlight.containsKey(claim.eventId)) return;
+            final Session current = Session.getCurrentSessionOrNull();
+            if (claim.isStaleAgainstCurrentSession(current)) {
+                dropClaim(claim);
+                return;
+            }
+        }
+
+        final ClaimRequestSender s = effectiveSender();
+        if (s == null) {
+            // No sender wired (very early init); reschedule a single retry.
+            schedulePoll(claim);
+            return;
+        }
+
+        final String teakAppId = currentAppId();
+        s.sendPoll(claim.eventId, teakAppId, claim.originatingClickingUserId,
+            new ReplyHandler() {
+                @Override
+                public void onReply(int statusCode, @Nullable String body) {
+                    onPollReply(claim, statusCode, body);
+                }
+            });
+    }
+
+    private void onPollReply(@NonNull RewardClaim claim, int statusCode, @Nullable String body) {
+        // Stale-check site #2 (reply-landing / post-send): catches "claim survived in dict
+        // but the session was swapped during the request."
+        synchronized (inFlightLock) {
+            if (!inFlight.containsKey(claim.eventId)) return;
+            final Session current = Session.getCurrentSessionOrNull();
+            if (claim.isStaleAgainstCurrentSession(current)) {
+                dropClaim(claim);
+                return;
+            }
+        }
+
+        // 5xx (or transport failure) on the poll: bump the attempt counter and try again
+        // on the next backoff tick. Pending status without 5xx also reschedules.
+        if (statusCode == 0 || (statusCode >= 500 && statusCode < 600)) {
+            claim.pollAttempt++;
+            schedulePoll(claim);
+            return;
+        }
+
+        JSONObject reply = null;
+        if (body != null) {
+            try {
+                reply = new JSONObject(body);
+            } catch (Exception ignored) {
+            }
+        }
+
+        final String status = reply == null ? null : reply.optString("status", null);
+
+        if (STATUS_COMPLETED.equals(status) || STATUS_FAILED.equals(status)) {
+            claim.resolvedReply = reply;
+
+            // Fire the resolved-event observer first, then start the ack POST. Order matters:
+            // host games observe the reward grant before the SDK marks it acknowledged.
+            if (claim.launchData != null) {
+                Session.whenUserIdIsReadyPost(
+                    new Teak.RewardClaimResolvedEvent(claim.launchData, claim.eventId, reply));
+            }
+
+            scheduleAck(claim);
+            return;
+        }
+
+        // Pending or unknown: keep polling.
+        claim.pollAttempt++;
+        schedulePoll(claim);
+    }
+
+    private void scheduleAck(@NonNull final RewardClaim claim) {
+        final long delayMs = claim.ackAttempt == 0
+            ? 0L
+            : computeBackoffMs(claim.ackAttempt - 1, currentInitialMs(), currentCeilingMs());
+        claim.nextAckFuture = scheduler.schedule(new Runnable() {
+            @Override
+            public void run() {
+                fireAck(claim);
+            }
+        }, delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    private void fireAck(@NonNull final RewardClaim claim) {
+        final ClaimRequestSender s = effectiveSender();
+        if (s == null) {
+            // Cannot ack without a sender; drop and rely on the next session-start sweep
+            // (C-702) to re-surface this claim.
+            dropClaim(claim);
+            return;
+        }
+
+        final String teakAppId = currentAppId();
+        s.sendAck(claim.eventId, teakAppId, claim.originatingClickingUserId,
+            new ReplyHandler() {
+                @Override
+                public void onReply(int statusCode, @Nullable String body) {
+                    onAckReply(claim, statusCode);
+                }
+            });
+    }
+
+    private void onAckReply(@NonNull RewardClaim claim, int statusCode) {
+        if (statusCode >= 200 && statusCode < 300) {
+            dropClaim(claim);
+            return;
+        }
+
+        // 5xx or transport failure: count the attempt and either retry or exhaust. Note:
+        // ackAttempt is the number of attempts MADE, so after 3 attempts (initial + 2
+        // retries) we drop. 4xx other than 2xx also exhausts immediately — only 5xx is
+        // server-side-retriable.
+        claim.ackAttempt++;
+        final boolean isServerRetriable = statusCode == 0 || (statusCode >= 500 && statusCode < 600);
+        if (!isServerRetriable || claim.ackAttempt >= ACK_MAX_ATTEMPTS) {
+            // Drop. Session-start sweep (C-702) will re-surface unacked terminal claims.
+            final Map<String, Object> data = new HashMap<>();
+            data.put("event_id", claim.eventId);
+            data.put("attempts", claim.ackAttempt);
+            Teak.log.i("reward.claim.ack.exhausted", data);
+            dropClaim(claim);
+            return;
+        }
+
+        scheduleAck(claim);
+    }
+
+    private void dropClaim(@NonNull RewardClaim claim) {
+        synchronized (inFlightLock) {
+            cancelFutures(claim);
+            inFlight.remove(claim.eventId);
+        }
+    }
+
+    private static void cancelFutures(@NonNull RewardClaim claim) {
+        if (claim.nextPollFuture != null) {
+            claim.nextPollFuture.cancel(false);
+            claim.nextPollFuture = null;
+        }
+        if (claim.nextAckFuture != null) {
+            claim.nextAckFuture.cancel(false);
+            claim.nextAckFuture = null;
+        }
+    }
+
+    private int currentInitialMs() {
+        try {
+            final TeakConfiguration tc = TeakConfiguration.get();
+            if (tc.remoteConfiguration != null) {
+                return tc.remoteConfiguration.claimPollInitialDelayMs;
+            }
+        } catch (Exception ignored) {
+        }
+        return DEFAULT_INITIAL_DELAY_MS;
+    }
+
+    private int currentCeilingMs() {
+        try {
+            final TeakConfiguration tc = TeakConfiguration.get();
+            if (tc.remoteConfiguration != null) {
+                return tc.remoteConfiguration.claimPollCeilingMs;
+            }
+        } catch (Exception ignored) {
+        }
+        return DEFAULT_CEILING_MS;
+    }
+
+    @NonNull
+    private String currentAppId() {
+        try {
+            return TeakConfiguration.get().appConfiguration.appId;
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    @Nullable
+    private ClaimRequestSender effectiveSender() {
+        if (this.sender != null) return this.sender;
+        return DefaultClaimRequestSender.INSTANCE;
     }
 
     /**
@@ -123,6 +358,7 @@ public class RewardClaimManager {
      */
     public static long computeBackoffMs(int attempt, int initialMs, int ceilingMs) {
         if (attempt < 0) attempt = 0;
+        // Cap the shift to avoid overflow on pathological attempt counts.
         if (attempt > 30) return ceilingMs;
         long scaled = ((long) initialMs) << attempt;
         return Math.min(scaled, ceilingMs);
@@ -130,6 +366,12 @@ public class RewardClaimManager {
 
     /** Wired from {@link TeakCore} alongside the other static registrations. */
     public static void registerStaticEventListeners() {
-        // Implementation lands in the green commit.
+        TeakEvent.addEventListener(event -> {
+            if (!SessionStateEvent.Type.equals(event.eventType)) return;
+            final SessionStateEvent stateEvent = (SessionStateEvent) event;
+            if (stateEvent.state == Session.State.Expired) {
+                INSTANCE.cancelClaimsForSession(stateEvent.session);
+            }
+        });
     }
 }

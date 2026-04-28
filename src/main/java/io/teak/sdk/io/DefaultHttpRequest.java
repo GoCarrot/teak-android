@@ -33,20 +33,24 @@ public class DefaultHttpRequest implements IHttpRequest {
                 connection = (HttpURLConnection) url.openConnection();
             }
 
+            final boolean isBodyMethod = !"GET".equalsIgnoreCase(method);
+
             connection.setRequestMethod(method);
             connection.setRequestProperty("Accept-Charset", "UTF-8");
             connection.setUseCaches(false);
-            connection.setDoOutput(true);
             connection.setRequestProperty("Authorization", "TeakV2-HMAC-SHA256 Signature=" + sig);
-            connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Content-Length",
-                "" + requestBody.getBytes().length);
 
-            // Send request
-            DataOutputStream wr = new DataOutputStream(connection.getOutputStream());
-            wr.writeBytes(requestBody);
-            wr.flush();
-            wr.close();
+            if (isBodyMethod) {
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Content-Type", "application/json");
+                connection.setRequestProperty("Content-Length",
+                    "" + requestBody.getBytes().length);
+
+                DataOutputStream wr = new DataOutputStream(connection.getOutputStream());
+                wr.writeBytes(requestBody);
+                wr.flush();
+                wr.close();
+            }
 
             // Get Response
             InputStream is;

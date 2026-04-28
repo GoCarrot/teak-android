@@ -337,13 +337,50 @@ public class TeakNotification implements Unobfuscable {
         }
 
         /**
-         * Branch the click reply to the event surface that matches the server's status.
-         * Implementation lands in the green commit.
+         * Branch the click reply to the event surface that matches the server's status:
+         *
+         * <ul>
+         *   <li>{@code grant_reward} / {@code claim_mode_unsupported} / unknown legacy
+         *       statuses → existing {@link Teak.RewardClaimEvent} (the {@code TeakOnReward}
+         *       host-game surface).</li>
+         *   <li>{@code token_issued} → {@link Teak.RewardJwtIssuedEvent}; the host game
+         *       claims the JWT against its own backend.</li>
+         *   <li>{@code claim_pending} → {@link Teak.RewardClaimPendingEvent} plus a
+         *       {@link io.teak.sdk.core.RewardClaimManager#startPoll} call to drive the
+         *       async resolution.</li>
+         * </ul>
          */
         static void dispatchClickReply(@NonNull Reward reward, @NonNull String teakRewardId,
             @NonNull Teak.AttributedLaunchData launchData, @NonNull Session originatingSession,
             @NonNull JSONObject rewardResponse) {
-            // Skeleton — green commit dispatches by reward.status.
+            switch (reward.status) {
+                case TOKEN_ISSUED:
+                    Session.whenUserIdIsReadyPost(new Teak.RewardJwtIssuedEvent(launchData, rewardResponse));
+                    break;
+                case CLAIM_PENDING: {
+                    final String eventId = rewardResponse.isNull("event_id")
+                        ? null
+                        : rewardResponse.optString("event_id", null);
+                    if (eventId != null && !eventId.isEmpty()) {
+                        Session.whenUserIdIsReadyPost(
+                            new Teak.RewardClaimPendingEvent(launchData, eventId, rewardResponse));
+                        io.teak.sdk.core.RewardClaimManager.get().startPoll(
+                            eventId, teakRewardId, originatingSession, launchData);
+                    } else {
+                        // Server returned claim_pending without an event_id — surface as a
+                        // legacy reward event so the host at least sees something landed.
+                        Session.whenUserIdIsReadyPost(new Teak.RewardClaimEvent(launchData, reward));
+                    }
+                    break;
+                }
+                default:
+                    // grant_reward, claim_mode_unsupported, self_click, already_clicked,
+                    // expired, ineligible, unknown — all stay on the legacy event surface
+                    // for forward-compatibility with host-game integrations that listen
+                    // only for TeakOnReward.
+                    Session.whenUserIdIsReadyPost(new Teak.RewardClaimEvent(launchData, reward));
+                    break;
+            }
         }
     }
 

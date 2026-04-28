@@ -1137,14 +1137,29 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         }
 
         /**
-         * Convert to a Map, intended to be converted to JSON and
-         * consumed by the Teak Unity SDK.
+         * Convert to a Map matching the canonical {@code session_attribution} wire format
+         * (eleven keys, every key always present; non-applicable keys carry null values).
+         * The same shape feeds wrapper-side event payloads and the click-time
+         * {@code session_attribution} POST param. See
+         * {@code taro/docs/session_attribution_spec.md}.
          *
-         * @return A Map representation of this object.
+         * @return A Map representation of this launch attribution.
          */
         public Map<String, Object> toMap() {
             final HashMap<String, Object> map = new HashMap<>();
             map.put("launch_link", this.launchLink != null ? this.launchLink.toString() : null);
+            map.put("teakScheduleName", null);
+            map.put("teakScheduleId", null);
+            map.put("teakCreativeName", null);
+            map.put("teakCreativeId", null);
+            map.put("teakRewardId", null);
+            map.put("teakChannelName", null);
+            map.put("teakDeepLink", null);
+            map.put("teakOptOutCategory", null);
+            map.put("teakNotifId", null);
+            // Android does not mint Live Activity launches; the key is present per the
+            // always-eleven-keys cross-SDK rule, but always null on this platform.
+            map.put("teakSystemActivityId", null);
             return map;
         }
         /// @endcond
