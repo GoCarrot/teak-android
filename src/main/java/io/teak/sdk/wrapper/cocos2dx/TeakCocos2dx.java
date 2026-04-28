@@ -41,6 +41,15 @@ public class TeakCocos2dx implements Unobfuscable {
                 case RewardClaim: {
                     eventName = "TeakRewardClaimAttempt";
                 } break;
+                case RewardJwtIssued: {
+                    eventName = "TeakOnRewardJwtIssued";
+                } break;
+                case RewardClaimPending: {
+                    eventName = "TeakOnRewardClaimPending";
+                } break;
+                case RewardClaimResolved: {
+                    eventName = "TeakOnRewardClaimResolved";
+                } break;
                 case ForegroundNotification: {
                     eventName = "TeakForegroundNotification";
                 } break;

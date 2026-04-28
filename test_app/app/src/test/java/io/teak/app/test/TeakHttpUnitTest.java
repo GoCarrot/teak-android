@@ -53,6 +53,8 @@ public class TeakHttpUnitTest extends TeakUnitTest {
                         null,
                         null,
                         600,
+                        io.teak.sdk.core.RewardClaimManager.DEFAULT_INITIAL_DELAY_MS,
+                        io.teak.sdk.core.RewardClaimManager.DEFAULT_CEILING_MS,
                         new ArrayList<Teak.Channel.Category>(),
                         true);
         TeakEvent.postEvent(new RemoteConfigurationEvent(remoteConfiguration));

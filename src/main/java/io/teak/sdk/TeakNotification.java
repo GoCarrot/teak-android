@@ -127,6 +127,19 @@ public class TeakNotification implements Unobfuscable {
         public static final int CLAIM_MODE_UNSUPPORTED = -9;
 
         /**
+         * The server issued a JWT for the reward; the host game is responsible for claiming
+         * it against its own backend.
+         */
+        public static final int TOKEN_ISSUED = 2;
+
+        /**
+         * The reward claim was queued for asynchronous processing on the server. A poll
+         * lifecycle is in progress; a {@link Teak.RewardClaimResolvedEvent} will follow when
+         * it resolves.
+         */
+        public static final int CLAIM_PENDING = 3;
+
+        /**
          * Status of this reward.
          *
          * One of the following status codes:
@@ -177,6 +190,10 @@ public class TeakNotification implements Unobfuscable {
                 status = NO_REWARD_AVAILABLE;
             } else if (CLAIM_MODE_UNSUPPORTED_STRING.equals(statusString)) {
                 status = CLAIM_MODE_UNSUPPORTED;
+            } else if (TOKEN_ISSUED_STRING.equals(statusString)) {
+                status = TOKEN_ISSUED;
+            } else if (CLAIM_PENDING_STRING.equals(statusString)) {
+                status = CLAIM_PENDING;
             } else {
                 status = UNKNOWN;
             }
@@ -198,12 +215,29 @@ public class TeakNotification implements Unobfuscable {
         private static final String PLAYER_INELIGIBLE_STRING = "player_ineligible";
         private static final String NO_REWARD_AVAILABLE_STRING = "no_reward_available";
         private static final String CLAIM_MODE_UNSUPPORTED_STRING = "claim_mode_unsupported";
+        private static final String TOKEN_ISSUED_STRING = "token_issued";
+        private static final String CLAIM_PENDING_STRING = "claim_pending";
 
         /**
          * @return A {@link Future} which will contain the reward that should be granted, or <code>null</code> if there is no associated reward.
          */
         @SuppressWarnings("unused")
         public static Future<Reward> rewardFromRewardId(final String teakRewardId) {
+            return fireClickInternal(teakRewardId, null);
+        }
+
+        /**
+         * For internal use by the Session lifecycle: fires the click POST with the supplied
+         * launch attribution and dispatches the new JWT / claim-pending / resolved events
+         * via the {@link io.teak.sdk.core.RewardClaimManager} when applicable.
+         */
+        public static Future<Reward> fireClickFromLaunchData(final String teakRewardId,
+            @NonNull final Teak.AttributedLaunchData launchData) {
+            return fireClickInternal(teakRewardId, launchData);
+        }
+
+        private static Future<Reward> fireClickInternal(final String teakRewardId,
+            final Teak.AttributedLaunchData launchData) {
             Teak.log.trace("TeakNotification.Reward.rewardFromRewardId", "teakRewardId", teakRewardId);
 
             if (Teak.Instance == null || !Teak.Instance.isEnabled()) {
@@ -232,22 +266,24 @@ public class TeakNotification implements Unobfuscable {
 
                 try {
                     // https://rewards.gocarrot.com/<<teak_reward_id>>/clicks?clicking_user_id=<<your_user_id>>
-                    // String requestBody = "clicking_user_id=" + URLEncoder.encode(session.userId(), "UTF-8");
                     final TeakConfiguration teakConfiguration = TeakConfiguration.get();
                     HashMap<String, Object> payload = new HashMap<>();
                     payload.put("clicking_user_id", session.userId());
                     payload.put("claim_mode", teakConfiguration.appConfiguration.claimMode);
+                    if (launchData != null) {
+                        payload.put("session_attribution", launchData.toMap());
+                    }
 
                     Request.submit("rewards.gocarrot.com", "/" + teakRewardId + "/clicks", payload, session,
                         (responseCode, responseBody) -> {
                             try {
-                                final JSONObject responseJson = new JSONObject(responseBody);
-
                                 // https://sentry.io/organizations/teak/issues/1354507192/?project=141792&referrer=alert_email
                                 if (responseBody == null) {
                                     q.offer(null);
                                     return;
                                 }
+
+                                final JSONObject responseJson = new JSONObject(responseBody);
 
                                 final JSONObject rewardResponse = responseJson.optJSONObject("response");
                                 if (rewardResponse == null) {
@@ -268,9 +304,19 @@ public class TeakNotification implements Unobfuscable {
                                 } else if (rewardResponse.opt("reward") != null) {
                                     fullParsedResponse.put("reward", new JSONObject(rewardResponse.getString("reward")));
                                 }
+                                if (rewardResponse.has("event_id")) {
+                                    fullParsedResponse.put("event_id", rewardResponse.get("event_id"));
+                                }
+                                if (rewardResponse.has("token")) {
+                                    fullParsedResponse.put("token", rewardResponse.get("token"));
+                                }
                                 final Reward reward = new Reward(fullParsedResponse);
 
                                 Teak.log.i("reward.claim.response", responseJson.toMap());
+
+                                if (launchData != null) {
+                                    dispatchClickReply(reward, teakRewardId, launchData, session, rewardResponse);
+                                }
 
                                 q.offer(reward);
                             } catch (JSONException e) {
@@ -278,16 +324,26 @@ public class TeakNotification implements Unobfuscable {
                                 q.offer(null);
                             } catch (Exception e) {
                                 Teak.log.exception(e);
-                                q.offer(null); // TODO: Fix this?
+                                q.offer(null);
                             }
                         });
                 } catch (Exception e) {
                     Teak.log.exception(e);
-                    q.offer(null); // TODO: Fix this?
+                    q.offer(null);
                 }
             });
 
             return ret;
+        }
+
+        /**
+         * Branch the click reply to the event surface that matches the server's status.
+         * Implementation lands in the green commit.
+         */
+        static void dispatchClickReply(@NonNull Reward reward, @NonNull String teakRewardId,
+            @NonNull Teak.AttributedLaunchData launchData, @NonNull Session originatingSession,
+            @NonNull JSONObject rewardResponse) {
+            // Skeleton — green commit dispatches by reward.status.
         }
     }
 
