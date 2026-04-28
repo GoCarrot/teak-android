@@ -17,6 +17,7 @@ import io.teak.sdk.core.RewardClaimManager;
 import io.teak.sdk.core.Session;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -268,14 +269,16 @@ public class RewardClaimManagerTest extends TeakUnitTest {
         }
     }
 
-    // --- two-reward-id-flavors coexistence on the resolved event ---
+    // --- resolved event surface matches legacy TeakOnReward shape ---
 
     @Test
-    public void resolvedEvent_carriesBothCamelCaseAttributionAndSnakeCaseGrant() throws Exception {
-        // Distinct values on each axis: teakRewardId (camelCase) is what this launch was
-        // attributed to from the URL; teak_reward_id (snake_case) is what the server
-        // authoritatively granted on this click. Proxy-reward routes can return a
-        // different reward id than the URL's attribution; both must surface to the host.
+    public void resolvedEvent_carriesAttributionRewardIdOnly_stripsServerAuthoritativeGrantId() throws Exception {
+        // Cross-SDK convention: TeakOnRewardClaimResolved matches legacy TeakOnReward
+        // semantics — only teakRewardId (camelCase, launch-data attribution) surfaces.
+        // The snake_case teak_reward_id from the wire reply is intentionally stripped on
+        // this surface. Host games that need the server-authoritative grant id correlate
+        // by event_id against the earlier RewardJwtIssued / RewardClaimPending events,
+        // which DO carry teak_reward_id.
         final Teak.AttributedLaunchData launchData = makeFakeLaunchData("attribution-id");
         final Session session = makeSyntheticSession();
         setCurrentSession(session);
@@ -293,7 +296,12 @@ public class RewardClaimManagerTest extends TeakUnitTest {
 
             final io.teak.sdk.json.JSONObject payload = resolved.toJSON();
             assertEquals("attribution-id", payload.getString("teakRewardId"));
-            assertEquals("server-authoritative-id", payload.getString("teak_reward_id"));
+            assertFalse("teak_reward_id must NOT appear on the resolved event payload",
+                payload.has("teak_reward_id"));
+            // The reply field on the event still has it — the strip is a userInfo-merge
+            // concern, not a wire-data-loss concern. Anything that needs the grant id can
+            // read it directly off resolved.reply.
+            assertEquals("server-authoritative-id", resolved.reply.getString("teak_reward_id"));
         } finally {
             setCurrentSession(null);
         }

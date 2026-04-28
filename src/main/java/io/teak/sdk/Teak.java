@@ -1717,10 +1717,13 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         @Override
         public JSONObject toJSON() {
             final Map<String, Object> map = this.launchData.toMap();
-            // Per cross-SDK convention: launch-data attribution first, reply wins on key
-            // collision. teakRewardId (camelCase, attribution) and teak_reward_id (snake_case,
-            // server-authoritative grant) are distinct keys and both surface intentionally.
             map.putAll(this.reply.toMap());
+            // The resolved-event surface matches the legacy TeakOnReward semantics: only
+            // teakRewardId (camelCase, launch-data attribution) is exposed. The snake_case
+            // teak_reward_id from the wire reply is stripped here. Host games that need the
+            // server-authoritative grant id correlate by event_id against the earlier
+            // RewardJwtIssued / RewardClaimPending events, which DO carry teak_reward_id.
+            map.remove("teak_reward_id");
             map.put("event_id", this.eventId);
             return new JSONObject(map);
         }
