@@ -126,7 +126,10 @@ public class RewardClaimManager {
     public void startPoll(@NonNull String eventId, @Nullable String teakRewardId,
         @NonNull Session originatingSession, @Nullable Teak.AttributedLaunchData launchData) {
         synchronized (inFlightLock) {
-            if (inFlight.containsKey(eventId)) return;
+            if (inFlight.containsKey(eventId)) {
+                Teak.log.i("claim_poll.start.duplicate", logEntry(eventId));
+                return;
+            }
 
             final RewardClaim claim = new RewardClaim(eventId, teakRewardId, originatingSession, launchData);
             inFlight.put(eventId, claim);
@@ -187,10 +190,13 @@ public class RewardClaimManager {
         // Stale-check site #1 (timer-fire / pre-send): catches the cancelled-and-cleared
         // dictionary case, where another path has already removed this claim.
         synchronized (inFlightLock) {
-            if (!inFlight.containsKey(claim.eventId)) return;
+            if (!inFlight.containsKey(claim.eventId)) {
+                Teak.log.i("claim_poll.timer.cancelled", logEntry(claim.eventId));
+                return;
+            }
             final Session current = Session.getCurrentSessionOrNull();
             if (claim.isStaleAgainstCurrentSession(current)) {
-                dropClaim(claim);
+                dropClaim(claim, "session_stale");
                 return;
             }
         }
@@ -202,6 +208,7 @@ public class RewardClaimManager {
             return;
         }
 
+        Teak.log.i("claim_poll.request.send", logEntry(claim.eventId));
         final String teakAppId = currentAppId();
         s.sendPoll(claim.eventId, teakAppId, claim.originatingClickingUserId,
             new ReplyHandler() {
@@ -216,10 +223,13 @@ public class RewardClaimManager {
         // Stale-check site #2 (reply-landing / post-send): catches "claim survived in dict
         // but the session was swapped during the request."
         synchronized (inFlightLock) {
-            if (!inFlight.containsKey(claim.eventId)) return;
+            if (!inFlight.containsKey(claim.eventId)) {
+                Teak.log.i("claim_poll.reply.cancelled", logEntry(claim.eventId));
+                return;
+            }
             final Session current = Session.getCurrentSessionOrNull();
             if (claim.isStaleAgainstCurrentSession(current)) {
-                dropClaim(claim);
+                dropClaim(claim, "session_stale");
                 return;
             }
         }
@@ -227,6 +237,9 @@ public class RewardClaimManager {
         // 5xx (or transport failure) on the poll: bump the attempt counter and try again
         // on the next backoff tick. Pending status without 5xx also reschedules.
         if (statusCode == 0 || (statusCode >= 500 && statusCode < 600)) {
+            final Map<String, Object> data = logEntry(claim.eventId);
+            data.put("status_code", statusCode);
+            Teak.log.e("claim_poll.request.error", data);
             claim.pollAttempt++;
             schedulePoll(claim);
             return;
@@ -244,12 +257,14 @@ public class RewardClaimManager {
 
         if (STATUS_COMPLETED.equals(status) || STATUS_FAILED.equals(status)) {
             claim.resolvedReply = reply;
+            Teak.log.i("claim_resolved.received", logEntry(claim.eventId));
 
             // Fire the resolved-event observer first, then start the ack POST. Order matters:
             // host games observe the reward grant before the SDK marks it acknowledged.
             if (claim.launchData != null) {
                 Session.whenUserIdIsReadyPost(
                     new Teak.RewardClaimResolvedEvent(claim.launchData, claim.eventId, reply));
+                Teak.log.i("claim_resolved.delivered", logEntry(claim.eventId));
             }
 
             scheduleAck(claim);
@@ -277,17 +292,21 @@ public class RewardClaimManager {
         // Defense-in-depth against TOCTOU on scheduleAck assignment outside the lock: if
         // the claim has been dropped from the dictionary between schedule and fire, no-op.
         synchronized (inFlightLock) {
-            if (!inFlight.containsKey(claim.eventId)) return;
+            if (!inFlight.containsKey(claim.eventId)) {
+                Teak.log.i("claim_ack.cancelled", logEntry(claim.eventId));
+                return;
+            }
         }
 
         final ClaimRequestSender s = effectiveSender();
         if (s == null) {
             // Cannot ack without a sender; drop and rely on the session-start sweep on the
             // next launch to re-surface this claim.
-            dropClaim(claim);
+            dropClaim(claim, "no_sender");
             return;
         }
 
+        Teak.log.i("claim_ack.request.send", logEntry(claim.eventId));
         final String teakAppId = currentAppId();
         s.sendAck(claim.eventId, teakAppId, claim.originatingClickingUserId,
             new ReplyHandler() {
@@ -299,36 +318,58 @@ public class RewardClaimManager {
     }
 
     private void onAckReply(@NonNull RewardClaim claim, int statusCode) {
+        final Map<String, Object> ackEntry = logEntry(claim.eventId);
+        ackEntry.put("status_code", statusCode);
+        Teak.log.i("claim_ack.request.reply", ackEntry);
+
         if (statusCode >= 200 && statusCode < 300) {
-            dropClaim(claim);
+            // Success: remove the in-flight entry directly. (Not "dropped" — a drop log
+            // implies the claim never made it; this one was delivered.)
+            synchronized (inFlightLock) {
+                cancelFutures(claim);
+                inFlight.remove(claim.eventId);
+            }
             return;
         }
 
-        // 5xx or transport failure: count the attempt and either retry or exhaust. Note:
-        // ackAttempt is the number of attempts MADE, so after 3 attempts (initial + 2
-        // retries) we drop. 4xx other than 2xx also exhausts immediately — only 5xx is
-        // server-side-retriable.
+        // Non-2xx: count the attempt and either retry or exhaust. Only 5xx and transport
+        // failures (statusCode == 0) are server-side-retriable; 4xx other than 2xx
+        // exhausts immediately. ackAttempt is the number of attempts MADE, so after 3
+        // attempts (initial + 2 retries) we drop.
+        Teak.log.e("claim_ack.request.error", ackEntry);
         claim.ackAttempt++;
         final boolean isServerRetriable = statusCode == 0 || (statusCode >= 500 && statusCode < 600);
         if (!isServerRetriable || claim.ackAttempt >= ACK_MAX_ATTEMPTS) {
             // Drop. The session-start sweep on the next launch will re-surface unacked
             // terminal claims for at-least-once delivery.
-            final Map<String, Object> data = new HashMap<>();
-            data.put("event_id", claim.eventId);
+            final Map<String, Object> data = logEntry(claim.eventId);
             data.put("attempts", claim.ackAttempt);
-            Teak.log.i("reward.claim.ack.exhausted", data);
-            dropClaim(claim);
+            Teak.log.i("claim_ack.retry_exhausted", data);
+            synchronized (inFlightLock) {
+                cancelFutures(claim);
+                inFlight.remove(claim.eventId);
+            }
             return;
         }
 
         scheduleAck(claim);
     }
 
-    private void dropClaim(@NonNull RewardClaim claim) {
+    private void dropClaim(@NonNull RewardClaim claim, @NonNull String reason) {
+        final Map<String, Object> data = logEntry(claim.eventId);
+        data.put("reason", reason);
+        Teak.log.i("claim_poll.dropped", data);
         synchronized (inFlightLock) {
             cancelFutures(claim);
             inFlight.remove(claim.eventId);
         }
+    }
+
+    @NonNull
+    private static Map<String, Object> logEntry(@NonNull String eventId) {
+        final Map<String, Object> data = new HashMap<>();
+        data.put("event_id", eventId);
+        return data;
     }
 
     private static void cancelFutures(@NonNull RewardClaim claim) {
