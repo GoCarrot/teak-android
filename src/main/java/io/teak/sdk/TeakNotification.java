@@ -314,6 +314,16 @@ public class TeakNotification implements Unobfuscable {
 
                                 Teak.log.i("reward.claim.response", responseJson.toMap());
 
+                                // The new JWT / claim-pending / resolved event surfaces all
+                                // require attribution metadata (the host game's resolved-
+                                // reward handler reads creative / channel / opt-out
+                                // category off launchData). The public-API entry point
+                                // {@link #rewardFromRewardId(String)} has no attribution
+                                // and keeps its legacy Future-only contract — game code
+                                // reads {@code reward.status} from the returned Future.
+                                // Only the SDK-driven (notification / launch) entry point
+                                // through {@link #fireClickFromLaunchData} carries
+                                // launchData and drives the new event surfaces.
                                 if (launchData != null) {
                                     dispatchClickReply(reward, teakRewardId, launchData, session, rewardResponse);
                                 }
@@ -358,9 +368,7 @@ public class TeakNotification implements Unobfuscable {
                     Session.whenUserIdIsReadyPost(new Teak.RewardJwtIssuedEvent(launchData, rewardResponse));
                     break;
                 case CLAIM_PENDING: {
-                    final String eventId = rewardResponse.isNull("event_id")
-                        ? null
-                        : rewardResponse.optString("event_id", null);
+                    final String eventId = rewardResponse.optString("event_id", null);
                     if (eventId != null && !eventId.isEmpty()) {
                         Session.whenUserIdIsReadyPost(
                             new Teak.RewardClaimPendingEvent(launchData, eventId, rewardResponse));
