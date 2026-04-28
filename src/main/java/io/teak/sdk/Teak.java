@@ -1137,14 +1137,29 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         }
 
         /**
-         * Convert to a Map, intended to be converted to JSON and
-         * consumed by the Teak Unity SDK.
+         * Convert to a Map matching the canonical {@code session_attribution} wire format
+         * (eleven keys, every key always present; non-applicable keys carry null values).
+         * The same shape feeds wrapper-side event payloads and the click-time
+         * {@code session_attribution} POST param. See
+         * {@code taro/docs/session_attribution_spec.md}.
          *
-         * @return A Map representation of this object.
+         * @return A Map representation of this launch attribution.
          */
         public Map<String, Object> toMap() {
             final HashMap<String, Object> map = new HashMap<>();
             map.put("launch_link", this.launchLink != null ? this.launchLink.toString() : null);
+            map.put("teakScheduleName", null);
+            map.put("teakScheduleId", null);
+            map.put("teakCreativeName", null);
+            map.put("teakCreativeId", null);
+            map.put("teakRewardId", null);
+            map.put("teakChannelName", null);
+            map.put("teakDeepLink", null);
+            map.put("teakOptOutCategory", null);
+            map.put("teakNotifId", null);
+            // Android does not mint Live Activity launches; the key is present per the
+            // always-eleven-keys cross-SDK rule, but always null on this platform.
+            map.put("teakSystemActivityId", null);
             return map;
         }
         /// @endcond
@@ -1599,6 +1614,118 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
          */
         public RewardClaimEvent(@NonNull final AttributedLaunchData launchData, @NonNull final TeakNotification.Reward reward) {
             super(launchData, reward);
+        }
+        /// @endcond
+    }
+
+    /**
+     * Event posted when the server replies to a click with a JWT-mode reward token. The host
+     * game uses the token to claim the reward against its own backend; Teak does not poll
+     * for resolution.
+     */
+    public static class RewardJwtIssuedEvent extends Event implements Unobfuscable {
+        /**
+         * The JWT-mode reply payload from the server, including the token and reward details.
+         */
+        @NonNull
+        public final JSONObject reply;
+
+        /// @cond hide_from_doxygen
+        public RewardJwtIssuedEvent(@NonNull final AttributedLaunchData launchData, @NonNull final JSONObject reply) {
+            super(launchData, null);
+            this.reply = reply;
+        }
+
+        @Override
+        public JSONObject toJSON() {
+            final Map<String, Object> map = this.launchData.toMap();
+            map.putAll(this.reply.toMap());
+            return new JSONObject(map);
+        }
+        /// @endcond
+    }
+
+    /**
+     * Event posted when the server replies to a click with {@code claim_pending}, indicating
+     * that the reward grant is queued for asynchronous processing. A {@link RewardClaimResolvedEvent}
+     * will follow when the server resolves the claim.
+     *
+     * <p>This is a point-in-time event. The session-start /claims sweep does not re-fire it.
+     */
+    public static class RewardClaimPendingEvent extends Event implements Unobfuscable {
+        /**
+         * Server-issued event id used to correlate this pending claim with its eventual
+         * {@link RewardClaimResolvedEvent}.
+         */
+        @NonNull
+        public final String eventId;
+
+        /**
+         * The full click reply payload from the server.
+         */
+        @NonNull
+        public final JSONObject reply;
+
+        /// @cond hide_from_doxygen
+        public RewardClaimPendingEvent(@NonNull final AttributedLaunchData launchData,
+            @NonNull final String eventId, @NonNull final JSONObject reply) {
+            super(launchData, null);
+            this.eventId = eventId;
+            this.reply = reply;
+        }
+
+        @Override
+        public JSONObject toJSON() {
+            final Map<String, Object> map = this.launchData.toMap();
+            map.putAll(this.reply.toMap());
+            map.put("event_id", this.eventId);
+            return new JSONObject(map);
+        }
+        /// @endcond
+    }
+
+    /**
+     * Event posted when an asynchronous reward claim has resolved (either {@code completed}
+     * or {@code failed}) from a click-time poll or a session-start sweep.
+     *
+     * <p>At-least-once delivery: a clean shutdown after this event but before the SDK ack
+     * lands can re-surface the claim on the next session-start sweep. Host games SHOULD
+     * idempotent-key reward grants on the {@code event_id} field.
+     */
+    public static class RewardClaimResolvedEvent extends Event implements Unobfuscable {
+        /**
+         * Server-issued event id correlating to the prior {@link RewardClaimPendingEvent}.
+         */
+        @NonNull
+        public final String eventId;
+
+        /**
+         * The terminal /claim_status reply: {@code status}, {@code reward}, and the optional
+         * customer-side response fields.
+         */
+        @NonNull
+        public final JSONObject reply;
+
+        /// @cond hide_from_doxygen
+        public RewardClaimResolvedEvent(@NonNull final AttributedLaunchData launchData,
+            @NonNull final String eventId, @NonNull final JSONObject reply) {
+            super(launchData, null);
+            this.eventId = eventId;
+            this.reply = reply;
+        }
+
+        @Override
+        public JSONObject toJSON() {
+            final Map<String, Object> map = this.launchData.toMap();
+            map.putAll(this.reply.toMap());
+            // The resolved-event surface matches the legacy TeakOnReward semantics: only
+            // teakRewardId (camelCase, launch-data attribution) is exposed. The snake_case
+            // teak_reward_id from the wire reply is stripped here. Host games that need the
+            // server-authoritative grant id correlate by event_id against the earlier
+            // RewardJwtIssued / RewardClaimPending events, which DO carry teak_reward_id.
+            map.remove("teak_reward_id");
+            map.put("event_id", this.eventId);
+            return new JSONObject(map);
         }
         /// @endcond
     }

@@ -24,6 +24,8 @@ public class DeviceIdInEvents extends TeakUnitTest {
             TeakConfiguration.get().appConfiguration,
             "gocarrot.com", null, null, null, null,
             false, false, null, null, 60,
+            io.teak.sdk.core.RewardClaimManager.DEFAULT_INITIAL_DELAY_MS,
+            io.teak.sdk.core.RewardClaimManager.DEFAULT_CEILING_MS,
             new ArrayList<Teak.Channel.Category>(), true);
     }
 

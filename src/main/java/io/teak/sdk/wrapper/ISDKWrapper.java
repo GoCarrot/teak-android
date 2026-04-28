@@ -6,6 +6,9 @@ public interface ISDKWrapper {
     enum EventType {
         NotificationLaunch,
         RewardClaim,
+        RewardJwtIssued,
+        RewardClaimPending,
+        RewardClaimResolved,
         ForegroundNotification,
         AdditionalData,
         LaunchedFromLink,

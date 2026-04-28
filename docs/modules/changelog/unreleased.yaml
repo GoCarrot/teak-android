@@ -1,3 +1,6 @@
 new:
   - "Added ``io_teak_reward_claim_mode`` string resource. When set, the SDK declares its claim mode on every reward click and warns at init if the configured value isn't in the game's ``supported_claim_modes``. Defaults to ``legacy``."
   - "``TeakNotification.Reward`` now exposes ``PLAYER_INELIGIBLE`` (-7), ``NO_REWARD_AVAILABLE`` (-8), and ``CLAIM_MODE_UNSUPPORTED`` (-9) status values for the new server reward states."
+  - "``TeakNotification.Reward`` now exposes ``TOKEN_ISSUED`` (2) and ``CLAIM_PENDING`` (3) for click replies that issue a JWT or queue an asynchronous claim."
+  - "Added ``Teak.RewardJwtIssuedEvent``, ``Teak.RewardClaimPendingEvent``, and ``Teak.RewardClaimResolvedEvent`` for the JWT-mode click flow. The SDK polls ``/claim_status`` until the claim resolves and POSTs ``/claim_ack`` with a bounded retry budget after delivering the resolved event to the host game."
+  - "Settings response keys ``claim_poll_initial_delay_ms`` and ``claim_poll_ceiling_ms`` now drive the click-time poll and ack backoff curves; hardcoded fallbacks of 2000 ms / 30000 ms apply when settings is unreachable."

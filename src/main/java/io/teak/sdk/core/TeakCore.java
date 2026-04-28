@@ -73,6 +73,7 @@ public class TeakCore {
         RemoteConfiguration.registerStaticEventListeners();
         Session.registerStaticEventListeners();
         Request.registerStaticEventListeners();
+        RewardClaimManager.registerStaticEventListeners();
     }
 
     @SuppressWarnings("FieldCanBeLocal")

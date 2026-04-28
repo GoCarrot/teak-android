@@ -42,6 +42,15 @@ public class TeakUnity implements Unobfuscable {
                 case RewardClaim: {
                     eventName = "RewardClaimAttempt";
                 } break;
+                case RewardJwtIssued: {
+                    eventName = "RewardJwtIssued";
+                } break;
+                case RewardClaimPending: {
+                    eventName = "RewardClaimPending";
+                } break;
+                case RewardClaimResolved: {
+                    eventName = "RewardClaimResolved";
+                } break;
                 case ForegroundNotification: {
                     eventName = "ForegroundNotification";
                 } break;

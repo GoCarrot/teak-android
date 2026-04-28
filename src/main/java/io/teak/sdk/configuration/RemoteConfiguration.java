@@ -50,6 +50,23 @@ public class RemoteConfiguration {
     @SuppressWarnings("WeakerAccess")
     public final boolean isMocked;
 
+    /**
+     * Initial delay (ms) for the click-time claim_status poll backoff. Sourced from the
+     * settings.json {@code claim_poll_initial_delay_ms} field; falls back to
+     * {@link io.teak.sdk.core.RewardClaimManager#DEFAULT_INITIAL_DELAY_MS} when the field is
+     * absent (e.g. during local-only fallback before settings reaches the SDK).
+     */
+    @SuppressWarnings("WeakerAccess")
+    public final int claimPollInitialDelayMs;
+
+    /**
+     * Cap (ms) for the exponential backoff schedule on both the claim_status poll and the
+     * claim_ack retry. Sourced from settings.json {@code claim_poll_ceiling_ms}; falls back
+     * to {@link io.teak.sdk.core.RewardClaimManager#DEFAULT_CEILING_MS}.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public final int claimPollCeilingMs;
+
     private static final String defaultHostname = "gocarrot.com";
 
     private static final String defaultDynamicParameters = "{  \n"
@@ -131,7 +148,9 @@ public class RemoteConfiguration {
     public RemoteConfiguration(@NonNull AppConfiguration appConfiguration, @NonNull String hostname,
         String sdkSentryDsn, String appSentryDsn, String gcmSenderId, String firebaseAppId,
         boolean ignoreDefaultFirebaseConfiguration, boolean enhancedIntegrationChecks,
-        JSONObject endpointConfigurations, JSONObject dynamicParameters, int heartbeatInterval, ArrayList<Teak.Channel.Category> categories, boolean isMocked) {
+        JSONObject endpointConfigurations, JSONObject dynamicParameters, int heartbeatInterval,
+        int claimPollInitialDelayMs, int claimPollCeilingMs,
+        ArrayList<Teak.Channel.Category> categories, boolean isMocked) {
         this.appConfiguration = appConfiguration;
         this.hostname = hostname;
         this.appSentryDsn = appSentryDsn;
@@ -142,6 +161,8 @@ public class RemoteConfiguration {
         this.enhancedIntegrationChecks = enhancedIntegrationChecks;
         this.isMocked = isMocked;
         this.heartbeatInterval = heartbeatInterval;
+        this.claimPollInitialDelayMs = claimPollInitialDelayMs;
+        this.claimPollCeilingMs = claimPollCeilingMs;
         this.categories = categories;
 
         this.endpointConfigurations = endpointConfigurations == null ? new JSONObject(defaultEndpointJson).toMap() : endpointConfigurations.toMap();
@@ -236,6 +257,10 @@ public class RemoteConfiguration {
                                 helper.jsonOrNull("endpoint_configurations"),
                                 helper.jsonOrNull("dynamic_parameters"),
                                 response.optInt("heartbeat_interval", 60),
+                                response.optInt("claim_poll_initial_delay_ms",
+                                    io.teak.sdk.core.RewardClaimManager.DEFAULT_INITIAL_DELAY_MS),
+                                response.optInt("claim_poll_ceiling_ms",
+                                    io.teak.sdk.core.RewardClaimManager.DEFAULT_CEILING_MS),
                                 categories,
                                 false);
 
