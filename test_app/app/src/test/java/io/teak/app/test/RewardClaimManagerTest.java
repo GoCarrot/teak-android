@@ -307,6 +307,62 @@ public class RewardClaimManagerTest extends TeakUnitTest {
         }
     }
 
+    @Test
+    public void resolvedEvent_stripsRawSessionAttributionBlob_andSurfacesElevenKeyAttributionAsDiscreteKeys() throws Exception {
+        // Cross-SDK convention: the raw session_attribution wire field is stripped from
+        // the resolved-event userInfo. The eleven attribution keys are surfaced as
+        // discrete top-level fields, sourced from the SDK's own launch-data state (the
+        // in-session optimization documented in the wire-format spec).
+        final Teak.AttributedLaunchData launchData = makeFakeLaunchData("attribution-id");
+        final Session session = makeSyntheticSession();
+        setCurrentSession(session);
+        try {
+            clearEventBusQueue();
+            RewardClaimManager.get().startPoll("evt-2", "attribution-id", session, launchData);
+            scheduler.runNext();
+            // Wire reply carries the raw blob (server stores opaque, echoes verbatim).
+            sender.completeLastPoll(200,
+                "{\"status\":\"completed\",\"reward\":{},"
+                    + "\"session_attribution\":\"{\\\"launch_link\\\":\\\"teak123://launch\\\"}\"}");
+
+            final Teak.RewardClaimResolvedEvent resolved = findResolvedEvent();
+            assertNotNull("RewardClaimResolvedEvent should have been queued", resolved);
+
+            final io.teak.sdk.json.JSONObject payload = resolved.toJSON();
+            assertFalse("session_attribution raw blob must NOT appear on the resolved event payload",
+                payload.has("session_attribution"));
+
+            // Eleven attribution keys always-present per cross-SDK contract: unset
+            // values arrive as JSON null, not absent.
+            assertTrue(payload.has("launch_link"));
+            assertTrue(payload.has("teakScheduleName"));
+            assertTrue(payload.has("teakScheduleId"));
+            assertTrue(payload.has("teakCreativeName"));
+            assertTrue(payload.has("teakCreativeId"));
+            assertTrue(payload.has("teakRewardId"));
+            assertTrue(payload.has("teakChannelName"));
+            assertTrue(payload.has("teakDeepLink"));
+            assertTrue(payload.has("teakOptOutCategory"));
+            assertTrue(payload.has("teakNotifId"));
+            assertTrue(payload.has("teakSystemActivityId"));
+
+            // Spot-check non-null fixture values.
+            assertEquals("attribution-id", payload.getString("teakRewardId"));
+            assertEquals("android_push", payload.getString("teakChannelName"));
+            assertEquals("fixture-creative", payload.getString("teakCreativeName"));
+            assertEquals("fixture-creative-id", payload.getString("teakCreativeId"));
+            assertEquals("teak", payload.getString("teakOptOutCategory"));
+
+            // Unset keys arrive as JSON null (not absent, not the literal string "null").
+            assertTrue("teakNotifId must arrive as JSON null when unset, not absent",
+                payload.isNull("teakNotifId"));
+            assertTrue("teakSystemActivityId must arrive as JSON null on Android (always-null platform)",
+                payload.isNull("teakSystemActivityId"));
+        } finally {
+            setCurrentSession(null);
+        }
+    }
+
     private static Teak.AttributedLaunchData makeFakeLaunchData(String teakRewardId) {
         final android.net.Uri uri = org.mockito.Mockito.mock(android.net.Uri.class);
         org.mockito.Mockito.when(uri.isOpaque()).thenReturn(false);

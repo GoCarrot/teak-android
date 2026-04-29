@@ -4,3 +4,6 @@ new:
   - "``TeakNotification.Reward`` now exposes ``TOKEN_ISSUED`` (2) and ``CLAIM_PENDING`` (3) for click replies that issue a JWT or queue an asynchronous claim."
   - "Added ``Teak.RewardJwtIssuedEvent``, ``Teak.RewardClaimPendingEvent``, and ``Teak.RewardClaimResolvedEvent`` for the JWT-mode click flow. The SDK polls ``/claim_status`` until the claim resolves and POSTs ``/claim_ack`` with a bounded retry budget after delivering the resolved event to the host game."
   - "Settings response keys ``claim_poll_initial_delay_ms`` and ``claim_poll_ceiling_ms`` now drive the click-time poll and ack backoff curves; hardcoded fallbacks of 2000 ms / 30000 ms apply when settings is unreachable."
+bug:
+  - "Reward click ``session_attribution`` is now sent as a JSON-encoded string on the wire so the server's ``sinatra-param`` ``String()`` coercion preserves the eleven-key blob across the round trip."
+  - "``Teak.RewardClaimResolvedEvent`` payload no longer carries the raw ``session_attribution`` blob; the eleven attribution keys are surfaced as discrete top-level fields instead, matching the cross-SDK canonical surface. Unset attribution keys arrive as JSON null on the host-facing payload (not absent), preserving the always-present-eleven-keys contract."
