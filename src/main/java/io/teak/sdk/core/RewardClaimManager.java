@@ -462,6 +462,12 @@ public class RewardClaimManager {
      * no-ops via the dedupe guard in {@link #startPoll}.
      */
     public void dispatchSweptClaims(@NonNull JSONArray claims, @NonNull Session originatingSession) {
+        // Collect terminal events to fire and post them outside the synchronized block.
+        // whenUserIdIsReadyPost recurses into Session.currentSessionLock + Session.stateLock;
+        // posting under inFlightLock is a future-deadlock seed (no current cycle, but the
+        // click-time onPollReply path posts outside the lock for the same reason).
+        final List<Teak.RewardClaimResolvedEvent> resolvedToPost = new ArrayList<>();
+
         for (int i = 0; i < claims.length(); i++) {
             final JSONObject entry = claims.optJSONObject(i);
             if (entry == null) continue;
@@ -491,7 +497,7 @@ public class RewardClaimManager {
                 if (isTerminal) {
                     claim.resolvedReply = entry;
                     Teak.log.i("claim_sweep.resolved", logEntry(eventId));
-                    Session.whenUserIdIsReadyPost(
+                    resolvedToPost.add(
                         new Teak.RewardClaimResolvedEvent(claim.attribution, eventId, entry));
                     scheduleAck(claim);
                 } else {
@@ -499,6 +505,10 @@ public class RewardClaimManager {
                     schedulePoll(claim);
                 }
             }
+        }
+
+        for (Teak.RewardClaimResolvedEvent event : resolvedToPost) {
+            Session.whenUserIdIsReadyPost(event);
         }
     }
 

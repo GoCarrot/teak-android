@@ -85,6 +85,8 @@ public class SessionStartSweepTests extends TeakUnitTest {
         } }));
         reply.put("customer_status_code", 200);
         reply.put("teak_reward_id", "2048153148060669999");
+        reply.put("created_at", "2026-04-29T20:15:00Z");
+        reply.put("completed_at", "2026-04-29T20:15:04Z");
 
         final Teak.RewardClaimResolvedEvent event =
             new Teak.RewardClaimResolvedEvent(attribution, "evt-resurfaced-1", reply);
@@ -104,6 +106,15 @@ public class SessionStartSweepTests extends TeakUnitTest {
             payload.has("teak_reward_id"));
         assertFalse("raw session_attribution blob must NOT appear on the resolved-event userInfo",
             payload.has("session_attribution"));
+
+        // CEO ruling on cross-SDK strip set (post-iOS-C-724 / post-JS-C-725): created_at
+        // and completed_at are KEPT — they're documented timing fields, not server
+        // bookkeeping. wire_format.md is canonical; iOS TeakClaimPoll.m and JS teak.coffee
+        // both strip only {session_attribution, teak_reward_id}.
+        assertEquals("created_at must pass through to the resolved-event userInfo",
+            "2026-04-29T20:15:00Z", payload.getString("created_at"));
+        assertEquals("completed_at must pass through to the resolved-event userInfo",
+            "2026-04-29T20:15:04Z", payload.getString("completed_at"));
 
         assertTrue("teakDeepLink must arrive as JSON null when unset, not absent",
             payload.isNull("teakDeepLink"));
@@ -315,6 +326,109 @@ public class SessionStartSweepTests extends TeakUnitTest {
         assertEquals("2048153148060669486", payload.getString("teakNotifId"));
         assertEquals("2048153148060669138", payload.getString("teakRewardId"));
         assertEquals("android_push", payload.getString("teakChannelName"));
+    }
+
+    /// A non-JSON string in {@code session_attribution} is treated as no-attribution rather
+    /// than failing the whole entry — the dispatcher's defensive catch keeps a single
+    /// server-side anomaly from stranding the claim. The claim still enrolls and the
+    /// resolved event still fires, just without the eleven attribution keys populated from
+    /// the (un-decodable) blob.
+    @Test
+    public void sweep_malformedSessionAttributionString_isToleratedAsEmptyAttribution() throws Exception {
+        final Session session = makeSyntheticSession();
+        setCurrentSession(session);
+
+        final JSONObject claim = new JSONObject();
+        claim.put("event_id", "evt-sweep-bad-string-1");
+        claim.put("status", "completed");
+        claim.put("session_attribution", "not even close to json {");
+        claim.put("reward", new JSONObject());
+
+        final JSONArray claims = new JSONArray();
+        claims.put(claim);
+
+        RewardClaimManager.get().dispatchSweptClaims(claims, session);
+
+        // The claim still enrolls; the parse failure is dead-letter, not poison-pill.
+        assertTrue(RewardClaimManager.get().inFlightEventIdsForTest().contains("evt-sweep-bad-string-1"));
+
+        // Resolved event still fires; attribution is empty, so the eleven keys flow through
+        // as JSON null on the always-present contract. Reply keys still present.
+        final Teak.RewardClaimResolvedEvent resolved = findResolvedEvent("evt-sweep-bad-string-1");
+        assertNotNull(resolved);
+        final JSONObject payload = resolved.toJSON();
+        assertEquals("evt-sweep-bad-string-1", payload.getString("event_id"));
+        assertEquals("completed", payload.getString("status"));
+    }
+
+    // --- startSweep HTTP-boundary error branches ---
+
+    /// {@code startSweep} short-circuits when the originating session has no user id —
+    /// the {@code GET /claims} request is keyed on {@code clicking_user_id}, so there's
+    /// nothing to send.
+    @Test
+    public void startSweep_skipsWhenSessionHasNoUserId() throws Exception {
+        final Constructor<Session> ctor = Session.class.getDeclaredConstructor(String.class);
+        ctor.setAccessible(true);
+        // No userId field-stamp: userId() returns null on this session.
+        final Session sessionNoUser = ctor.newInstance("synthetic:no-user");
+
+        RewardClaimManager.get().startSweep(sessionNoUser);
+
+        assertEquals("startSweep must not invoke the sender when there is no user id",
+            0, sender.sweeps.size());
+    }
+
+    /// A non-2xx response from {@code GET /claims} is treated as no claims to surface this
+    /// launch — the at-least-once contract on RewardClaimResolvedEvent re-tries on the
+    /// next session start. Nothing should enroll into the in-flight dictionary.
+    @Test
+    public void startSweep_non2xxResponse_doesNotEnroll() throws Exception {
+        final Session session = makeSyntheticSession();
+        setCurrentSession(session);
+
+        RewardClaimManager.get().startSweep(session);
+        assertEquals("startSweep must invoke the sender once", 1, sender.sweeps.size());
+
+        final RewardClaimManager.ReplyHandler handler = (RewardClaimManager.ReplyHandler) sender.sweeps.get(0)[2];
+        handler.onReply(503, "{\"claims\":[{\"event_id\":\"evt-must-not-enroll\",\"status\":\"completed\"}]}");
+
+        assertEquals("non-2xx must not enroll any claims",
+            0, RewardClaimManager.get().inFlightCount());
+    }
+
+    /// A null response body is treated as no claims to surface — same at-least-once
+    /// fallback to next session start.
+    @Test
+    public void startSweep_nullBody_doesNotEnroll() throws Exception {
+        final Session session = makeSyntheticSession();
+        setCurrentSession(session);
+
+        RewardClaimManager.get().startSweep(session);
+        assertEquals(1, sender.sweeps.size());
+
+        final RewardClaimManager.ReplyHandler handler = (RewardClaimManager.ReplyHandler) sender.sweeps.get(0)[2];
+        handler.onReply(200, null);
+
+        assertEquals(0, RewardClaimManager.get().inFlightCount());
+    }
+
+    /// An unparseable body (not JSON, or no {@code claims} key) is treated as no claims
+    /// to surface — defensive against server-side response-shape drift.
+    @Test
+    public void startSweep_unparseableOrMissingClaimsKey_doesNotEnroll() throws Exception {
+        final Session session = makeSyntheticSession();
+        setCurrentSession(session);
+
+        // Unparseable body.
+        RewardClaimManager.get().startSweep(session);
+        ((RewardClaimManager.ReplyHandler) sender.sweeps.get(0)[2]).onReply(200, "not json");
+        assertEquals(0, RewardClaimManager.get().inFlightCount());
+
+        // Valid JSON but no claims key.
+        RewardClaimManager.get().startSweep(session);
+        ((RewardClaimManager.ReplyHandler) sender.sweeps.get(1)[2]).onReply(200, "{\"other_field\":\"value\"}");
+        assertEquals(0, RewardClaimManager.get().inFlightCount());
     }
 
     // --- helpers ---

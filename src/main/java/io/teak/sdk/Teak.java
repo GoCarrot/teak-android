@@ -1717,18 +1717,18 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         /**
          * Server-bookkeeping and raw-attribution wire fields stripped from the host-
          * facing payload. The eleven attribution keys are surfaced as discrete top-level
-         * keys via {@link #attribution}; the raw blob and timing fields aren't part of
-         * the documented public surface. {@code teak_reward_id} is stripped to match
-         * legacy {@code TeakOnReward} semantics — only the attribution
+         * keys via {@link #attribution}; the raw {@code session_attribution} blob isn't
+         * part of the documented public surface. {@code teak_reward_id} is stripped to
+         * match legacy {@code TeakOnReward} semantics — only the attribution
          * {@code teakRewardId} surfaces here; host games that need the server-
          * authoritative grant id correlate by {@code event_id} against the earlier
-         * {@link RewardJwtIssuedEvent} / {@link RewardClaimPendingEvent}.
+         * {@link RewardJwtIssuedEvent} / {@link RewardClaimPendingEvent}. {@code created_at}
+         * and {@code completed_at} are passed through as documented timing fields,
+         * matching iOS post-C-724 and JS post-C-725.
          */
         private static final String[] STRIP_KEYS = {
             "teak_reward_id",
             "session_attribution",
-            "created_at",
-            "completed_at",
         };
 
         /// @cond hide_from_doxygen
