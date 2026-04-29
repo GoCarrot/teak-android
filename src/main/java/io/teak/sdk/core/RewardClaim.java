@@ -4,9 +4,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
+import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 
-import io.teak.sdk.Teak;
 import io.teak.sdk.json.JSONObject;
 
 /**
@@ -15,16 +15,25 @@ import io.teak.sdk.json.JSONObject;
  * an Expiring→Active flicker (same Session instance after a brief background) keeps polling
  * alive, while a logout/login swap or post-Expired session change drops the entry on the
  * next stale-check site.
+ *
+ * <p>Attribution travels as the eleven-key flat-bag map (the canonical
+ * {@code session_attribution} shape) so click-time and session-start-sweep entries share
+ * one in-flight shape. Click-time callers flatten their launch-data once at start; sweep
+ * callers unpack the wire blob.
  */
 class RewardClaim {
     @NonNull
     final String eventId;
 
-    /** Reward id the click was originally fired against. May be null for legacy clicks. */
+    /**
+     * Reward id the click was originally fired against. May be null for legacy clicks.
+     */
     @Nullable
     final String teakRewardId;
 
-    /** Session that fired the click. Used to detect cross-session staleness. */
+    /**
+     * Session that fired the click. Used to detect cross-session staleness.
+     */
     @NonNull
     final WeakReference<Session> originatingSession;
 
@@ -35,30 +44,37 @@ class RewardClaim {
     @NonNull
     final String originatingClickingUserId;
 
-    /** Launch data attached to this click; null for direct-API claims with no attribution. */
-    @Nullable
-    final Teak.AttributedLaunchData launchData;
+    /**
+     * Eleven-key attribution map for this claim. Empty for direct-API claims with no
+     * attribution context. Always non-null so the resolved-event merge has a stable shape.
+     */
+    @NonNull
+    final Map<String, Object> attribution;
 
     int pollAttempt;
     int ackAttempt;
 
-    /** Set when a terminal (completed / failed) reply lands, before ack is fired. */
+    /**
+     * Set when a terminal (completed / failed) reply lands, before ack is fired.
+     */
     @Nullable
     JSONObject resolvedReply;
 
-    /** Outstanding scheduled work for cancellation on session-Expired. */
+    /**
+     * Outstanding scheduled work for cancellation on session-Expired.
+     */
     @Nullable
     ScheduledFuture<?> nextPollFuture;
     @Nullable
     ScheduledFuture<?> nextAckFuture;
 
     RewardClaim(@NonNull String eventId, @Nullable String teakRewardId,
-        @NonNull Session originatingSession, @Nullable Teak.AttributedLaunchData launchData) {
+        @NonNull Session originatingSession, @NonNull Map<String, Object> attribution) {
         this.eventId = eventId;
         this.teakRewardId = teakRewardId;
         this.originatingSession = new WeakReference<>(originatingSession);
         this.originatingClickingUserId = originatingSession.userId() == null ? "" : originatingSession.userId();
-        this.launchData = launchData;
+        this.attribution = attribution;
         this.pollAttempt = 0;
         this.ackAttempt = 0;
     }

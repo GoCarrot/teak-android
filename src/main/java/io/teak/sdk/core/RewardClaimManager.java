@@ -4,18 +4,19 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakConfiguration;
 import io.teak.sdk.TeakEvent;
 import io.teak.sdk.event.SessionStateEvent;
+import io.teak.sdk.json.JSONArray;
 import io.teak.sdk.json.JSONObject;
 
 /**
@@ -43,7 +44,9 @@ public class RewardClaimManager {
     public static final int DEFAULT_CEILING_MS = 30000;
     public static final int ACK_MAX_ATTEMPTS = 3;
 
-    /** Status strings the manager treats as terminal on a /claim_status reply. */
+    /**
+     * Status strings the manager treats as terminal on a /claim_status reply.
+     */
     static final String STATUS_COMPLETED = "completed";
     static final String STATUS_FAILED = "failed";
     static final String STATUS_PENDING = "pending";
@@ -64,6 +67,8 @@ public class RewardClaimManager {
             @NonNull String clickingUserId, @NonNull ReplyHandler handler);
         void sendAck(@NonNull String eventId, @NonNull String teakAppId,
             @NonNull String clickingUserId, @NonNull ReplyHandler handler);
+        void sendSweep(@NonNull String teakAppId, @NonNull String clickingUserId,
+            @NonNull ReplyHandler handler);
     }
 
     public interface ReplyHandler {
@@ -80,14 +85,18 @@ public class RewardClaimManager {
         }
     }
 
-    /** Test hook: number of in-flight claims at this moment. */
+    /**
+     * Test hook: number of in-flight claims at this moment.
+     */
     public int inFlightCount() {
         synchronized (inFlightLock) {
             return inFlight.size();
         }
     }
 
-    /** Test hook: clear all in-flight state without firing cancellation logic. */
+    /**
+     * Test hook: clear all in-flight state without firing cancellation logic.
+     */
     public void resetForTest() {
         synchronized (inFlightLock) {
             for (RewardClaim claim : inFlight.values()) {
@@ -97,12 +106,16 @@ public class RewardClaimManager {
         }
     }
 
-    /** Test hook: substitute the HTTP sender. */
+    /**
+     * Test hook: substitute the HTTP sender.
+     */
     public void setSenderForTest(@Nullable ClaimRequestSender sender) {
         this.sender = sender;
     }
 
-    /** Test hook: substitute the scheduler. */
+    /**
+     * Test hook: substitute the scheduler.
+     */
     public void setSchedulerForTest(@NonNull ScheduledExecutorService scheduler) {
         this.scheduler = scheduler;
     }
@@ -119,22 +132,47 @@ public class RewardClaimManager {
     private RewardClaimManager() {}
 
     /**
-     * Start polling for a claim that the server returned {@code claim_pending} for.
-     * Idempotent: re-entrant calls for the same {@code eventId} while the entry is in flight
-     * are dropped silently.
+     * Start polling for a claim that the server returned {@code claim_pending} for, with
+     * launch-data attribution for the originating click. Convenience for the click-time
+     * path: flattens {@code launchData} once into the eleven-key attribution map and
+     * delegates to {@link #startPoll(String, String, Session, Map)}.
+     *
+     * <p>Idempotent: re-entrant calls for the same {@code eventId} while the entry is in
+     * flight are dropped silently.
      */
     public void startPoll(@NonNull String eventId, @Nullable String teakRewardId,
         @NonNull Session originatingSession, @Nullable Teak.AttributedLaunchData launchData) {
+        startPoll(eventId, teakRewardId, originatingSession, attributionMapFromLaunchData(launchData));
+    }
+
+    /**
+     * Start polling with the eleven-key attribution map directly. Used by the session-start
+     * sweep dispatcher, which sources attribution from the wire {@code session_attribution}
+     * blob rather than a launch-data object.
+     *
+     * <p>Idempotent: re-entrant calls for the same {@code eventId} while the entry is in
+     * flight are dropped silently. This is the dedupe site between click-time and sweep
+     * paths.
+     */
+    public void startPoll(@NonNull String eventId, @Nullable String teakRewardId,
+        @NonNull Session originatingSession, @NonNull Map<String, Object> attribution) {
         synchronized (inFlightLock) {
             if (inFlight.containsKey(eventId)) {
                 Teak.log.i("claim_poll.start.duplicate", logEntry(eventId));
                 return;
             }
 
-            final RewardClaim claim = new RewardClaim(eventId, teakRewardId, originatingSession, launchData);
+            final RewardClaim claim = new RewardClaim(eventId, teakRewardId, originatingSession, attribution);
             inFlight.put(eventId, claim);
             schedulePoll(claim);
         }
+    }
+
+    @NonNull
+    private static Map<String, Object> attributionMapFromLaunchData(
+        @Nullable Teak.AttributedLaunchData launchData) {
+        if (launchData == null) return Collections.emptyMap();
+        return launchData.toMap();
     }
 
     /**
@@ -261,11 +299,9 @@ public class RewardClaimManager {
 
             // Fire the resolved-event observer first, then start the ack POST. Order matters:
             // host games observe the reward grant before the SDK marks it acknowledged.
-            if (claim.launchData != null) {
-                Session.whenUserIdIsReadyPost(
-                    new Teak.RewardClaimResolvedEvent(claim.launchData, claim.eventId, reply));
-                Teak.log.i("claim_resolved.delivered", logEntry(claim.eventId));
-            }
+            Session.whenUserIdIsReadyPost(
+                new Teak.RewardClaimResolvedEvent(claim.attribution, claim.eventId, reply));
+            Teak.log.i("claim_resolved.delivered", logEntry(claim.eventId));
 
             scheduleAck(claim);
             return;
@@ -278,8 +314,8 @@ public class RewardClaimManager {
 
     private void scheduleAck(@NonNull final RewardClaim claim) {
         final long delayMs = claim.ackAttempt == 0
-            ? 0L
-            : computeBackoffMs(claim.ackAttempt - 1, currentInitialMs(), currentCeilingMs());
+                                 ? 0L
+                                 : computeBackoffMs(claim.ackAttempt - 1, currentInitialMs(), currentCeilingMs());
         claim.nextAckFuture = scheduler.schedule(new Runnable() {
             @Override
             public void run() {
@@ -365,6 +401,139 @@ public class RewardClaimManager {
         }
     }
 
+    /**
+     * Fire the session-start sweep against {@code GET /claims}. Reads the unacked-claims
+     * list for the supplied session's user id and dispatches each entry through
+     * {@link #dispatchSweptClaims}. A non-2xx or empty/unparseable body is treated as no
+     * claims to surface this launch — the at-least-once contract on
+     * {@link Teak.RewardClaimResolvedEvent} re-tries on the next session start.
+     */
+    public void startSweep(@NonNull final Session originatingSession) {
+        final ClaimRequestSender s = effectiveSender();
+        if (s == null) {
+            Teak.log.i("claim_sweep.no_sender", new HashMap<String, Object>());
+            return;
+        }
+
+        final String teakAppId = currentAppId();
+        final String clickingUserId = originatingSession.userId() == null ? "" : originatingSession.userId();
+        if (clickingUserId.isEmpty() || teakAppId.isEmpty()) {
+            // No user / no app id → nothing to sweep against.
+            return;
+        }
+
+        Teak.log.i("claim_sweep.request.send", new HashMap<>());
+        s.sendSweep(teakAppId, clickingUserId, new ReplyHandler() {
+            @Override
+            public void onReply(int statusCode, @Nullable String body) {
+                if (statusCode < 200 || statusCode >= 300 || body == null) {
+                    final Map<String, Object> data = new HashMap<>();
+                    data.put("status_code", statusCode);
+                    Teak.log.i("claim_sweep.request.error", data);
+                    return;
+                }
+                JSONArray claims = null;
+                try {
+                    final JSONObject reply = new JSONObject(body);
+                    claims = reply.optJSONArray("claims");
+                } catch (Exception ignored) {
+                }
+                if (claims == null) return;
+                dispatchSweptClaims(claims, originatingSession);
+            }
+        });
+    }
+
+    /**
+     * Per-claim dispatch for a sweep response. Wire-free seam used by both production
+     * ({@link #startSweep}) and tests. Each entry must carry an {@code event_id} and
+     * {@code status}; malformed entries are dropped with the rest of the list dispatched.
+     *
+     * <p>Branching:
+     * <ul>
+     *   <li>Terminal ({@code completed} / {@code failed}): enroll into the in-flight
+     *       dictionary, fire {@link Teak.RewardClaimResolvedEvent}, schedule the ack.</li>
+     *   <li>Pending: enroll into the in-flight dictionary and schedule the next poll. Does
+     *       not fire {@link Teak.RewardClaimPendingEvent} — Pending is point-in-time.</li>
+     * </ul>
+     *
+     * <p>Idempotency is the existing in-flight dictionary's {@code event_id} key — sweep
+     * entries for an id already mid-poll, mid-request, or post-resolve awaiting ack are
+     * no-ops via the dedupe guard in {@link #startPoll}.
+     */
+    public void dispatchSweptClaims(@NonNull JSONArray claims, @NonNull Session originatingSession) {
+        for (int i = 0; i < claims.length(); i++) {
+            final JSONObject entry = claims.optJSONObject(i);
+            if (entry == null) continue;
+
+            final String eventId = entry.optString("event_id", null);
+            if (eventId == null || eventId.isEmpty()) continue;
+
+            final String status = entry.optString("status", null);
+            final boolean isTerminal =
+                STATUS_COMPLETED.equals(status) || STATUS_FAILED.equals(status);
+            final boolean isPending = STATUS_PENDING.equals(status);
+            if (!isTerminal && !isPending) continue;
+
+            final Map<String, Object> attribution = unpackSessionAttribution(entry.opt("session_attribution"));
+            final String teakRewardId = teakRewardIdFromAttribution(attribution);
+
+            synchronized (inFlightLock) {
+                if (inFlight.containsKey(eventId)) {
+                    Teak.log.i("claim_sweep.dedupe", logEntry(eventId));
+                    continue;
+                }
+
+                final RewardClaim claim = new RewardClaim(
+                    eventId, teakRewardId, originatingSession, attribution);
+                inFlight.put(eventId, claim);
+
+                if (isTerminal) {
+                    claim.resolvedReply = entry;
+                    Teak.log.i("claim_sweep.resolved", logEntry(eventId));
+                    Session.whenUserIdIsReadyPost(
+                        new Teak.RewardClaimResolvedEvent(claim.attribution, eventId, entry));
+                    scheduleAck(claim);
+                } else {
+                    Teak.log.i("claim_sweep.pending", logEntry(eventId));
+                    schedulePoll(claim);
+                }
+            }
+        }
+    }
+
+    /**
+     * Decode the wire {@code session_attribution} field. The blob is opaque text on the
+     * server (per the wire-format spec); the SDK accepts either an inline JSON object or
+     * a JSON-encoded string for forward-compat with either taro encoding choice. Anything
+     * else returns the empty map — attribution is best-effort context, not a gate on
+     * dispatch.
+     */
+    @NonNull
+    private static Map<String, Object> unpackSessionAttribution(@Nullable Object raw) {
+        if (raw == null) return Collections.emptyMap();
+        if (raw instanceof JSONObject) {
+            return ((JSONObject) raw).toMap();
+        }
+        if (raw instanceof String) {
+            final String s = (String) raw;
+            if (s.isEmpty()) return Collections.emptyMap();
+            try {
+                return new JSONObject(s).toMap();
+            } catch (Exception ignored) {
+                return Collections.emptyMap();
+            }
+        }
+        return Collections.emptyMap();
+    }
+
+    @Nullable
+    private static String teakRewardIdFromAttribution(@NonNull Map<String, Object> attribution) {
+        final Object v = attribution.get("teakRewardId");
+        if (v instanceof String && !((String) v).isEmpty()) return (String) v;
+        return null;
+    }
+
     @NonNull
     private static Map<String, Object> logEntry(@NonNull String eventId) {
         final Map<String, Object> data = new HashMap<>();
@@ -432,7 +601,9 @@ public class RewardClaimManager {
         return Math.min(scaled, ceilingMs);
     }
 
-    /** Wired from {@link TeakCore} alongside the other static registrations. */
+    /**
+     * Wired from {@link TeakCore} alongside the other static registrations.
+     */
     public static void registerStaticEventListeners() {
         TeakEvent.addEventListener(event -> {
             if (!SessionStateEvent.Type.equals(event.eventType)) return;

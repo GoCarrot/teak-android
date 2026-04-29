@@ -138,7 +138,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         try {
             if (intent != null && intent.getData() != null) {
                 final Uri intentData = intent.getData();
-                if(intentData.isHierarchical()) {
+                if (intentData.isHierarchical()) {
                     if (intentData.getBooleanQueryParameter("teak_log", false)) {
                         Teak.forceDebug = true;
                     }
@@ -155,14 +155,14 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
                     if (intentData.getBooleanQueryParameter("teak_strict_mode", false)) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                             StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder()
-                                                       .detectNonSdkApiUsage()
-                                                       .penaltyLog()
-                                                       .build());
+                                    .detectNonSdkApiUsage()
+                                    .penaltyLog()
+                                    .build());
                         }
                     }
                 }
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             android.util.Log.e(LOG_TAG, android.util.Log.getStackTraceString(e));
         }
 
@@ -436,7 +436,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
     public static void requestNotificationPermissions() {
         Teak.log.i("Teak.requestNotificationPermissions", "Hello");
 
-        if(Instance != null) {
+        if (Instance != null) {
             asyncExecutor.submit(() -> Instance.requestNotificationPermissions());
         }
     }
@@ -510,7 +510,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             SMS("sms"),                    ///< SMS channel
             Invalid("invalid");            ///< Invalid channel, will be ignored if used
 
-            //public static final Integer length = 1 + Invalid.ordinal();
+            // public static final Integer length = 1 + Invalid.ordinal();
 
             public final String name;
 
@@ -541,7 +541,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             Absent("absent"),
             Unknown("unknown");
 
-            //public static final Integer length = 1 + Absent.ordinal();
+            // public static final Integer length = 1 + Absent.ordinal();
 
             public final String name;
 
@@ -1266,7 +1266,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         protected AttributedLaunchData(@Nullable final Uri shortLink, @NonNull Uri deepLink) {
             super(shortLink);
 
-            if(deepLink.isOpaque()) {
+            if (deepLink.isOpaque()) {
                 this.scheduleName = this.scheduleId = this.creativeName = this.creativeId = this.rewardId = this.channelName = this.optOutCategory = null;
                 this.deepLink = deepLink;
                 return;
@@ -1306,7 +1306,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             this.rewardId = Helpers.newIfNotOld(oldLaunchData.rewardId, newLaunchData.rewardId);
             this.channelName = Helpers.newIfNotOld(oldLaunchData.channelName, newLaunchData.channelName);
             this.deepLink = updatedDeepLink;
-            if(updatedDeepLink.isHierarchical()) {
+            if (updatedDeepLink.isHierarchical()) {
                 this.optOutCategory = Helpers.newIfNotOld(oldLaunchData.optOutCategory,
                     updatedDeepLink.getQueryParameter("teak_opt_out_category") != null ? updatedDeepLink.getQueryParameter("teak_opt_out_category") : "teak");
             } else {
@@ -1332,7 +1332,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             // Put the URI and any query parameters that start with 'teak_' into 'deep_link'
             if (this.deepLink != null) {
                 map.put("deep_link", this.deepLink.toString());
-                if(this.deepLink.isHierarchical()) {
+                if (this.deepLink.isHierarchical()) {
                     for (final String name : this.deepLink.getQueryParameterNames()) {
                         if (name.startsWith("teak_")) {
                             final List<String> values = this.deepLink.getQueryParameters(name);
@@ -1406,7 +1406,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
          */
         protected NotificationLaunchData(@NonNull final NotificationLaunchData oldLaunchData, @NonNull Uri updatedDeepLink) {
             super(oldLaunchData, updatedDeepLink);
-            if(updatedDeepLink.isHierarchical()) {
+            if (updatedDeepLink.isHierarchical()) {
                 this.sourceSendId = Helpers.newIfNotOld(oldLaunchData.sourceSendId, updatedDeepLink.getQueryParameter("teak_notif_id"));
             } else {
                 this.sourceSendId = oldLaunchData.sourceSendId;
@@ -1536,7 +1536,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         public JSONObject toJSON() {
             final JSONObject json = new JSONObject();
             final ArrayList<JSONObject> categories = new ArrayList<JSONObject>();
-            for(Teak.Channel.Category category : this.remoteConfiguration.categories) {
+            for (Teak.Channel.Category category : this.remoteConfiguration.categories) {
                 categories.add(category.toJSON());
             }
 
@@ -1706,29 +1706,51 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         @NonNull
         public final JSONObject reply;
 
+        /**
+         * Eleven-key attribution map for this claim, sourced from the originating click's
+         * launch data (click-time path) or the wire {@code session_attribution} blob
+         * (session-start sweep path). Both surfaces flow through one canonical shape.
+         */
+        @NonNull
+        private final Map<String, Object> attribution;
+
+        /**
+         * Server-bookkeeping and raw-attribution wire fields stripped from the host-
+         * facing payload. The eleven attribution keys are surfaced as discrete top-level
+         * keys via {@link #attribution}; the raw blob and timing fields aren't part of
+         * the documented public surface. {@code teak_reward_id} is stripped to match
+         * legacy {@code TeakOnReward} semantics — only the attribution
+         * {@code teakRewardId} surfaces here; host games that need the server-
+         * authoritative grant id correlate by {@code event_id} against the earlier
+         * {@link RewardJwtIssuedEvent} / {@link RewardClaimPendingEvent}.
+         */
+        private static final String[] STRIP_KEYS = {
+            "teak_reward_id",
+            "session_attribution",
+            "created_at",
+            "completed_at",
+        };
+
         /// @cond hide_from_doxygen
-        public RewardClaimResolvedEvent(@NonNull final AttributedLaunchData launchData,
+        public RewardClaimResolvedEvent(@NonNull final Map<String, Object> attribution,
             @NonNull final String eventId, @NonNull final JSONObject reply) {
-            super(launchData, null);
+            // Resolved events flatten attribution into discrete top-level keys via
+            // toJSON(); host games correlate via event_id, not the launchData object.
+            // The base Event class still requires a LaunchData; Unattributed is the
+            // sentinel for "no separate launchData object on this event".
+            super(LaunchData.Unattributed, null);
             this.eventId = eventId;
             this.reply = reply;
+            this.attribution = attribution;
         }
 
         @Override
         public JSONObject toJSON() {
-            final Map<String, Object> map = this.launchData.toMap();
+            final Map<String, Object> map = new java.util.HashMap<>(this.attribution);
             map.putAll(this.reply.toMap());
-            // The resolved-event surface matches the legacy TeakOnReward semantics: only
-            // teakRewardId (camelCase, launch-data attribution) is exposed. The snake_case
-            // teak_reward_id from the wire reply is stripped here. Host games that need the
-            // server-authoritative grant id correlate by event_id against the earlier
-            // RewardJwtIssued / RewardClaimPending events, which DO carry teak_reward_id.
-            map.remove("teak_reward_id");
-            // The raw session_attribution blob is stripped because the eleven-key
-            // attribution it carries is already surfaced as discrete top-level keys via
-            // launchData.toMap() above. Hosts read those keys directly off the JSON
-            // payload; the encoded blob is not part of the host-facing surface.
-            map.remove("session_attribution");
+            for (String k : STRIP_KEYS) {
+                map.remove(k);
+            }
             map.put("event_id", this.eventId);
             // Cross-SDK always-present contract for the eleven attribution keys: unset
             // values must arrive as JSON null on the host-facing surface, matching iOS

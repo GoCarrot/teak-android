@@ -140,7 +140,7 @@ public class RewardClaimManagerTest extends TeakUnitTest {
         final Session session = makeSyntheticSession();
         setCurrentSession(session);
         try {
-            RewardClaimManager.get().startPoll("evt-1", "reward-1", session, null);
+            RewardClaimManager.get().startPoll("evt-1", "reward-1", session, (Teak.AttributedLaunchData) null);
             assertEquals(1, RewardClaimManager.get().inFlightCount());
 
             // First scheduled poll fires.
@@ -241,7 +241,7 @@ public class RewardClaimManagerTest extends TeakUnitTest {
         final Session originatingSession = makeSyntheticSessionWithUser("player-original");
         setCurrentSession(originatingSession);
         try {
-            RewardClaimManager.get().startPoll("evt-1", "reward-1", originatingSession, null);
+            RewardClaimManager.get().startPoll("evt-1", "reward-1", originatingSession, (Teak.AttributedLaunchData) null);
             scheduler.runNext();
             sender.completeLastPoll(200, "{\"status\":\"completed\",\"reward\":{}}");
             // onPollReply ran synchronously: resolved event posted, ack scheduled.
@@ -434,7 +434,6 @@ public class RewardClaimManagerTest extends TeakUnitTest {
         f.set(null, session);
     }
 
-
     /**
      * Records every poll/ack call so the test can inspect parameters and complete them on
      * its own schedule.
@@ -467,6 +466,13 @@ public class RewardClaimManagerTest extends TeakUnitTest {
         public void sendAck(String eventId, String teakAppId, String clickingUserId,
             RewardClaimManager.ReplyHandler handler) {
             acks.add(new Call(eventId, teakAppId, clickingUserId, handler));
+        }
+
+        @Override
+        public void sendSweep(String teakAppId, String clickingUserId,
+            RewardClaimManager.ReplyHandler handler) {
+            // Sweep is unused in this test class — the sweep tests live in
+            // SessionStartSweepTests. No-op satisfies the interface.
         }
 
         void completeLastPoll(int statusCode, String body) {
