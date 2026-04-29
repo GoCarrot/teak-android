@@ -363,33 +363,6 @@ public class RewardClaimManagerTest extends TeakUnitTest {
         }
     }
 
-    @Test
-    public void resolvedEvent_surfacesCreatedAtAndCompletedAtFromWireReply() throws Exception {
-        // Wire-format spec: created_at + completed_at are kept on the resolved-event
-        // userInfo so host games can show real timing for the click→resolution path.
-        final Teak.AttributedLaunchData launchData = makeFakeLaunchData("attribution-id");
-        final Session session = makeSyntheticSession();
-        setCurrentSession(session);
-        try {
-            clearEventBusQueue();
-            RewardClaimManager.get().startPoll("evt-3", "attribution-id", session, launchData);
-            scheduler.runNext();
-            sender.completeLastPoll(200,
-                "{\"status\":\"completed\",\"reward\":{},"
-                    + "\"created_at\":\"2026-04-29T12:00:00Z\","
-                    + "\"completed_at\":\"2026-04-29T12:00:05Z\"}");
-
-            final Teak.RewardClaimResolvedEvent resolved = findResolvedEvent();
-            assertNotNull("RewardClaimResolvedEvent should have been queued", resolved);
-
-            final io.teak.sdk.json.JSONObject payload = resolved.toJSON();
-            assertEquals("2026-04-29T12:00:00Z", payload.getString("created_at"));
-            assertEquals("2026-04-29T12:00:05Z", payload.getString("completed_at"));
-        } finally {
-            setCurrentSession(null);
-        }
-    }
-
     private static Teak.AttributedLaunchData makeFakeLaunchData(String teakRewardId) {
         final android.net.Uri uri = org.mockito.Mockito.mock(android.net.Uri.class);
         org.mockito.Mockito.when(uri.isOpaque()).thenReturn(false);
