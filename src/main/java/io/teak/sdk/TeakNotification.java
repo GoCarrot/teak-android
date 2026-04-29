@@ -271,7 +271,13 @@ public class TeakNotification implements Unobfuscable {
                     payload.put("clicking_user_id", session.userId());
                     payload.put("claim_mode", teakConfiguration.appConfiguration.claimMode);
                     if (launchData != null) {
-                        payload.put("session_attribution", launchData.toMap());
+                        // Wire form is a JSON-encoded string. Server's sinatra-param
+                        // String() coercion mutates a nested-object form into a Ruby-
+                        // hash-literal string, which is no longer JSON-parseable on
+                        // round-trip read. Encoding to a JSON string here keeps the
+                        // round-trip lossless.
+                        payload.put("session_attribution",
+                            new io.teak.sdk.json.JSONObject(launchData.toMap()).toString());
                     }
 
                     Request.submit("rewards.gocarrot.com", "/" + teakRewardId + "/clicks", payload, session,

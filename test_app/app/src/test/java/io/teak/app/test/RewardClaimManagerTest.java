@@ -307,6 +307,72 @@ public class RewardClaimManagerTest extends TeakUnitTest {
         }
     }
 
+    @Test
+    public void resolvedEvent_stripsRawSessionAttributionBlob_andSurfacesElevenKeyAttributionAsDiscreteKeys() throws Exception {
+        // Cross-SDK convention: the raw session_attribution wire field is stripped from
+        // the resolved-event userInfo. The eleven attribution keys are surfaced as
+        // discrete top-level fields, sourced from the SDK's own launch-data state (the
+        // in-session optimization documented in the wire-format spec).
+        final Teak.AttributedLaunchData launchData = makeFakeLaunchData("attribution-id");
+        final Session session = makeSyntheticSession();
+        setCurrentSession(session);
+        try {
+            clearEventBusQueue();
+            RewardClaimManager.get().startPoll("evt-2", "attribution-id", session, launchData);
+            scheduler.runNext();
+            // Wire reply carries the raw blob (server stores opaque, echoes verbatim).
+            sender.completeLastPoll(200,
+                "{\"status\":\"completed\",\"reward\":{},"
+                    + "\"session_attribution\":\"{\\\"launch_link\\\":\\\"teak123://launch\\\"}\"}");
+
+            final Teak.RewardClaimResolvedEvent resolved = findResolvedEvent();
+            assertNotNull("RewardClaimResolvedEvent should have been queued", resolved);
+
+            final io.teak.sdk.json.JSONObject payload = resolved.toJSON();
+            assertFalse("session_attribution raw blob must NOT appear on the resolved event payload",
+                payload.has("session_attribution"));
+
+            // The eleven attribution keys are surfaced as discrete top-level fields.
+            // Vendored JSONObject(Map) drops null entries on serialization, so only the
+            // non-null launch-data fixture values appear on the host-facing JSON surface;
+            // the spec contract (always-present-eleven-keys) lives at the Map layer.
+            assertEquals("attribution-id", payload.getString("teakRewardId"));
+            assertEquals("android_push", payload.getString("teakChannelName"));
+            assertEquals("fixture-creative", payload.getString("teakCreativeName"));
+            assertEquals("fixture-creative-id", payload.getString("teakCreativeId"));
+            assertEquals("teak", payload.getString("teakOptOutCategory"));
+        } finally {
+            setCurrentSession(null);
+        }
+    }
+
+    @Test
+    public void resolvedEvent_surfacesCreatedAtAndCompletedAtFromWireReply() throws Exception {
+        // Wire-format spec: created_at + completed_at are kept on the resolved-event
+        // userInfo so host games can show real timing for the click→resolution path.
+        final Teak.AttributedLaunchData launchData = makeFakeLaunchData("attribution-id");
+        final Session session = makeSyntheticSession();
+        setCurrentSession(session);
+        try {
+            clearEventBusQueue();
+            RewardClaimManager.get().startPoll("evt-3", "attribution-id", session, launchData);
+            scheduler.runNext();
+            sender.completeLastPoll(200,
+                "{\"status\":\"completed\",\"reward\":{},"
+                    + "\"created_at\":\"2026-04-29T12:00:00Z\","
+                    + "\"completed_at\":\"2026-04-29T12:00:05Z\"}");
+
+            final Teak.RewardClaimResolvedEvent resolved = findResolvedEvent();
+            assertNotNull("RewardClaimResolvedEvent should have been queued", resolved);
+
+            final io.teak.sdk.json.JSONObject payload = resolved.toJSON();
+            assertEquals("2026-04-29T12:00:00Z", payload.getString("created_at"));
+            assertEquals("2026-04-29T12:00:05Z", payload.getString("completed_at"));
+        } finally {
+            setCurrentSession(null);
+        }
+    }
+
     private static Teak.AttributedLaunchData makeFakeLaunchData(String teakRewardId) {
         final android.net.Uri uri = org.mockito.Mockito.mock(android.net.Uri.class);
         org.mockito.Mockito.when(uri.isOpaque()).thenReturn(false);
