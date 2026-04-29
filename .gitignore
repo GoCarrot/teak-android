@@ -6,6 +6,7 @@ local.properties
 .gradle/
 
 .idea/
+.claude/
 
 out.map
 
