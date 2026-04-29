@@ -1726,10 +1726,20 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             map.remove("teak_reward_id");
             // The raw session_attribution blob is stripped because the eleven-key
             // attribution it carries is already surfaced as discrete top-level keys via
-            // launchData.toMap() above. Hosts read launch_link, teakScheduleName, etc.
-            // directly; the encoded blob is not part of the host-facing surface.
+            // launchData.toMap() above. Hosts read those keys directly off the JSON
+            // payload; the encoded blob is not part of the host-facing surface.
             map.remove("session_attribution");
             map.put("event_id", this.eventId);
+            // Cross-SDK always-present contract for the eleven attribution keys: unset
+            // values must arrive as JSON null on the host-facing surface, matching iOS
+            // NSNull and JS null. The vendored JSONObject(Map) constructor drops null
+            // entries, so swap any null in the map for the JSONObject.NULL sentinel
+            // before constructing — that round-trips through serialization as JSON null.
+            for (Map.Entry<String, Object> e : map.entrySet()) {
+                if (e.getValue() == null) {
+                    e.setValue(JSONObject.NULL);
+                }
+            }
             return new JSONObject(map);
         }
         /// @endcond

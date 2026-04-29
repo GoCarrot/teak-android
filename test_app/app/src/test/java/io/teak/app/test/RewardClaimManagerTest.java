@@ -332,15 +332,32 @@ public class RewardClaimManagerTest extends TeakUnitTest {
             assertFalse("session_attribution raw blob must NOT appear on the resolved event payload",
                 payload.has("session_attribution"));
 
-            // The eleven attribution keys are surfaced as discrete top-level fields.
-            // Vendored JSONObject(Map) drops null entries on serialization, so only the
-            // non-null launch-data fixture values appear on the host-facing JSON surface;
-            // the spec contract (always-present-eleven-keys) lives at the Map layer.
+            // Eleven attribution keys always-present per cross-SDK contract: unset
+            // values arrive as JSON null, not absent.
+            assertTrue(payload.has("launch_link"));
+            assertTrue(payload.has("teakScheduleName"));
+            assertTrue(payload.has("teakScheduleId"));
+            assertTrue(payload.has("teakCreativeName"));
+            assertTrue(payload.has("teakCreativeId"));
+            assertTrue(payload.has("teakRewardId"));
+            assertTrue(payload.has("teakChannelName"));
+            assertTrue(payload.has("teakDeepLink"));
+            assertTrue(payload.has("teakOptOutCategory"));
+            assertTrue(payload.has("teakNotifId"));
+            assertTrue(payload.has("teakSystemActivityId"));
+
+            // Spot-check non-null fixture values.
             assertEquals("attribution-id", payload.getString("teakRewardId"));
             assertEquals("android_push", payload.getString("teakChannelName"));
             assertEquals("fixture-creative", payload.getString("teakCreativeName"));
             assertEquals("fixture-creative-id", payload.getString("teakCreativeId"));
             assertEquals("teak", payload.getString("teakOptOutCategory"));
+
+            // Unset keys arrive as JSON null (not absent, not the literal string "null").
+            assertTrue("teakNotifId must arrive as JSON null when unset, not absent",
+                payload.isNull("teakNotifId"));
+            assertTrue("teakSystemActivityId must arrive as JSON null on Android (always-null platform)",
+                payload.isNull("teakSystemActivityId"));
         } finally {
             setCurrentSession(null);
         }
