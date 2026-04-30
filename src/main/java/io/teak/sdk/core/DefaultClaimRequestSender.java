@@ -1,14 +1,12 @@
 package io.teak.sdk.core;
 
+import android.net.Uri;
 import androidx.annotation.NonNull;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
 
 import io.teak.sdk.Request;
-import io.teak.sdk.Teak;
 
 /**
  * Production HTTP boundary for {@link RewardClaimManager}. Routes through {@link Request}
@@ -26,7 +24,13 @@ class DefaultClaimRequestSender implements RewardClaimManager.ClaimRequestSender
     @Override
     public void sendPoll(@NonNull String eventId, @NonNull String teakAppId,
         @NonNull String clickingUserId, @NonNull RewardClaimManager.ReplyHandler handler) {
-        final String endpoint = "/claim_status?" + queryString(eventId, teakAppId, clickingUserId);
+        final String endpoint = new Uri.Builder()
+                                    .path("/claim_status")
+                                    .appendQueryParameter("teak_app_id", teakAppId)
+                                    .appendQueryParameter("clicking_user_id", clickingUserId)
+                                    .appendQueryParameter("event_id", eventId)
+                                    .build()
+                                    .toString();
         Request.submit(HOSTNAME, "GET", endpoint, new HashMap<>(), Session.NullSession,
             (responseCode, responseBody) -> handler.onReply(responseCode, responseBody));
     }
@@ -45,29 +49,13 @@ class DefaultClaimRequestSender implements RewardClaimManager.ClaimRequestSender
     @Override
     public void sendSweep(@NonNull String teakAppId, @NonNull String clickingUserId,
         @NonNull RewardClaimManager.ReplyHandler handler) {
-        final String endpoint = "/claims?" + sweepQueryString(teakAppId, clickingUserId);
+        final String endpoint = new Uri.Builder()
+                                    .path("/claims")
+                                    .appendQueryParameter("teak_app_id", teakAppId)
+                                    .appendQueryParameter("clicking_user_id", clickingUserId)
+                                    .build()
+                                    .toString();
         Request.submit(HOSTNAME, "GET", endpoint, new HashMap<>(), Session.NullSession,
             (responseCode, responseBody) -> handler.onReply(responseCode, responseBody));
-    }
-
-    @NonNull
-    private static String queryString(@NonNull String eventId, @NonNull String teakAppId,
-        @NonNull String clickingUserId) {
-        try {
-            return "teak_app_id=" + URLEncoder.encode(teakAppId, "UTF-8") + "&clicking_user_id=" + URLEncoder.encode(clickingUserId, "UTF-8") + "&event_id=" + URLEncoder.encode(eventId, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            Teak.log.exception(e);
-            return "teak_app_id=" + teakAppId + "&clicking_user_id=" + clickingUserId + "&event_id=" + eventId;
-        }
-    }
-
-    @NonNull
-    private static String sweepQueryString(@NonNull String teakAppId, @NonNull String clickingUserId) {
-        try {
-            return "teak_app_id=" + URLEncoder.encode(teakAppId, "UTF-8") + "&clicking_user_id=" + URLEncoder.encode(clickingUserId, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            Teak.log.exception(e);
-            return "teak_app_id=" + teakAppId + "&clicking_user_id=" + clickingUserId;
-        }
     }
 }
