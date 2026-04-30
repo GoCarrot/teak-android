@@ -41,7 +41,6 @@ import static org.junit.Assert.assertTrue;
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class RewardClickReplyDispatchTest extends TeakUnitTest {
 
-
     private static final Field userIdReadyEventBusQueueField;
     private static final Method dispatchClickReply;
     private static final Constructor<TeakNotification.Reward> rewardCtor;
@@ -212,6 +211,11 @@ public class RewardClickReplyDispatchTest extends TeakUnitTest {
         final android.net.Uri uri = org.mockito.Mockito.mock(android.net.Uri.class);
         org.mockito.Mockito.when(uri.isOpaque()).thenReturn(false);
         org.mockito.Mockito.when(uri.isHierarchical()).thenReturn(true);
+        // Click-time path now flattens launchData into the eleven-key attribution map at
+        // startPoll, which routes through DeepLink.willProcessUri → URI.create(toString()).
+        // Default Mockito toString ("Mock for Uri, hashCode: ...") fails URI.create; stub
+        // a real URI string.
+        org.mockito.Mockito.when(uri.toString()).thenReturn("teak123://launch");
         org.mockito.Mockito.when(uri.getQueryParameter("teak_reward_id")).thenReturn(teakRewardId);
         org.mockito.Mockito.when(uri.getQueryParameter("teak_channel_name")).thenReturn("android_push");
         org.mockito.Mockito.when(uri.getQueryParameter("teak_creative_name")).thenReturn("fixture-creative");
