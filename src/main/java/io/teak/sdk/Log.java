@@ -51,16 +51,18 @@ import io.teak.sdk.raven.Raven;
 public class Log {
     // region Log Level enum
     private enum Level {
-        Info("INFO", android.util.Log.INFO),
-        Warn("WARN", android.util.Log.WARN),
-        Error("ERROR", android.util.Log.ERROR);
+        Info("INFO", android.util.Log.INFO, "info"),
+        Warn("WARN", android.util.Log.WARN, "warning"),
+        Error("ERROR", android.util.Log.ERROR, "error");
 
         public final String name;
         public final int androidLogPriority;
+        public final String ravenLevelName;
 
-        Level(String name, int androidLogPriority) {
+        Level(String name, int androidLogPriority, String ravenLevelName) {
             this.name = name;
             this.androidLogPriority = androidLogPriority;
+            this.ravenLevelName = ravenLevelName;
         }
     }
     // endregion
@@ -183,6 +185,12 @@ public class Log {
     private boolean logRemotely;
     private boolean logTrace = false;
     private boolean sendToRapidIngestion;
+
+    private Raven sdkRaven;
+
+    public void setSdkRaven(Raven raven) {
+        this.sdkRaven = raven;
+    }
 
     private Teak.LogListener logListener;
     // endregion
@@ -315,9 +323,9 @@ private void logEvent(final @NonNull LogEvent logEvent) {
                 connection.setUseCaches(false);
                 connection.setDoOutput(true);
                 connection.setRequestProperty("Content-Type", "application/json");
-                //connection.setRequestProperty("Content-Encoding", "gzip");
+                // connection.setRequestProperty("Content-Encoding", "gzip");
 
-                //GZIPOutputStream wr = new GZIPOutputStream(connection.getOutputStream());
+                // GZIPOutputStream wr = new GZIPOutputStream(connection.getOutputStream());
                 OutputStream wr = connection.getOutputStream();
                 wr.write(new JSONObject(payload).toString().getBytes());
                 wr.flush();
@@ -331,7 +339,7 @@ private void logEvent(final @NonNull LogEvent logEvent) {
                 }
                 BufferedReader rd = new BufferedReader(new InputStreamReader(is));
                 String line;
-                //noinspection MismatchedQueryAndUpdateOfStringBuilder
+                // noinspection MismatchedQueryAndUpdateOfStringBuilder
                 StringBuilder response = new StringBuilder();
                 while ((line = rd.readLine()) != null) {
                     response.append(line);
@@ -350,6 +358,11 @@ private void logEvent(final @NonNull LogEvent logEvent) {
     // Log to listeners
     if (this.logListener != null) {
         this.logListener.logEvent(logEvent.eventType, logEvent.logLevel.name, payload);
+    }
+
+    // Fan out to Raven breadcrumbs (skip "exception" — it creates its own report)
+    if (!logEvent.eventType.equals("exception") && this.sdkRaven != null) {
+        this.sdkRaven.addBreadcrumb(logEvent.logLevel.ravenLevelName, logEvent.eventType, logEvent.eventData);
     }
 }
 }
