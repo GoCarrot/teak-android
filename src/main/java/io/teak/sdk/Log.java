@@ -20,6 +20,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import io.teak.sdk.core.Executors;
 import io.teak.sdk.json.JSONObject;
 import io.teak.sdk.raven.Raven;
@@ -241,6 +242,7 @@ public class Log {
 });
 }
 
+@VisibleForTesting
 public void markConfigurationReady() {
     synchronized (queuedLogEvents) {
         processedQueuedLogEvents = true;

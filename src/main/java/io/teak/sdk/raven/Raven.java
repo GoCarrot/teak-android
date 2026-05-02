@@ -402,12 +402,11 @@ public class Raven implements Thread.UncaughtExceptionHandler {
                 payload.putAll(additions);
             }
 
-            synchronized (Raven.this.breadcrumbs) {
-                if (!Raven.this.breadcrumbs.isEmpty()) {
-                    final HashMap<String, Object> breadcrumbsPayload = new HashMap<>();
-                    breadcrumbsPayload.put("values", new ArrayList<>(Raven.this.breadcrumbs));
-                    payload.put("breadcrumbs", breadcrumbsPayload);
-                }
+            final List<Map<String, Object>> breadcrumbSnapshot = Raven.this.snapshotBreadcrumbs();
+            if (!breadcrumbSnapshot.isEmpty()) {
+                final HashMap<String, Object> breadcrumbsPayload = new HashMap<>();
+                breadcrumbsPayload.put("values", breadcrumbSnapshot);
+                payload.put("breadcrumbs", breadcrumbsPayload);
             }
         }
 
