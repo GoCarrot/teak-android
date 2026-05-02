@@ -327,7 +327,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
         final HashMap<String, Object> breadcrumb = new HashMap<>();
         breadcrumb.put("timestamp", Raven.timestampFormatter.format(new Date()));
         breadcrumb.put("level", level);
-        breadcrumb.put("category", level);
+        breadcrumb.put("category", message);
         breadcrumb.put("message", message);
         if (data != null) {
             breadcrumb.put("data", data);

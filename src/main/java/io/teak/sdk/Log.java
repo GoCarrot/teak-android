@@ -188,6 +188,7 @@ public class Log {
 
     private volatile Raven sdkRaven;
 
+    // Kept in sync with TeakInstance.sdkRaven by the TeakConfiguration listener in TeakInstance.
     public void setSdkRaven(Raven raven) {
         this.sdkRaven = raven;
     }

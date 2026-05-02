@@ -24,16 +24,12 @@ public class RavenBreadcrumbTest extends TeakUnitTest {
         Teak.log.setSdkRaven(null);
     }
 
-    private Raven makeRaven() throws Exception {
-        final Raven[] holder = {null};
-        TeakConfiguration.addEventListener(config -> holder[0] = new Raven(context, "sdk", config, objectFactory));
-        Teak.log.markConfigurationReady();
-        return holder[0];
+    private Raven makeRaven() {
+        return new Raven(context, "sdk", TeakConfiguration.get(), objectFactory);
     }
 
     @Test
     public void logIFiresBreadcrumb() throws Exception {
-        // setSdkRaven before markConfigurationReady establishes happens-before through queuedLogEvents monitor
         Raven raven = new Raven(context, "sdk", TeakConfiguration.get(), objectFactory);
         Teak.log.setSdkRaven(raven);
         Teak.log.markConfigurationReady();
@@ -45,6 +41,7 @@ public class RavenBreadcrumbTest extends TeakUnitTest {
 
         Map<String, Object> crumb = breadcrumbs.get(breadcrumbs.size() - 1);
         assertEquals("test.breadcrumb", crumb.get("message"));
+        assertEquals("test.breadcrumb", crumb.get("category"));
         assertEquals("info", crumb.get("level"));
         assertTrue(crumb.containsKey("timestamp"));
     }
