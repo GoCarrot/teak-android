@@ -53,7 +53,7 @@ public class TeakInstance implements Unobfuscable {
 
     @SuppressLint("ObsoleteSdkInt")
     TeakInstance(@NonNull Activity activity, @NonNull final IObjectFactory objectFactory) {
-        //noinspection all -- Disable warning on the null check
+        // noinspection all -- Disable warning on the null check
         if (activity == null) {
             throw new InvalidParameterException("null Activity passed to Teak.onCreate");
         }
@@ -67,6 +67,7 @@ public class TeakInstance implements Unobfuscable {
         // Ravens
         TeakConfiguration.addEventListener(configuration -> {
             TeakInstance.this.sdkRaven = new Raven(context, "sdk", configuration, objectFactory);
+            Teak.log.setSdkRaven(TeakInstance.this.sdkRaven);
             TeakInstance.this.appRaven = new Raven(context, configuration.appConfiguration.bundleId, configuration, objectFactory);
         });
 
@@ -475,7 +476,7 @@ public class TeakInstance implements Unobfuscable {
         Paused("Paused"),
         Destroyed("Destroyed");
 
-        //public static final Integer length = 1 + Destroyed.ordinal();
+        // public static final Integer length = 1 + Destroyed.ordinal();
 
         private static final State[][] allowedTransitions = {
             {},

@@ -34,11 +34,23 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class NotificationBroadcastReceivers {
+    private Log originalTeakLog;
+    private Field teakLogField;
+
+    @org.junit.After
+    public void restoreTeakLog() throws NoSuchFieldException, IllegalAccessException {
+        if (teakLogField != null && originalTeakLog != null) {
+            teakLogField.set(null, originalTeakLog);
+        }
+    }
+
     @Test
     public void FcmMessageReceieved() throws PackageManager.NameNotFoundException, NoSuchFieldException, IllegalAccessException {
-        final Log teakLog = mock(Log.class); // withSettings().verboseLogging()
-        final Field teakLogField = Teak.class.getDeclaredField("log");
+        teakLogField = Teak.class.getDeclaredField("log");
         teakLogField.setAccessible(true);
+        originalTeakLog = (Log) teakLogField.get(null);
+
+        final Log teakLog = mock(Log.class); // withSettings().verboseLogging()
         teakLogField.set(null, teakLog);
 
         final TestTeakEventListener eventListener = spy(TestTeakEventListener.class);

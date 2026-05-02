@@ -1,0 +1,2 @@
+enhancement:
+  - "Sentry exception reports now include breadcrumbs from recent `Teak.log` events, making crashes easier to diagnose."

@@ -8,6 +8,7 @@ import android.util.Log;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.text.SimpleDateFormat;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -18,6 +19,7 @@ import java.util.TimeZone;
 import java.util.UUID;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.work.Constraints;
 import androidx.work.Data;
 import androidx.work.ExistingWorkPolicy;
@@ -61,6 +63,9 @@ public class Raven implements Thread.UncaughtExceptionHandler {
         }
     }
 
+    private static final int BREADCRUMB_LIMIT = 100;
+    private final ArrayDeque<Map<String, Object>> breadcrumbs = new ArrayDeque<>();
+
     private final List<Report> queuedReports = new ArrayList<>();
     private final HashMap<String, Object> payloadTemplate = new HashMap<>();
     private final Context applicationContext;
@@ -78,7 +83,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
     }
 
     public Raven(@NonNull Context context, @NonNull String appId, @NonNull TeakConfiguration configuration, @NonNull IObjectFactory objectFactory) {
-        //noinspection deprecation - This must be a string as per Sentry API
+        // noinspection deprecation - This must be a string as per Sentry API
         @SuppressWarnings("deprecation")
         final String teakSdkVersion = Teak.SDKVersion;
 
@@ -318,6 +323,29 @@ public class Raven implements Thread.UncaughtExceptionHandler {
         }
     }
 
+    public void addBreadcrumb(@NonNull String level, @NonNull String message, @Nullable Map<String, Object> data) {
+        final HashMap<String, Object> breadcrumb = new HashMap<>();
+        breadcrumb.put("timestamp", Raven.timestampFormatter.format(new Date()));
+        breadcrumb.put("level", level);
+        breadcrumb.put("category", message);
+        breadcrumb.put("message", message);
+        if (data != null) {
+            breadcrumb.put("data", data);
+        }
+        synchronized (this.breadcrumbs) {
+            this.breadcrumbs.addLast(breadcrumb);
+            if (this.breadcrumbs.size() > BREADCRUMB_LIMIT) {
+                this.breadcrumbs.removeFirst();
+            }
+        }
+    }
+
+    public List<Map<String, Object>> snapshotBreadcrumbs() {
+        synchronized (this.breadcrumbs) {
+            return new ArrayList<>(this.breadcrumbs);
+        }
+    }
+
     private Map<String, Object> toMap() {
         HashMap<String, Object> ret = new HashMap<>();
         ret.put("appId", this.appId);
@@ -363,15 +391,22 @@ public class Raven implements Thread.UncaughtExceptionHandler {
                 final int depth = 4;
                 final StackTraceElement[] ste = Thread.currentThread().getStackTrace();
                 payload.put("culprit", ste[depth].toString());
-                //for (StackTraceElement elem : ste) {
-                //    Log.d(LOG_TAG, elem.toString());
-                //}
+                // for (StackTraceElement elem : ste) {
+                //     Log.d(LOG_TAG, elem.toString());
+                // }
             } catch (Exception e) {
                 payload.put("culprit", "unknown");
             }
 
             if (additions != null) {
                 payload.putAll(additions);
+            }
+
+            final List<Map<String, Object>> breadcrumbSnapshot = Raven.this.snapshotBreadcrumbs();
+            if (!breadcrumbSnapshot.isEmpty()) {
+                final HashMap<String, Object> breadcrumbsPayload = new HashMap<>();
+                breadcrumbsPayload.put("values", breadcrumbSnapshot);
+                payload.put("breadcrumbs", breadcrumbsPayload);
             }
         }
 
