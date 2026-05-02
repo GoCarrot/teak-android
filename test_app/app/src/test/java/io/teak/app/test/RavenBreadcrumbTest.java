@@ -5,11 +5,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 
-import io.teak.sdk.Log;
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakConfiguration;
 import io.teak.sdk.raven.Raven;
@@ -26,23 +24,19 @@ public class RavenBreadcrumbTest extends TeakUnitTest {
         Teak.log.setSdkRaven(null);
     }
 
-    private static void markLogQueueReady() throws Exception {
-        Field f = Log.class.getDeclaredField("processedQueuedLogEvents");
-        f.setAccessible(true);
-        f.set(Teak.log, true);
-    }
-
     private Raven makeRaven() throws Exception {
         final Raven[] holder = {null};
         TeakConfiguration.addEventListener(config -> holder[0] = new Raven(context, "sdk", config, objectFactory));
-        markLogQueueReady();
+        Teak.log.markConfigurationReady();
         return holder[0];
     }
 
     @Test
     public void logIFiresBreadcrumb() throws Exception {
-        Raven raven = makeRaven();
+        // setSdkRaven before markConfigurationReady establishes happens-before through queuedLogEvents monitor
+        Raven raven = new Raven(context, "sdk", TeakConfiguration.get(), objectFactory);
         Teak.log.setSdkRaven(raven);
+        Teak.log.markConfigurationReady();
 
         Teak.log.i("test.breadcrumb", "hello breadcrumbs");
 

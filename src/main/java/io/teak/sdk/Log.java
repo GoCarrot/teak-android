@@ -186,7 +186,7 @@ public class Log {
     private boolean logTrace = false;
     private boolean sendToRapidIngestion;
 
-    private Raven sdkRaven;
+    private volatile Raven sdkRaven;
 
     public void setSdkRaven(Raven raven) {
         this.sdkRaven = raven;
@@ -232,12 +232,18 @@ public class Log {
 
                 synchronized (queuedLogEvents) {
             for (LogEvent event : queuedLogEvents) {
-                logEvent(event);
+                logEvent(event, null);
             }
             processedQueuedLogEvents = true;
                 }
     }
 });
+}
+
+public void markConfigurationReady() {
+    synchronized (queuedLogEvents) {
+        processedQueuedLogEvents = true;
+    }
 }
 
 public void useRapidIngestionEndpoint(boolean useRapidIngestionEndpoint) {
@@ -276,14 +282,14 @@ protected void log(final @NonNull Level logLevel, final @NonNull String eventTyp
     LogEvent logEvent = new LogEvent(logLevel, eventType, eventData);
     synchronized (queuedLogEvents) {
         if (processedQueuedLogEvents) {
-            this.logEvent(logEvent);
+            this.logEvent(logEvent, this.sdkRaven);
         } else {
             queuedLogEvents.add(logEvent);
         }
     }
 }
 
-private void logEvent(final @NonNull LogEvent logEvent) {
+private void logEvent(final @NonNull LogEvent logEvent, final @Nullable Raven currentRaven) {
     // Payload including common payload
     final Map<String, Object> payload = new HashMap<>(this.commonPayload);
 
@@ -361,8 +367,8 @@ private void logEvent(final @NonNull LogEvent logEvent) {
     }
 
     // Fan out to Raven breadcrumbs (skip "exception" — it creates its own report)
-    if (!logEvent.eventType.equals("exception") && this.sdkRaven != null) {
-        this.sdkRaven.addBreadcrumb(logEvent.logLevel.ravenLevelName, logEvent.eventType, logEvent.eventData);
+    if (!logEvent.eventType.equals("exception") && currentRaven != null) {
+        currentRaven.addBreadcrumb(logEvent.logLevel.ravenLevelName, logEvent.eventType, logEvent.eventData);
     }
 }
 }
