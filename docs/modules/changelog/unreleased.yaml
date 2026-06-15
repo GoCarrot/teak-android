@@ -1,6 +1,7 @@
 bug:
   - "Fixed a crash (NPE) when claiming a reward if the server response was empty or had an unexpected shape. `TeakNotification.Reward.rewardFromRewardId` now resolves to a reward with `UNKNOWN` status instead of crashing or hanging."
   - "Fixed `JSONException` Sentry noise from malformed server responses (HTML error pages, proxy errors) in request callbacks. Non-JSON bodies now fall back to `{}` and log a breadcrumb instead of hitting Sentry."
+  - "Deep links that resolve without an `AndroidPath` now retain the originating launch link for attribution instead of dropping it, matching the iOS resolver."
 
 enhancement:
   - "Sentry exception reports now include breadcrumbs from recent `Teak.log` events, making crashes easier to diagnose."

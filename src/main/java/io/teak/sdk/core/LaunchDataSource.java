@@ -168,10 +168,10 @@ public class LaunchDataSource implements Future<Teak.LaunchData>, Unobfuscable {
                             } else {
                                 uri = Uri.parse(String.format(Locale.US, "teak%s://%s", teakConfiguration.appConfiguration.appId, androidPath));
                             }
-                        } else {
-                            // Clear httpsUri, so that it won't get sent along to the AttributionData constructor
-                            httpsUri = null;
                         }
+                        // When AndroidPath is absent, uri keeps the original launch link and httpsUri
+                        // is retained so it survives as launchLink, matching the iOS resolver which
+                        // always keeps the launch link. (Only consumed by the RewardlinkLaunchData branch.)
 
                         Teak.log.i("deep_link.request.resolve", uri.toString());
                     } catch (Exception e) {

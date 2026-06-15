@@ -9,6 +9,8 @@ import org.mockito.junit.MockitoJUnitRunner;
 import io.teak.sdk.Helpers;
 import io.teak.sdk.Teak;
 
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -30,6 +32,21 @@ public class LaunchData {
         assertTrue(Helpers.stringsAreEqual(data.creativeName, teakCreativeName));
         assertTrue(Helpers.stringsAreEqual(data.creativeId, teakCreativeId));
         assertTrue(Helpers.stringsAreEqual(data.channelName, "generic_link"));
+    }
+
+    // Constructor-invariant lock (not an e2e LaunchDataSource test): the shortLink passed to
+    // RewardlinkLaunchData becomes launchLink. This pins the mechanism that lets the deep-link
+    // resolver retain the launch link when AndroidPath is absent — guarding against a future
+    // re-introduction of the `httpsUri = null` branch silently dropping launch_link attribution.
+    @Test
+    public void RewardlinkLaunchDataRetainsShortLinkAsLaunchLink() {
+        final Uri shortLink = mock(Uri.class);
+
+        final Teak.RewardlinkLaunchData withShortLink = new Teak.RewardlinkLaunchData(getGenericUri(), shortLink);
+        assertSame(shortLink, withShortLink.launchLink);
+
+        final Teak.RewardlinkLaunchData withoutShortLink = new Teak.RewardlinkLaunchData(getGenericUri(), null);
+        assertNull(withoutShortLink.launchLink);
     }
 
     private Uri getGenericUri() {
