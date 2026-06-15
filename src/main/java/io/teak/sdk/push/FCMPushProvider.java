@@ -154,7 +154,7 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
 
                 instanceIdTask.addOnFailureListener(e -> {
                     if (isTransientFcmError(e)) {
-                        Teak.log.i("google.fcm.token_failure_transient", Helpers.mm.h("error", e.getMessage()));
+                        Teak.log.i("google.fcm.token_failure_transient", Helpers.mm.h("error", e.toString()));
                     } else {
                         Teak.log.exception(e);
                     }
