@@ -4,3 +4,4 @@ bug:
 
 enhancement:
   - "Sentry exception reports now include breadcrumbs from recent `Teak.log` events, making crashes easier to diagnose."
+  - "The `run_id` correlation ID is now a Sentry tag (was a `user` field), making it searchable/filterable in the Sentry UI and consistent with the TeakLog event payload key."
