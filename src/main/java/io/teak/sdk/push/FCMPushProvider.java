@@ -20,6 +20,7 @@ import androidx.annotation.NonNull;
 import io.teak.sdk.Helpers;
 import io.teak.sdk.IntegrationChecker;
 import io.teak.sdk.Teak;
+import io.teak.sdk.TeakConfiguration;
 import io.teak.sdk.TeakEvent;
 import io.teak.sdk.Unobfuscable;
 import io.teak.sdk.core.TeakCore;
@@ -153,7 +154,8 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
                 instanceIdTask.addOnSuccessListener(this::onNewToken);
 
                 instanceIdTask.addOnFailureListener(e -> {
-                    if (isTransientFcmError(e)) {
+                    // In debug builds, always report so fingerprint misses are visible in QA.
+                    if (isTransientFcmError(e) && !isHostAppDebug()) {
                         Teak.log.i("google.fcm.token_failure_transient", Helpers.mm.h("error", e.toString()));
                     } else {
                         Teak.log.exception(e);
@@ -170,6 +172,14 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
             } catch (Exception e) {
                 Teak.log.exception(e);
             }
+        }
+    }
+
+    private static boolean isHostAppDebug() {
+        try {
+            return TeakConfiguration.get().debugConfiguration.isDebug();
+        } catch (Exception ignored) {
+            return false;
         }
     }
 
