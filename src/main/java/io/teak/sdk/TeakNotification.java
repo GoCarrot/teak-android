@@ -172,8 +172,89 @@ public class TeakNotification implements Unobfuscable {
         private static final String EXPIRED_STRING = "expired";
         private static final String INVALID_POST_STRING = "invalid_post";
 
+        // Wire value the iOS SDK already emits when a claim response has no usable status; not a
+        // server status, so it deliberately isn't in the mapping above and collapses to UNKNOWN.
+        private static final String INTERNAL_ERROR_STATUS = "internal_error";
+
+        // Sentinel for a reward-claim response we can't interpret: callers get a non-null reward
+        // instead of a crash. The json mirrors the success-path shape — status "internal_error"
+        // (the string the iOS SDK already emits for this case, which teak-unity maps to its
+        // InternalError status) plus teakRewardId — so a bare {} doesn't choke downstream: the
+        // Unity/Cocos wrappers index json["status"] directly (a missing key throws
+        // KeyNotFoundException), and direct public-API callers read teakRewardId off the reward json.
+        // The native Reward ctor collapses the unrecognized "internal_error" string to UNKNOWN.
+        static Reward unknownReward(final String teakRewardId) {
+            final JSONObject json = new JSONObject();
+            try {
+                json.put("teakRewardId", teakRewardId);
+                json.put("status", INTERNAL_ERROR_STATUS);
+            } catch (JSONException ignored) {
+                // A constant key plus the already-validated, non-null teakRewardId never throws.
+            }
+            return new Reward(json);
+        }
+
+        // Reported (non-fatal) to Sentry when a reward-claim response is missing the structure we
+        // expect. Each shape is reported from a distinct site so Sentry groups them separately, with
+        // the raw body in `extra`, to surface which responses are actually arriving.
+        private static class UnexpectedRewardResponseException extends Exception implements Unobfuscable {
+            UnexpectedRewardResponseException(@NonNull String message) {
+                super(message);
+            }
+        }
+
+        // Turns a reward-claim response body into a Reward. Never returns null: an empty, malformed,
+        // or unexpectedly-shaped response yields an UNKNOWN sentinel (and, for the valid-JSON-but-
+        // wrong-shape cases, a non-fatal Sentry report carrying the body) so the caller's queue and
+        // the Unity/Cocos wrappers always get a usable reward.
+        static Reward rewardFromClaimResponse(final String teakRewardId, final String responseBody) {
+            try {
+                if (responseBody == null) {
+                    Teak.log.exception(new UnexpectedRewardResponseException("Reward claim response body was null."),
+                        mm.h("teakRewardId", teakRewardId));
+                    return unknownReward(teakRewardId);
+                }
+
+                final JSONObject responseJson = new JSONObject(responseBody);
+
+                final JSONObject rewardResponse = responseJson.optJSONObject("response");
+                if (rewardResponse == null) {
+                    Teak.log.exception(new UnexpectedRewardResponseException("Reward claim response missing 'response' object."),
+                        mm.h("teakRewardId", teakRewardId, "response", responseBody));
+                    return unknownReward(teakRewardId);
+                }
+
+                if (rewardResponse.isNull("status")) {
+                    Teak.log.exception(new UnexpectedRewardResponseException("Reward claim response missing 'status'."),
+                        mm.h("teakRewardId", teakRewardId, "response", responseBody));
+                    return unknownReward(teakRewardId);
+                }
+
+                final JSONObject fullParsedResponse = new JSONObject();
+                fullParsedResponse.put("teakRewardId", teakRewardId);
+                fullParsedResponse.put("status", rewardResponse.get("status"));
+                if (rewardResponse.optJSONObject("reward") != null) {
+                    fullParsedResponse.put("reward", rewardResponse.get("reward"));
+                } else if (rewardResponse.opt("reward") != null) {
+                    fullParsedResponse.put("reward", new JSONObject(rewardResponse.getString("reward")));
+                }
+
+                Teak.log.i("reward.claim.response", responseJson.toMap());
+
+                return new Reward(fullParsedResponse);
+            } catch (JSONException e) {
+                Teak.log.exception(e, false);
+                return unknownReward(teakRewardId);
+            } catch (Exception e) {
+                Teak.log.exception(e);
+                return unknownReward(teakRewardId);
+            }
+        }
+
         /**
-         * @return A {@link Future} which will contain the reward that should be granted, or <code>null</code> if there is no associated reward.
+         * @return A {@link Future} which resolves to the {@link Reward} for the given id. On an
+         *         unexpected or unparseable response the reward will have {@link Reward#UNKNOWN}
+         *         status rather than being <code>null</code>.
          */
         @SuppressWarnings("unused")
         public static Future<Reward> rewardFromRewardId(final String teakRewardId) {
@@ -210,51 +291,10 @@ public class TeakNotification implements Unobfuscable {
                     payload.put("clicking_user_id", session.userId());
 
                     Request.submit("rewards.gocarrot.com", "/" + teakRewardId + "/clicks", payload, session,
-                        (responseCode, responseBody) -> {
-                            try {
-                                final JSONObject responseJson = new JSONObject(responseBody);
-
-                                // https://sentry.io/organizations/teak/issues/1354507192/?project=141792&referrer=alert_email
-                                if (responseBody == null) {
-                                    q.offer(null);
-                                    return;
-                                }
-
-                                final JSONObject rewardResponse = responseJson.optJSONObject("response");
-                                if (rewardResponse == null) {
-                                    q.offer(null);
-                                    return;
-                                }
-
-                                if (rewardResponse.get("status") == null) {
-                                    q.offer(null);
-                                    return;
-                                }
-
-                                final JSONObject fullParsedResponse = new JSONObject();
-                                fullParsedResponse.put("teakRewardId", teakRewardId);
-                                fullParsedResponse.put("status", rewardResponse.get("status"));
-                                if (rewardResponse.optJSONObject("reward") != null) {
-                                    fullParsedResponse.put("reward", rewardResponse.get("reward"));
-                                } else if (rewardResponse.opt("reward") != null) {
-                                    fullParsedResponse.put("reward", new JSONObject(rewardResponse.getString("reward")));
-                                }
-                                final Reward reward = new Reward(fullParsedResponse);
-
-                                Teak.log.i("reward.claim.response", responseJson.toMap());
-
-                                q.offer(reward);
-                            } catch (JSONException e) {
-                                Teak.log.exception(e, false);
-                                q.offer(null);
-                            } catch (Exception e) {
-                                Teak.log.exception(e);
-                                q.offer(null); // TODO: Fix this?
-                            }
-                        });
+                        (responseCode, responseBody) -> q.offer(rewardFromClaimResponse(teakRewardId, responseBody)));
                 } catch (Exception e) {
                     Teak.log.exception(e);
-                    q.offer(null); // TODO: Fix this?
+                    q.offer(unknownReward(teakRewardId));
                 }
             });
 
