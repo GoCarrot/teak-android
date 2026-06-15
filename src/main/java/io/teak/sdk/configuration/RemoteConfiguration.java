@@ -18,6 +18,7 @@ import io.teak.sdk.event.DeepLinksReadyEvent;
 import io.teak.sdk.event.RemoteConfigurationEvent;
 import io.teak.sdk.io.AndroidResources;
 import io.teak.sdk.io.DefaultAndroidResources;
+import io.teak.sdk.json.JSONException;
 import io.teak.sdk.json.JSONObject;
 
 public class RemoteConfiguration {
@@ -179,7 +180,13 @@ public class RemoteConfiguration {
                 Request.submit("gocarrot.com", "/games/" + teakConfiguration.appConfiguration.appId + "/settings.json", payload, Session.NullSession,
                     (responseCode, responseBody) -> {
                         try {
-                            final JSONObject response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
+                            JSONObject response;
+                            try {
+                                response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
+                            } catch (JSONException e) {
+                                Teak.log.e("request.response.non_json", "Non-JSON response from settings.json: " + e.getMessage());
+                                response = new JSONObject();
+                            }
 
                             class ResponseHelper {
                                 final JSONObject json;

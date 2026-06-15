@@ -1,2 +1,4 @@
+bug:
+  - "Fixed `JSONException` Sentry noise from malformed server responses (HTML error pages, proxy errors) in request callbacks. Non-JSON bodies now fall back to `{}` and log a breadcrumb instead of hitting Sentry."
 enhancement:
   - "Sentry exception reports now include breadcrumbs from recent `Teak.log` events, making crashes easier to diagnose."
