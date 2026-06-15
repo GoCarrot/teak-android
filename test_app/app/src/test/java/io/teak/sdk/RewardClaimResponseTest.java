@@ -9,9 +9,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * C-733: reward-claim responses must never crash or hang. Every parse outcome yields a non-null
- * Reward whose json always carries teakRewardId + status, because the Unity/Cocos wrappers index
- * both keys directly and would KeyNotFoundException on a bare {}.
+ * Reward-claim responses must never crash or hang. Every parse outcome yields a non-null Reward
+ * whose json always carries teakRewardId + status — the wrappers index json["status"] directly and
+ * would KeyNotFoundException on a bare {}, and direct callers read teakRewardId off the json.
  *
  * Lives in io.teak.sdk so it can reach the package-private parse helper without standing up a
  * full session / WireMock path.
@@ -34,7 +34,8 @@ public class RewardClaimResponseTest {
         final Reward reward = Reward.unknownReward(REWARD_ID);
         assertEquals(Reward.UNKNOWN, reward.status);
         assertEquals(REWARD_ID, reward.json.getString("teakRewardId"));
-        assertTrue(reward.json.has("status"));
+        // Reuses the iOS wire value so teak-unity maps it to RewardStatus.InternalError.
+        assertEquals("internal_error", reward.json.getString("status"));
     }
 
     @Test

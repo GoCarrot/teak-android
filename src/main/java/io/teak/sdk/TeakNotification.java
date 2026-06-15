@@ -172,27 +172,31 @@ public class TeakNotification implements Unobfuscable {
         private static final String EXPIRED_STRING = "expired";
         private static final String INVALID_POST_STRING = "invalid_post";
 
-        // Sentinel returned when a reward-claim response can't be interpreted, so callers get a
-        // non-null UNKNOWN reward instead of a crash (C-733). The json mirrors the success-path shape
-        // (teakRewardId + status) so downstream consumers don't choke on a bare {}: the Unity/Cocos
-        // wrappers index json["status"] directly (a missing key throws KeyNotFoundException), and
-        // direct public-API callers read teakRewardId straight off the reward json. (In the wrapper
-        // RewardClaim path teakRewardId also comes from launchData, so there status is the key that
-        // would otherwise be absent.)
+        // Wire value the iOS SDK already emits when a claim response has no usable status; not a
+        // server status, so it deliberately isn't in the mapping above and collapses to UNKNOWN.
+        private static final String INTERNAL_ERROR_STATUS = "internal_error";
+
+        // Sentinel for a reward-claim response we can't interpret: callers get a non-null reward
+        // instead of a crash. The json mirrors the success-path shape — status "internal_error"
+        // (the string the iOS SDK already emits for this case, which teak-unity maps to its
+        // InternalError status) plus teakRewardId — so a bare {} doesn't choke downstream: the
+        // Unity/Cocos wrappers index json["status"] directly (a missing key throws
+        // KeyNotFoundException), and direct public-API callers read teakRewardId off the reward json.
+        // The native Reward ctor collapses the unrecognized "internal_error" string to UNKNOWN.
         static Reward unknownReward(final String teakRewardId) {
             final JSONObject json = new JSONObject();
             try {
                 json.put("teakRewardId", teakRewardId);
-                json.put("status", "unknown");
+                json.put("status", INTERNAL_ERROR_STATUS);
             } catch (JSONException ignored) {
                 // A constant key plus the already-validated, non-null teakRewardId never throws.
             }
             return new Reward(json);
         }
 
-        // Reported (non-fatal) to Sentry when a 200 reward-claim response is missing the structure we
+        // Reported (non-fatal) to Sentry when a reward-claim response is missing the structure we
         // expect. Each shape is reported from a distinct site so Sentry groups them separately, with
-        // the raw body in `extra`, to root-cause which responses are arriving (C-733).
+        // the raw body in `extra`, to surface which responses are actually arriving.
         private static class UnexpectedRewardResponseException extends Exception implements Unobfuscable {
             UnexpectedRewardResponseException(@NonNull String message) {
                 super(message);
@@ -202,7 +206,7 @@ public class TeakNotification implements Unobfuscable {
         // Turns a reward-claim response body into a Reward. Never returns null: an empty, malformed,
         // or unexpectedly-shaped response yields an UNKNOWN sentinel (and, for the valid-JSON-but-
         // wrong-shape cases, a non-fatal Sentry report carrying the body) so the caller's queue and
-        // the Unity/Cocos wrappers always get a usable reward (C-733).
+        // the Unity/Cocos wrappers always get a usable reward.
         static Reward rewardFromClaimResponse(final String teakRewardId, final String responseBody) {
             try {
                 if (responseBody == null) {
