@@ -298,7 +298,8 @@ public class NotificationBuilder {
             if (teakNotificaton.teakCreativeName != null) {
                 extras.put("teakCreativeName", teakNotificaton.teakCreativeName);
             }
-            Teak.log.exception(e, extras);
+            // Layout/RemoteViews quirks (e.g. Android 15) are outside our control — log locally only.
+            Teak.log.exception(e, extras, false);
 
             // TODO: Report to the 'callback' URL on the push when/if we implement that
             return null;
@@ -814,7 +815,8 @@ public class NotificationBuilder {
                 if (teakNotificaton.teakCreativeName != null) {
                     extras.put("teakCreativeName", teakNotificaton.teakCreativeName);
                 }
-                Teak.log.exception(e, extras);
+                // Big content view failures (CDN, RemoteViews quirks) are outside our control — log locally only.
+                Teak.log.exception(e, extras, false);
             }
         }
 

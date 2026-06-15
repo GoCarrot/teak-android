@@ -575,9 +575,27 @@ public class Request implements Runnable {
             }
 
             this.onRequestCompleted(statusCode, body);
+        } catch (NullPointerException e) {
+            // com.android.okhttp is an Android system lib (API < 27); no typed handle exists.
+            // Top-of-stack class prefix is the only available discriminator for this Android 7.x bug.
+            if (isOkhttpNpe(e)) {
+                Teak.log.i("request.error_transient", Helpers.mm.h("error", e.toString()));
+            } else {
+                Teak.log.exception(e);
+            }
         } catch (Exception e) {
-            Teak.log.exception(e);
+            // DeadSystemException added in API 24 — typed instanceof check is safe.
+            if (android.os.Build.VERSION.SDK_INT >= 24 && e instanceof android.os.DeadSystemException) {
+                Teak.log.i("request.error_transient", Helpers.mm.h("error", e.toString()));
+            } else {
+                Teak.log.exception(e);
+            }
         }
+    }
+
+    static boolean isOkhttpNpe(NullPointerException e) {
+        final StackTraceElement[] frames = e.getStackTrace();
+        return frames.length > 0 && frames[0].getClassName().startsWith("com.android.okhttp");
     }
 
     protected void onRequestCompleted(int responseCode, String responseBody) {

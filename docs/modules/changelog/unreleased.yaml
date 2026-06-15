@@ -1,2 +1,5 @@
+bug:
+  - "Silence expected transient errors (FCM unavailability, Android 7.x OkHttp NPE, DeadSystemException, notification build failures) from Sentry to reduce noise."
+
 enhancement:
   - "Sentry exception reports now include breadcrumbs from recent `Teak.log` events, making crashes easier to diagnose."

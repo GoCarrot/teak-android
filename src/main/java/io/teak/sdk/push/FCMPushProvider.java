@@ -13,6 +13,8 @@ import com.google.firebase.messaging.RemoteMessage;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import androidx.annotation.NonNull;
 import io.teak.sdk.Helpers;
@@ -150,7 +152,13 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
                 final Task<String> instanceIdTask = FirebaseMessaging.getInstance().getToken();
                 instanceIdTask.addOnSuccessListener(this::onNewToken);
 
-                instanceIdTask.addOnFailureListener(e -> Teak.log.exception(e));
+                instanceIdTask.addOnFailureListener(e -> {
+                    if (isTransientFcmError(e)) {
+                        Teak.log.i("google.fcm.token_failure_transient", Helpers.mm.h("error", e.getMessage()));
+                    } else {
+                        Teak.log.exception(e);
+                    }
+                });
 
                 // Log out the Firebase config
                 final FirebaseOptions firebaseOptions = this.firebaseApp.getOptions();
@@ -163,6 +171,22 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
                 Teak.log.exception(e);
             }
         }
+    }
+
+    // Firebase client contract: SERVICE_NOT_AVAILABLE / MISSING_INSTANCEID_SERVICE / FIS_AUTH_ERROR
+    // are delivered as IOException with the code as the message string — no typed getter on the
+    // client side, getMessage()-matching is the documented fingerprint.
+    // TimeoutException and ExecutionException(transient-cause) are infra-level, not bugs.
+    static boolean isTransientFcmError(Exception e) {
+        if (e instanceof TimeoutException) return true;
+        if (e instanceof ExecutionException) {
+            final Throwable cause = e.getCause();
+            return cause instanceof Exception && isTransientFcmError((Exception) cause);
+        }
+        final String msg = e.getMessage();
+        return msg != null && (msg.equals("SERVICE_NOT_AVAILABLE") ||
+                               msg.equals("MISSING_INSTANCEID_SERVICE") ||
+                               msg.equals("FIS_AUTH_ERROR"));
     }
 
     ///// Beware of the Leopard
