@@ -173,9 +173,12 @@ public class TeakNotification implements Unobfuscable {
         private static final String INVALID_POST_STRING = "invalid_post";
 
         // Sentinel returned when a reward-claim response can't be interpreted, so callers get a
-        // non-null UNKNOWN reward instead of a crash (C-733). The json carries teakRewardId and a
-        // status string because the Unity/Cocos wrappers index json["teakRewardId"]/json["status"]
-        // directly — a bare {} would just move the crash downstream into a KeyNotFoundException.
+        // non-null UNKNOWN reward instead of a crash (C-733). The json mirrors the success-path shape
+        // (teakRewardId + status) so downstream consumers don't choke on a bare {}: the Unity/Cocos
+        // wrappers index json["status"] directly (a missing key throws KeyNotFoundException), and
+        // direct public-API callers read teakRewardId straight off the reward json. (In the wrapper
+        // RewardClaim path teakRewardId also comes from launchData, so there status is the key that
+        // would otherwise be absent.)
         static Reward unknownReward(final String teakRewardId) {
             final JSONObject json = new JSONObject();
             try {
