@@ -37,7 +37,6 @@ import io.teak.sdk.event.TrackEventEvent;
 import io.teak.sdk.event.UserIdEvent;
 import io.teak.sdk.facebook.AccessTokenTracker;
 import io.teak.sdk.json.JSONArray;
-import io.teak.sdk.json.JSONException;
 import io.teak.sdk.json.JSONObject;
 import io.teak.sdk.push.PushState;
 import io.teak.sdk.raven.Raven;
@@ -182,13 +181,7 @@ public class TeakInstance implements Unobfuscable {
             Request.submit(null, "POST", "/me/channel_state.json", payload,
                 session, (int responseCode, String responseBody) -> {
                     try {
-                        JSONObject response;
-                        try {
-                            response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
-                        } catch (JSONException e) {
-                            Teak.log.e("request.response.non_json", "Non-JSON response from channel_state: " + e.getMessage());
-                            response = new JSONObject();
-                        }
+                        final JSONObject response = Helpers.fromResponseBody(responseBody, "channel_state");
 
                         final boolean error = !"ok".equalsIgnoreCase(response.optString("status", "error"));
                         final Teak.Channel.State replyState = Teak.Channel.State.fromString(response.optString("state", "unknown"));
@@ -247,13 +240,7 @@ public class TeakInstance implements Unobfuscable {
             Request.submit(null, "POST", "/me/category_state.json", payload,
                 session, (int responseCode, String responseBody) -> {
                     try {
-                        JSONObject response;
-                        try {
-                            response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
-                        } catch (JSONException e) {
-                            Teak.log.e("request.response.non_json", "Non-JSON response from category_state: " + e.getMessage());
-                            response = new JSONObject();
-                        }
+                        final JSONObject response = Helpers.fromResponseBody(responseBody, "category_state");
 
                         final boolean error = !"ok".equalsIgnoreCase(response.optString("status", "error"));
                         final Teak.Channel.State replyState = Teak.Channel.State.fromString(response.optString("state", "unknown"));
@@ -313,13 +300,7 @@ public class TeakInstance implements Unobfuscable {
             Request.submit(null, "POST", "/me/local_notify.json", payload,
                 session, (int responseCode, String responseBody) -> {
                     try {
-                        JSONObject response;
-                        try {
-                            response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
-                        } catch (JSONException e) {
-                            Teak.log.e("request.response.non_json", "Non-JSON response from local_notify: " + e.getMessage());
-                            response = new JSONObject();
-                        }
+                        final JSONObject response = Helpers.fromResponseBody(responseBody, "local_notify");
 
                         final boolean error = !"ok".equalsIgnoreCase(response.optString("status", "error"));
                         final Teak.Notification.Reply.Status status = Teak.Notification.Reply.Status.fromString(response.optString("status", "unknown"));

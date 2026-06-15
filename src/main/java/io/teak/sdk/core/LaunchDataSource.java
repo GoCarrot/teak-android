@@ -26,7 +26,6 @@ import io.teak.sdk.Helpers;
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakConfiguration;
 import io.teak.sdk.Unobfuscable;
-import io.teak.sdk.json.JSONException;
 import io.teak.sdk.json.JSONObject;
 import io.teak.sdk.referrer.InstallReferrerFuture;
 import io.teak.sdk.io.DefaultAndroidNotification;
@@ -159,13 +158,7 @@ public class LaunchDataSource implements Future<Teak.LaunchData>, Unobfuscable {
                     Teak.log.i("deep_link.request.reply", response.toString());
 
                     try {
-                        JSONObject teakData;
-                        try {
-                            teakData = new JSONObject(response.toString());
-                        } catch (JSONException e) {
-                            Teak.log.e("request.response.non_json", "Non-JSON response from deep link resolution: " + e.getMessage());
-                            teakData = new JSONObject();
-                        }
+                        final JSONObject teakData = Helpers.fromResponseBody(response.toString(), "deep_link_resolution");
                         final String androidPath = teakData.optString("AndroidPath", null);
                         if (androidPath != null) {
                             final Pattern pattern = Pattern.compile("^[a-zA-Z0-9+.\\-_]*:");

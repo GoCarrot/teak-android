@@ -180,12 +180,15 @@ public class RemoteConfiguration {
                 Request.submit("gocarrot.com", "/games/" + teakConfiguration.appConfiguration.appId + "/settings.json", payload, Session.NullSession,
                     (responseCode, responseBody) -> {
                         try {
+                            if (responseBody == null || responseBody.trim().isEmpty()) {
+                                return;
+                            }
                             JSONObject response;
                             try {
-                                response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
+                                response = new JSONObject(responseBody);
                             } catch (JSONException e) {
                                 Teak.log.e("request.response.non_json", "Non-JSON response from settings.json: " + e.getMessage());
-                                response = new JSONObject();
+                                return;
                             }
 
                             class ResponseHelper {
