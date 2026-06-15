@@ -552,11 +552,8 @@ public class Request implements Runnable {
 
             Map<String, Object> responseAsMap = null;
             if (response != null) {
-                try {
-                    responseAsMap = new JSONObject(response.body).toMap();
-                    h.put("payload", responseAsMap);
-                } catch (Exception ignored) {
-                }
+                responseAsMap = Helpers.fromResponseBody(response.body, "internal").toMap();
+                h.put("payload", responseAsMap);
             }
 
             Teak.log.i("request.reply", h);

@@ -498,7 +498,7 @@ public class Session {
                     (responseCode, responseBody) -> {
                         Session.this.stateLock.lock();
                         try {
-                            JSONObject response = new JSONObject(responseBody);
+                            JSONObject response = Helpers.fromResponseBody(responseBody, "users.json");
 
                             // TODO: Grab 'id' and 'game_id' from response and store for Parsnip
 

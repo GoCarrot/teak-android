@@ -158,6 +158,16 @@ public class Helpers implements Unobfuscable {
         return string == null || string.trim().isEmpty();
     }
 
+    @NonNull
+    public static JSONObject fromResponseBody(@Nullable String body, @NonNull String source) {
+        try {
+            return new JSONObject((body == null || body.trim().isEmpty()) ? "{}" : body);
+        } catch (JSONException e) {
+            Teak.log.e("request.response.non_json", "Non-JSON response from " + source + ": " + e.getMessage());
+            return new JSONObject();
+        }
+    }
+
     public static boolean is_equal(final @Nullable Object a, final @Nullable Object b) {
         return (a == b) ||
             (a != null && a.equals(b)) ||
