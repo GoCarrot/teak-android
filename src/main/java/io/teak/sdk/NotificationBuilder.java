@@ -284,6 +284,14 @@ public class NotificationBuilder {
 
     }
 
+    private static boolean isHostAppDebug() {
+        try {
+            return TeakConfiguration.get().debugConfiguration.isDebug();
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     public static Notification createNativeNotification(Context context, TeakNotification teakNotificaton) throws AssetLoadException {
         if (teakNotificaton.notificationVersion == TeakNotification.TEAK_NOTIFICATION_V0) {
             return null;
@@ -298,7 +306,9 @@ public class NotificationBuilder {
             if (teakNotificaton.teakCreativeName != null) {
                 extras.put("teakCreativeName", teakNotificaton.teakCreativeName);
             }
-            Teak.log.exception(e, extras);
+            // Layout/RemoteViews quirks (e.g. Android 15) are outside our control — suppress in
+            // production. Report in debug builds so our own bugs remain visible during QA.
+            Teak.log.exception(e, extras, isHostAppDebug());
 
             // TODO: Report to the 'callback' URL on the push when/if we implement that
             return null;
@@ -814,7 +824,9 @@ public class NotificationBuilder {
                 if (teakNotificaton.teakCreativeName != null) {
                     extras.put("teakCreativeName", teakNotificaton.teakCreativeName);
                 }
-                Teak.log.exception(e, extras);
+                // Big content view failures (CDN, RemoteViews quirks) are outside our control — suppress in
+                // production. Report in debug builds so our own bugs remain visible during QA.
+                Teak.log.exception(e, extras, isHostAppDebug());
             }
         }
 

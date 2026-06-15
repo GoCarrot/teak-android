@@ -181,7 +181,7 @@ public class TeakInstance implements Unobfuscable {
             Request.submit(null, "POST", "/me/channel_state.json", payload,
                 session, (int responseCode, String responseBody) -> {
                     try {
-                        final JSONObject response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
+                        final JSONObject response = Helpers.fromResponseBody(responseBody, "channel_state");
 
                         final boolean error = !"ok".equalsIgnoreCase(response.optString("status", "error"));
                         final Teak.Channel.State replyState = Teak.Channel.State.fromString(response.optString("state", "unknown"));
@@ -240,7 +240,7 @@ public class TeakInstance implements Unobfuscable {
             Request.submit(null, "POST", "/me/category_state.json", payload,
                 session, (int responseCode, String responseBody) -> {
                     try {
-                        final JSONObject response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
+                        final JSONObject response = Helpers.fromResponseBody(responseBody, "category_state");
 
                         final boolean error = !"ok".equalsIgnoreCase(response.optString("status", "error"));
                         final Teak.Channel.State replyState = Teak.Channel.State.fromString(response.optString("state", "unknown"));
@@ -300,7 +300,7 @@ public class TeakInstance implements Unobfuscable {
             Request.submit(null, "POST", "/me/local_notify.json", payload,
                 session, (int responseCode, String responseBody) -> {
                     try {
-                        final JSONObject response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
+                        final JSONObject response = Helpers.fromResponseBody(responseBody, "local_notify");
 
                         final boolean error = !"ok".equalsIgnoreCase(response.optString("status", "error"));
                         final Teak.Notification.Reply.Status status = Teak.Notification.Reply.Status.fromString(response.optString("status", "unknown"));

@@ -59,7 +59,7 @@ public class LaunchDataSource implements Future<Teak.LaunchData>, Unobfuscable {
             // notification.
             final Bundle extras = intent.getExtras();
             final int platformId = extras.getInt("platformId");
-            if(platformId != 0) {
+            if (platformId != 0) {
                 final String groupKey = extras.getString("teakGroupKey", "teak");
                 DefaultAndroidNotification.get(context).cancelNotification(platformId, context, groupKey);
             }
@@ -158,9 +158,9 @@ public class LaunchDataSource implements Future<Teak.LaunchData>, Unobfuscable {
                     Teak.log.i("deep_link.request.reply", response.toString());
 
                     try {
-                        JSONObject teakData = new JSONObject(response.toString());
-                        if (teakData.getString("AndroidPath") != null) {
-                            final String androidPath = teakData.getString("AndroidPath");
+                        final JSONObject teakData = Helpers.fromResponseBody(response.toString(), "deep_link_resolution");
+                        final String androidPath = teakData.optString("AndroidPath", null);
+                        if (androidPath != null) {
                             final Pattern pattern = Pattern.compile("^[a-zA-Z0-9+.\\-_]*:");
                             final Matcher matcher = pattern.matcher(androidPath);
                             if (matcher.find()) {
