@@ -34,10 +34,11 @@ public class LaunchData {
         assertTrue(Helpers.stringsAreEqual(data.channelName, "generic_link"));
     }
 
-    // Constructor-invariant lock (not an e2e LaunchDataSource test): the shortLink passed to
-    // RewardlinkLaunchData becomes launchLink. This pins the mechanism that lets the deep-link
-    // resolver retain the launch link when AndroidPath is absent — guarding against a future
-    // re-introduction of the `httpsUri = null` branch silently dropping launch_link attribution.
+    // Locks the RewardlinkLaunchData constructor contract: a non-null shortLink is retained as
+    // launchLink (and null stays null). That contract is the mechanism the LaunchDataSource fix
+    // relies on to keep the launch link when AndroidPath is absent. It does NOT exercise
+    // LaunchDataSource itself — that path needs a live HttpsURLConnection + real Uri and isn't
+    // cheaply unit-testable, so re-adding the resolver's null branch would not fail this test.
     @Test
     public void RewardlinkLaunchDataRetainsShortLinkAsLaunchLink() {
         final Uri shortLink = mock(Uri.class);
