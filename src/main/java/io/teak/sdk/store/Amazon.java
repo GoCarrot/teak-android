@@ -32,7 +32,7 @@ public class Amazon implements Unobfuscable, IStore, PurchasingListener {
         try {
             PurchasingService.registerListener(context, this);
 
-            Teak.log.i("billing.amazon.v2", "Amazon In-App Purchasing 2.0 registered.", mm.h("sandboxMode", PurchasingService.IS_SANDBOX_MODE));
+            Teak.log.i("billing.amazon.v2", "Amazon In-App Purchasing 2.0 registered.", mm.h("sandboxMode", AmazonSandbox.isSandboxMode()));
 
             TeakEvent.addEventListener(event -> {
                 if (event.eventType.equals(LifecycleEvent.Resumed)) {
@@ -86,7 +86,7 @@ public class Amazon implements Unobfuscable, IStore, PurchasingListener {
                 payload.put("purchase_time_string", receipt.getPurchaseDate());
                 payload.put("product_id", receipt.getSku());
                 payload.put("store_marketplace", userData.getMarketplace());
-                payload.put("is_sandbox", PurchasingService.IS_SANDBOX_MODE);
+                payload.put("is_sandbox", AmazonSandbox.isSandboxMode());
 
                 final HashSet<String> skus = new HashSet<>();
                 skus.add(receipt.getSku());
