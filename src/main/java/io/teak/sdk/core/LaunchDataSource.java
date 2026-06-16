@@ -107,6 +107,15 @@ public class LaunchDataSource implements Future<Teak.LaunchData>, Unobfuscable {
 
     ////// Create a Future which will contain AttributionData from a resolved link
 
+    // Reported (non-fatal) to Sentry when a well-formed deep-link resolution response omits
+    // AndroidPath, which is unexpected for a link that resolved. Named so Sentry groups these
+    // distinctly, carrying the URL and body in `extra` to surface which links omit the key.
+    private static class MissingAndroidPathException extends Exception implements Unobfuscable {
+        MissingAndroidPathException(@NonNull String message) {
+            super(message);
+        }
+    }
+
     protected static Future<Teak.LaunchData> futureFromLinkResolution(@NonNull final Future<String> futureForUriOrNull) {
         final TeakConfiguration teakConfiguration = TeakConfiguration.get();
 
@@ -168,10 +177,18 @@ public class LaunchDataSource implements Future<Teak.LaunchData>, Unobfuscable {
                             } else {
                                 uri = Uri.parse(String.format(Locale.US, "teak%s://%s", teakConfiguration.appConfiguration.appId, androidPath));
                             }
+                        } else if (teakData.length() > 0) {
+                            // A resolved link is expected to carry an AndroidPath; a well-formed response
+                            // that omits it (e.g. an iOS-path-only link) is anomalous, so report it to Sentry
+                            // with the URL and body to pin down the cause. Behavior is unchanged: uri keeps the
+                            // original launch link and httpsUri is retained so it survives as launchLink
+                            // (matching the iOS resolver, which always keeps the launch link; httpsUri is only
+                            // consumed by the RewardlinkLaunchData branch of launchDataFromUriPair).
+                            // Malformed bodies fall back to {} (length 0) and are skipped here — they are
+                            // already breadcrumbed by Helpers.fromResponseBody and kept out of Sentry by design.
+                            Teak.log.exception(new MissingAndroidPathException("Deep link resolution response had no AndroidPath."),
+                                Helpers.mm.h("url", httpsUri.toString(), "response", response.toString()));
                         }
-                        // When AndroidPath is absent, uri keeps the original launch link and httpsUri
-                        // is retained so it survives as launchLink, matching the iOS resolver which
-                        // always keeps the launch link. (Only consumed by the RewardlinkLaunchData branch.)
 
                         Teak.log.i("deep_link.request.resolve", uri.toString());
                     } catch (Exception e) {
