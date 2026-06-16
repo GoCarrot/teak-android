@@ -37,8 +37,11 @@ final class AmazonSandbox {
             final Class<?> licensingService = Class.forName("com.amazon.device.drm.LicensingService");
             final Object mode = licensingService.getMethod("getAppstoreSDKMode").invoke(null);
             return isSandboxMode((String) mode);
-        } catch (ClassNotFoundException notAppstoreSDK) {
-            // Not the Appstore SDK -- fall through to legacy IAP v2.0.
+        } catch (ClassNotFoundException | NoSuchMethodException notAppstoreSDK) {
+            // Benign and expected: this isn't the Appstore SDK. LicensingService can
+            // still be present from Amazon's standalone DRM lib (which games use for
+            // verifyLicense) but without getAppstoreSDKMode -- so fall through to the
+            // legacy IS_SANDBOX_MODE field rather than reporting noise per purchase.
         } catch (Exception e) {
             Teak.log.exception(e);
             return false;
