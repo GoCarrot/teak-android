@@ -1,5 +1,7 @@
 package io.teak.app.test;
 
+import android.net.Uri;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -14,10 +16,12 @@ import io.teak.sdk.Teak;
 import io.teak.sdk.core.DeepLink;
 
 import static junit.framework.Assert.assertNotNull;
+import static junit.framework.TestCase.assertFalse;
 import static junit.framework.TestCase.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DeepLinkRoutes extends TeakUnitTest {
@@ -137,6 +141,16 @@ public class DeepLinkRoutes extends TeakUnitTest {
         arg.put(DeepLink.INCOMING_URL_PATH_KEY, uri.getPath());
         arg.put(DeepLink.INCOMING_URL_KEY, uri.toString());
         verify(callback, timeout(100)).call(arg);
+    }
+
+    // A bare '%' (e.g. an unencoded "50%" creative name) makes URI.create throw
+    // "Malformed escape pair". willProcessUri must swallow that and return false,
+    // matching processUri, rather than letting it propagate. C-735.
+    @Test
+    public void willProcessUriWithUnencodedPercentDoesNotThrow() {
+        final Uri uri = mock(Uri.class);
+        when(uri.toString()).thenReturn("teak" + TestAppId + ":///deep_link?teak_creative_name=50%+Off");
+        assertFalse(DeepLink.willProcessUri(uri));
     }
 
     /**
