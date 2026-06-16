@@ -154,7 +154,6 @@ public class Raven implements Thread.UncaughtExceptionHandler {
 
         final HashMap<String, Object> user = new HashMap<>();
         user.put("device_id", configuration.deviceConfiguration.deviceId);
-        user.put("log_run_id", Teak.log.runId); // Run id is always available
         this.payloadTemplate.put("user", user);
 
         TeakEvent.addEventListener(event -> {
@@ -167,6 +166,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
         tagsAttribute.put("app_id", configuration.appConfiguration.appId);
         tagsAttribute.put("app_version", configuration.appConfiguration.appVersion);
         tagsAttribute.put("app_version_name", configuration.appConfiguration.appVersionName);
+        tagsAttribute.put("run_id", Teak.log.runId);
         this.payloadTemplate.put("tags", tagsAttribute);
     }
 
