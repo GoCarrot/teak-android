@@ -17,3 +17,100 @@ Teak allows you to add a limited number of attributes to users. A maximum of 16 
 doxygen2adoc:Teak.setNumericAttribute(String,double)[]
 
 doxygen2adoc:Teak.setStringAttribute(String,String)[]
+
+== Deep Links
+
+Teak can open your game from a URL, whether the link comes from a notification or from a link you created on the Teak dashboard. To enable this, register Teak's URL schemes in your Android manifest.
+
+Add the following to the `<activity>` section of your `AndroidManifest.xml`:
+
+.AndroidManifest.xml
+[source,xml]
+----
+<intent-filter android:autoVerify="true">
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="http" android:host="YOUR_SHORTLINK_DOMAIN.jckpt.me" />
+  <data android:scheme="https" android:host="YOUR_SHORTLINK_DOMAIN.jckpt.me" />
+</intent-filter>
+<intent-filter>
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="teakYOUR_TEAK_APP_ID" android:host="*" />
+</intent-filter>
+----
+
+NOTE: Replace `YOUR_TEAK_APP_ID` with your Teak App Id and `YOUR_SHORTLINK_DOMAIN` with your Teak ShortLink Domain. Both are found in the Settings for your app on the Teak dashboard.
+
+This tells Android to look for deep link URLs created by Teak.
+
+== Subscribing to Events
+
+Teak uses https://github.com/greenrobot/EventBus[EventBus] to send events to your game.
+
+=== Register an Object to Handle Events
+
+You can register any object to handle events posted by Teak. A quick way to get started is to register your main activity as a handler:
+
+.Registering an event handler
+[source,java]
+----
+import androidx.appcompat.app.AppCompatActivity;
+
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+
+public class MainActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Register with EventBus
+        EventBus.getDefault().register(this);
+}
+----
+
+To receive events, declare methods with the `@Subscribe` annotation that take the type of event the method should handle.
+
+=== Events
+
+<<Teak.NotificationEvent>>:: A notification has been received.
+
+<<Teak.RewardClaimEvent>>:: A reward claim has been processed.
+
+<<Teak.LaunchFromLinkEvent>>:: The app was launched from a URL created on the Teak dashboard.
+
+<<Teak.UserDataEvent>>:: Data about the user has become available, or has been updated.
+
+.Handling a Reward Claim
+[source,java]
+----
+@Subscribe
+public void onRewardClaim(Teak.RewardClaimEvent event) {
+  TeakNotification.Reward rewardInfo = event.reward;
+  String rewardId = rewardInfo.json.getString("teakRewardId");
+  switch(rewardInfo.status) {
+    case TeakNotification.Reward.GRANT_REWARD: {
+      Map<String, Object> reward = rewardInfo.json.getJSONObject("reward").toMap();
+      Log.d("TeakExample.Reward", "Reward with id " + rewardId + "Granted! " + reward.toString());
+    } break;
+    case TeakNotification.Reward.ALREADY_CLICKED: {
+      Log.d("TeakExample.Reward", "You already claimed this reward!");
+    } break;
+    case TeakNotification.Reward.EXPIRED: {
+      Log.d("TeakExample.Reward", "The reward has expired");
+    } break;
+    case TeakNotification.Reward.TOO_MANY_CLICKS: {
+      Log.d("TeakExample.Reward", "Too many other players already claimed this reward");
+    } break;
+    case TeakNotification.Reward.EXCEED_MAX_CLICKS_FOR_DAY: {
+      Log.d("TeakExample.Reward", "You've already claimed too many rewards today");
+    } break;
+    default: {
+      Log.d("TeakExample.Reward", "The reward was rejected for a different reason: " + rewardInfo.json.getString("status"));
+    }
+  }
+}
+----

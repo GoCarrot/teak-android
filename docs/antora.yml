@@ -1,7 +1,7 @@
 name: android
 title: Android SDK
 version: 4.2.0
-start_page: integration.adoc
+start_page: quickstart/index.adoc
 nav:
 - modules/ROOT/nav.adoc
 - modules/api/nav.adoc

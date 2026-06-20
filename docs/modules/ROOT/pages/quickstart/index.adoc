@@ -1,0 +1,23 @@
+// Created by Claude for C-851 (Android stepped quickstart).
+= Getting Started with Teak in Android
+:page-pagination:
+
+Welcome to the getting started guide for Teak in Android.
+
+In this guide, we will walk you through the process of setting up Teak in your native Android game. By the end of this guide you will be able to send a push notification to your Android device.
+
+NOTE: If you are building your game with Unity, use our xref:unity::index.adoc[Unity SDK] instead. This guide is for native Android (Java or Kotlin) games.
+
+== Requirements
+
+Before we begin, ensure that you have the following prerequisites in place to ensure a smooth integration:
+
+* [x] Android {min-android-name} (API level {min-android-sdk}) or newer
+* [x] A https://firebase.google.com/[Firebase project, window=_blank] with an Editor or Owner role. Firebase Cloud Messaging is required for push notifications on Android.
+* [x] An account on https://app.teak.io/login[Teak, window=_blank] with access to your game.
+
+The latest version of the Teak Android SDK is always available at https://sdks.teakcdn.com/android/teak.aar[`sdks.teakcdn.com/android/teak.aar`, window=_blank].
+
+With the requirements out of the way, let's get started.
+
+First, we'll set up your Teak dashboard.
