@@ -1,5 +1,32 @@
 = Android Notification Icon Assets
 
+Teak shows a small icon in the status bar and at the top of each notification. Setting it up has two parts: declaring the icon and tint-color resources, then generating the white-and-transparent icon assets that Android 5 and above require.
+
+== Declare Your Notification Icon Resources
+
+To specify the icon displayed in the system tray, and at the top of the notification, declare these resources in `teak.xml`.
+
+You will need two versions of the file: one in `res/values/` and the other in `res/values-v21/`.
+
+.res/values/teak.xml and res/values-v21/teak.xml
+[source,xml]
+----
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- The tint color for your silhouette icon, format is: 0xAARRGGBB -->
+  <integer name="io_teak_notification_accent_color">0xfff15a29</integer>
+
+  <!-- Icons should be white and transparent, and processed with Android Asset Studio -->
+  <drawable name="io_teak_small_notification_icon">@drawable/YOUR_ICON_FILE_NAME</drawable>
+</resources>
+----
+
+The file in `values` should point to a full-color icon, for devices running older than Android 5. The file in `values-v21` should point to a white and transparent PNG for Android 5 and above.
+
+NOTE: Replace `YOUR_ICON_FILE_NAME` with the name of your icon drawable (for example, `icon_white` in the steps below).
+
+== Generate the Icon Assets
+
 To make sure that your notification icons show up properly on API 21+ you should use https://romannurik.github.io/AndroidAssetStudio/[Android Asset Studio] to process, and create the needed resolutions for the icon.
 
 Click on the https://romannurik.github.io/AndroidAssetStudio/icons-notification.html#source.type=image&source.space.trim=1&source.space.pad=0&name=icon_white[Notification icon generator tool], and you will see this screen:
