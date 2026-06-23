@@ -123,6 +123,14 @@ public class RavenBreadcrumbTest extends TeakUnitTest {
         for (int j = 0; j < fitted.size(); j++) {
             assertEquals(first + j, crumbIndex(fitted.get(j)));
         }
+
+        // Maximality: the next-older crumb that was dropped would have pushed the real serialized
+        // size over budget. The <=budget assert above catches under-keeping; this catches
+        // over-keeping (a comma/wrapper off-by-one in the size algebra leaving room it shouldn't).
+        final List<Map<String, Object>> oneMore = new ArrayList<>();
+        oneMore.add(crumb(first - 1));
+        oneMore.addAll(fitted);
+        assertTrue("dropping a crumb that would have fit", serializedSize(base, oneMore) > budget);
     }
 
     // Under budget: keep everything, in chronological order.

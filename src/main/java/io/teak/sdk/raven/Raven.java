@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -358,32 +359,41 @@ public class Raven implements Thread.UncaughtExceptionHandler {
     }
 
     // Returns the breadcrumbs (in chronological order) that fit within budgetBytes when attached
-    // to basePayload, keeping the NEWEST crumbs. basePayload must not already contain breadcrumbs.
-    // If basePayload alone is already over budget, returns an empty list (the core report still
+    // to basePayload, keeping the NEWEST crumbs. Sizing is exact and O(n): `withEmpty` -- the
+    // payload carrying an empty breadcrumbs wrapper -- is serialized once and captures the
+    // `,"breadcrumbs":{"values":[]}` attach overhead without hardcoding it. A crumb serializes
+    // byte-identically standalone as it does inside the "values" array, so the assembled size of
+    // k crumbs is exactly withEmpty + sum(crumb sizes) + (k-1) inter-crumb commas. Keep the newest
+    // crumbs whose running total stays within budget, then reverse once into Sentry's chronological
+    // order. If basePayload alone is already over budget, returns empty (the core report still
     // sends). Static + public so it can be unit-tested without an Android runtime.
     public static List<Map<String, Object>> fitBreadcrumbsToBudget(@NonNull Map<String, Object> basePayload,
         @NonNull List<Map<String, Object>> snapshot, int budgetBytes) {
-        final ArrayDeque<Map<String, Object>> kept = new ArrayDeque<>();
+        final List<Map<String, Object>> kept = new ArrayList<>();
         if (snapshot.isEmpty() || jsonByteLength(basePayload) > budgetBytes) {
-            return new ArrayList<>(kept);
+            return kept;
         }
 
-        // trial = basePayload + a growing breadcrumbs set; re-measured as each crumb is added.
-        final HashMap<String, Object> trial = new HashMap<>(basePayload);
-        final HashMap<String, Object> breadcrumbsPayload = new HashMap<>();
-        trial.put("breadcrumbs", breadcrumbsPayload);
+        // Baseline = the payload with an empty breadcrumbs wrapper, serialized once. The first
+        // crumb's size adds directly onto this; each subsequent crumb also costs one comma byte.
+        final HashMap<String, Object> withEmpty = new HashMap<>(basePayload);
+        final HashMap<String, Object> wrapper = new HashMap<>();
+        wrapper.put("values", new ArrayList<>());
+        withEmpty.put("breadcrumbs", wrapper);
+        int used = jsonByteLength(withEmpty);
 
-        // Walk newest-first; addFirst keeps `kept` in chronological (oldest-first) order, which is
-        // what Sentry expects in the "values" array.
+        // Walk newest-first, accumulating exact serialized size, until the next crumb would exceed
+        // the budget. Reversed below so `kept` ends up oldest-first.
         for (int i = snapshot.size() - 1; i >= 0; i--) {
-            kept.addFirst(snapshot.get(i));
-            breadcrumbsPayload.put("values", new ArrayList<>(kept));
-            if (jsonByteLength(trial) > budgetBytes) {
-                kept.removeFirst();
+            final int crumbBytes = jsonByteLength(snapshot.get(i)) + (kept.isEmpty() ? 0 : 1);
+            if (used + crumbBytes > budgetBytes) {
                 break;
             }
+            used += crumbBytes;
+            kept.add(snapshot.get(i));
         }
-        return new ArrayList<>(kept);
+        Collections.reverse(kept);
+        return kept;
     }
 
     private static int jsonByteLength(@NonNull Map<String, Object> map) {
@@ -483,14 +493,18 @@ public class Raven implements Thread.UncaughtExceptionHandler {
                 this.payload.put("breadcrumbs", breadcrumbsPayload);
             }
 
+            // Serialize the final payload exactly once; the same String feeds both the size log
+            // below and the Data value in buildData().
+            final String payloadJson = new JSONObject(this.payload).toString();
+
             // Observability: how many breadcrumbs survived size-budgeting and the resulting
             // payload size. Fires once per exception report (rare); trimming is normal operation,
             // hence debug, not warn/error.
             Log.d(LOG_TAG, "Sentry report: " + fitted.size() + " of " + this.breadcrumbSnapshot.size()
-                               + " breadcrumbs kept, payload " + Raven.jsonByteLength(this.payload)
+                               + " breadcrumbs kept, payload " + payloadJson.getBytes(StandardCharsets.UTF_8).length
                                + " bytes (size budget " + PAYLOAD_BUDGET_BYTES + ").");
 
-            Data data = this.buildData();
+            Data data = this.buildData(payloadJson);
             if (data != null) {
                 return data;
             }
@@ -498,21 +512,22 @@ public class Raven implements Thread.UncaughtExceptionHandler {
             // Backstop: the payload still exceeds WorkManager's Data cap after size-budgeting
             // breadcrumbs. Don't silently drop the report — log loudly and retry with the core
             // exception only (matching pre-breadcrumbs 4.3.12 behavior). This should essentially
-            // never fire given the conservative budget above.
+            // never fire given the conservative budget above, and is the only path that serializes
+            // a second time.
             Log.e(LOG_TAG, "Sentry report exceeded WorkManager Data cap; retrying without breadcrumbs.");
             this.payload.remove("breadcrumbs");
-            data = this.buildData();
+            data = this.buildData(new JSONObject(this.payload).toString());
             if (data == null) {
                 Log.e(LOG_TAG, "Sentry report exceeds WorkManager Data cap even without breadcrumbs; dropping.");
             }
             return data;
         }
 
-        private Data buildData() {
+        private Data buildData(String payloadJson) {
             try {
                 return new Data.Builder()
                     .putLong(Sender.TIMESTAMP_KEY, this.timestamp.getTime() / 1000L)
-                    .putString(Sender.PAYLOAD_KEY, new JSONObject(this.payload).toString())
+                    .putString(Sender.PAYLOAD_KEY, payloadJson)
                     .putString(Sender.ENDPOINT_KEY, Raven.this.endpoint.toString())
                     .putString(Sender.SENTRY_KEY_KEY, Raven.this.SENTRY_KEY)
                     .putString(Sender.SENTRY_SECRET_KEY, Raven.this.SENTRY_SECRET)
