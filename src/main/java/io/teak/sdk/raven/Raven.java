@@ -359,7 +359,10 @@ public class Raven implements Thread.UncaughtExceptionHandler {
     }
 
     // Returns the breadcrumbs (in chronological order) that fit within budgetBytes when attached
-    // to basePayload, keeping the NEWEST crumbs. Sizing is exact and O(n): `withEmpty` -- the
+    // to basePayload, keeping the NEWEST crumbs. PRECONDITION: basePayload carries no `breadcrumbs`
+    // key -- the caller owns attaching the fitted set; withEmpty and toData's final attach both
+    // put() that key, so a pre-existing one would be silently replaced (not double-counted -- the
+    // measurement stays self-consistent either way). Sizing is exact and O(n): `withEmpty` -- the
     // payload carrying an empty breadcrumbs wrapper -- is serialized once and captures the
     // `,"breadcrumbs":{"values":[]}` attach overhead without hardcoding it. A crumb serializes
     // byte-identically standalone as it does inside the "values" array, so the assembled size of
