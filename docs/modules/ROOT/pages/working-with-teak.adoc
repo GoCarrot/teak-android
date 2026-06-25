@@ -18,6 +18,28 @@ doxygen2adoc:Teak.setNumericAttribute(String,double)[]
 
 doxygen2adoc:Teak.setStringAttribute(String,String)[]
 
+== Notification Permissions
+
+On Android 13 (API level 33) and newer, you must ask the player before you can send them push notifications. On older versions, permission is granted automatically.
+
+The xref:quickstart/required-code.adoc[quickstart] requests permission at launch to get you up and running. In production, ask at a moment that makes sense for your game; being strategic about when you ask improves your opt-in rates.
+
+doxygen2adoc:Teak.requestNotificationPermissions()[]
+
+Unlike some platforms, this call does not take a callback. To find out whether notifications are currently enabled, check the status:
+
+doxygen2adoc:Teak.getNotificationStatus()[]
+
+It returns one of `Teak.TEAK_NOTIFICATIONS_ENABLED`, `Teak.TEAK_NOTIFICATIONS_DISABLED`, or `Teak.TEAK_NOTIFICATIONS_UNKNOWN`.
+
+=== Prompting a Player to Re-enable Notifications
+
+If a player has turned notifications off, you can no longer prompt them from within the app. Instead, you can send them to the system settings, where they can turn notifications back on.
+
+doxygen2adoc:Teak.canOpenNotificationSettings()[]
+
+doxygen2adoc:Teak.openNotificationSettings()[]
+
 == Deep Links
 
 Teak can open your game from a URL, whether the link comes from a notification or from a link you created on the Teak dashboard. To enable this, register Teak's URL schemes in your Android manifest.
@@ -78,11 +100,19 @@ To receive events, declare methods with the `@Subscribe` annotation that take th
 
 <<Teak.NotificationEvent>>:: A notification has been received.
 
-<<Teak.RewardClaimEvent>>:: A reward claim has been processed.
+<<Teak.RewardClaimEvent>>:: A reward claim has been processed. See <<Rewards>>.
 
 <<Teak.LaunchFromLinkEvent>>:: The app was launched from a URL created on the Teak dashboard.
 
+<<Teak.PostLaunchSummaryEvent>>:: Attribution data for the launch is available. See <<Session Attribution>>.
+
 <<Teak.UserDataEvent>>:: Data about the user has become available, or has been updated.
+
+== Rewards
+
+Teak notifications and links can grant rewards to your players. When a player opens your game from a rewarded notification or link, Teak validates the claim with the server and posts a <<Teak.RewardClaimEvent>> with the result.
+
+Subscribe to it the same way as any other event (see <<Subscribing to Events>>), then grant the reward in your game when the claim succeeds.
 
 .Handling a Reward Claim
 [source,java]
@@ -111,6 +141,57 @@ public void onRewardClaim(Teak.RewardClaimEvent event) {
     default: {
       Log.d("TeakExample.Reward", "The reward was rejected for a different reason: " + rewardInfo.json.getString("status"));
     }
+  }
+}
+----
+
+The `status` field reports the outcome of the claim:
+
+[cols="1,3", stripes="even"]
+|===
+| Status | Meaning
+
+| `GRANT_REWARD`
+| The reward was granted. Apply it in your game.
+
+| `SELF_CLICK`
+| The player clicked their own shared link, so no reward was granted.
+
+| `ALREADY_CLICKED`
+| The player already claimed this reward.
+
+| `TOO_MANY_CLICKS`
+| The reward's click limit has been reached.
+
+| `EXCEED_MAX_CLICKS_FOR_DAY`
+| The player has already claimed the maximum number of rewards for the day.
+
+| `EXPIRED`
+| The reward has expired.
+
+| `INVALID_POST`
+| The claim was invalid.
+|===
+
+== Session Attribution
+
+Each time your game launches, Teak posts a <<Teak.PostLaunchSummaryEvent>> with all the attribution data it has for that launch. This fires after you call `identifyUser`, and is primarily intended to help you report session attribution to other analytics systems.
+
+Subscribe to it like any other event (see <<Subscribing to Events>>). The event's `launchData` is a <<Teak.LaunchData>>. When the launch is attributed to a Teak source, it is a <<Teak.AttributedLaunchData>> carrying the channel, creative, schedule, reward, and deep link details.
+
+.Example Post-Launch Summary Handler
+[source,java]
+----
+@Subscribe
+public void onPostLaunchSummary(Teak.PostLaunchSummaryEvent event) {
+  Teak.LaunchData launchData = event.launchData;
+  if (launchData instanceof Teak.AttributedLaunchData) {
+    Teak.AttributedLaunchData attributed = (Teak.AttributedLaunchData) launchData;
+    Log.d("Teak.Attribution", "Launch attributed to channel: " + attributed.channelName);
+    Log.d("Teak.Attribution", "From creative: " + attributed.creativeName);
+    Log.d("Teak.Attribution", "Rewarded: " + attributed.isIncentivized());
+  } else {
+    Log.d("Teak.Attribution", "Launch was not attributed to a Teak source.");
   }
 }
 ----
