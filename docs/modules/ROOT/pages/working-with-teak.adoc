@@ -10,6 +10,16 @@ doxygen2adoc:Teak.identifyUser(String,UserConfiguration)[]
 
 IMPORTANT: This should be the same way that you identify the user in your system, so that when you export data from Teak, it will be easy for you to associate with your own data.
 
+== Logout
+
+When a player logs out of your game, tell Teak so it stops associating this device with that player until the next `identifyUser` call.
+
+doxygen2adoc:Teak.logout()[]
+
+If a player asks you to remove the email address you've collected for them, use:
+
+doxygen2adoc:Teak.deleteEmail()[]
+
 == User Attributes
 
 Teak allows you to add a limited number of attributes to users. A maximum of 16 string and 16 numeric attributes can be used.
@@ -17,6 +27,28 @@ Teak allows you to add a limited number of attributes to users. A maximum of 16 
 doxygen2adoc:Teak.setNumericAttribute(String,double)[]
 
 doxygen2adoc:Teak.setStringAttribute(String,String)[]
+
+== Custom Analytics Events
+
+You can send custom analytics events to Teak to track player behavior. Teak models an event as an action taken on a type of object, optionally with a specific instance of that object.
+
+doxygen2adoc:Teak.trackEvent(String,String,String)[]
+
+For example, to track that a player completed level 10:
+
+[source,java]
+----
+Teak.trackEvent("level_complete", "level", "10");
+----
+
+To keep a running count for an event, use `incrementEvent`:
+
+doxygen2adoc:Teak.incrementEvent(String,String,String,long)[]
+
+[source,java]
+----
+Teak.incrementEvent("coins_spent", "store", "gems", 50);
+----
 
 == Notification Permissions
 
@@ -195,3 +227,44 @@ public void onPostLaunchSummary(Teak.PostLaunchSummaryEvent event) {
   }
 }
 ----
+
+== Local Notifications
+
+Local Notifications let you schedule push notifications directly from your game code for the current player. This differs from standard notifications, which your marketing team schedules for delivery from the Teak dashboard.
+
+Use Local Notifications when the timing or personalization is something your game code is best positioned to determine. The notification's content is still created on the Teak dashboard, so coordinate with your marketing team and document when your game schedules them.
+
+NOTE: Don't use Local Notifications for new-player or lapsing-player flows. Your marketing team should create xref:ROOT:user-guide:scheduling.adoc#_triggered[Triggered Schedules] for those instead.
+
+=== Schedule a Notification
+
+Schedule a notification by the identifier of a creative on the Teak dashboard and a delay in seconds. The call returns a `Future` carrying a `Teak.Notification.Reply`, whose `scheduleIds` you can keep if you later want to cancel it.
+
+[source,java]
+----
+import io.teak.sdk.Teak;
+import java.util.concurrent.Future;
+
+// Schedule the "daily_bonus" creative to fire one hour from now.
+Future<Teak.Notification.Reply> scheduled =
+    Teak.Notification.schedule("daily_bonus", 3600);
+----
+
+To template custom data into the notification, pass a `personalizationData` map. Tell your marketing team which keys you send so they can configure the matching xref:ROOT:user-guide:custom-tags.adoc#_local_notification_tags[Local Notification Tags].
+
+[source,java]
+----
+Map<String, Object> personalizationData = new HashMap<>();
+personalizationData.put("coins", 100);
+
+Future<Teak.Notification.Reply> scheduled =
+    Teak.Notification.schedule("daily_bonus", 3600, personalizationData);
+----
+
+=== Cancel a Scheduled Notification
+
+Cancel a single scheduled notification with a schedule id from the reply, or cancel all of the current player's scheduled notifications.
+
+doxygen2adoc:TeakNotification.cancelNotification(String)[]
+
+doxygen2adoc:TeakNotification.cancelAll()[]
