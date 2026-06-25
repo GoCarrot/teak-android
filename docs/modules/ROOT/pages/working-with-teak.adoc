@@ -10,6 +10,26 @@ doxygen2adoc:Teak.identifyUser(String,UserConfiguration)[]
 
 IMPORTANT: This should be the same way that you identify the user in your system, so that when you export data from Teak, it will be easy for you to associate with your own data.
 
+=== Player Configuration
+
+Pass a <<Teak.UserConfiguration>> to `identifyUser` to provide additional player data and to control what Teak collects:
+
+* `email` — the player's email address, used for sending email.
+* `facebookId` — the player's Facebook ID, used for templating their name into content.
+* `optOutFacebook` — set `true` to opt the player out of Facebook data collection.
+* `optOutIDFA` — set `true` to opt the player out of advertising-identifier collection.
+* `optOutPushKey` — set `true` to opt the player out of push-token collection.
+
+[source,java]
+----
+// email, facebookId, optOutFacebook, optOutIDFA, optOutPushKey
+Teak.UserConfiguration userConfiguration =
+    new Teak.UserConfiguration(YOUR_USER_EMAIL, YOUR_USER_FACEBOOK_ID, false, true, false);
+Teak.identifyUser(YOUR_USER_ID, userConfiguration);
+----
+
+If a player has opted out of all data collection, don't call `identifyUser` at all, and Teak won't track them.
+
 == Logout
 
 When a player logs out of your game, tell Teak so it stops associating this device with that player until the next `identifyUser` call.
@@ -71,6 +91,14 @@ If a player has turned notifications off, you can no longer prompt them from wit
 doxygen2adoc:Teak.canOpenNotificationSettings()[]
 
 doxygen2adoc:Teak.openNotificationSettings()[]
+
+== Application Badge Count
+
+Teak does not manage your app icon's badge automatically. Set it yourself when your unread count changes.
+
+doxygen2adoc:Teak.setApplicationBadgeNumber(int)[]
+
+NOTE: Badge support depends on the device's launcher. The call returns `false` if the current launcher does not support badges.
 
 == Deep Links
 
@@ -268,3 +296,59 @@ Cancel a single scheduled notification with a schedule id from the reply, or can
 doxygen2adoc:TeakNotification.cancelNotification(String)[]
 
 doxygen2adoc:TeakNotification.cancelAll()[]
+
+== Notification Channels and Opt-Out Preferences
+
+Teak can reach players over several channels: mobile push, desktop push, email, and SMS. Each channel, and each category within a channel, has an opt-in state. You can read a player's current preferences and update them from your game, for example to build an in-game notification-settings screen.
+
+=== Reading Opt-Out Preferences
+
+A player's channel preferences arrive in the <<Teak.UserDataEvent>>, which Teak posts when player data becomes available or changes. Subscribe to it (see <<Subscribing to Events>>) and read the per-channel status.
+
+[source,java]
+----
+@Subscribe
+public void onUserData(Teak.UserDataEvent event) {
+  Teak.Channel.State pushState = event.pushStatus.state;
+  Teak.Channel.State emailState = event.emailStatus.state;
+  Teak.Channel.State smsState = event.smsStatus.state;
+  Log.d("Teak.Channels", "Push opt-in state: " + pushState);
+}
+----
+
+Each status's `state` is one of `OptOut`, `Available`, `OptIn`, `Absent`, or `Unknown`.
+
+=== Updating Opt-Out Preferences
+
+Update an entire channel with `setChannelState`, or a single category within a channel with `setCategoryState`.
+
+doxygen2adoc:Teak.setChannelState(Channel.Type,Channel.State)[]
+
+doxygen2adoc:Teak.setCategoryState(Channel.Type,String,Channel.State)[]
+
+The channel is one of `Teak.Channel.Type.MobilePush`, `DesktopPush`, `PlatformPush`, `Email`, or `SMS`, and the state is typically `OptIn` or `OptOut`.
+
+[source,java]
+----
+// Opt the player out of marketing emails.
+Teak.setChannelState(Teak.Channel.Type.Email, Teak.Channel.State.OptOut);
+
+// Opt the player in to a specific push category.
+Teak.setCategoryState(Teak.Channel.Type.MobilePush, "daily_reminders", Teak.Channel.State.OptIn);
+----
+
+== Debugging with a Log Listener
+
+Teak emits internal log events as it runs. You can observe them by registering a `Teak.LogListener`, which is useful for debugging your integration or forwarding Teak's diagnostics into your own logging system.
+
+doxygen2adoc:Teak.setLogListener(LogListener)[]
+
+[source,java]
+----
+Teak.setLogListener(new Teak.LogListener() {
+  @Override
+  public void logEvent(String logEvent, String logLevel, Map<String, Object> logData) {
+    Log.d("Teak.Log", logLevel + " " + logEvent + " " + logData);
+  }
+});
+----
