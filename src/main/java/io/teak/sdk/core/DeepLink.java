@@ -84,7 +84,15 @@ public class DeepLink implements Unobfuscable {
 
 public static boolean willProcessUri(Uri uri) {
     if (uri == null) return false;
-    return DeepLink.willProcessUri(URI.create(uri.toString()));
+
+    URI otherUri = null;
+    try {
+        otherUri = URI.create(uri.toString());
+    } catch (Exception ignored) {
+        return false;
+    }
+
+    return DeepLink.willProcessUri(otherUri);
 }
 
 public static boolean willProcessUri(URI uri) {

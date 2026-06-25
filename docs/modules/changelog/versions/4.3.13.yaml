@@ -1,0 +1,9 @@
+bug:
+  - "Reward claims no longer hang on an empty or malformed server response."
+  - "Improved handling of malformed (non-JSON) server responses in network requests, which now degrade gracefully."
+  - "Universal links with malformed resolutions now keep their originating launch link for attribution instead of dropping it."
+  - "Improved handling of deep links containing an unencoded `%` (e.g. a `50%` creative or schedule name), which now route correctly."
+  - "Fixed a crash and incorrect sandbox/production purchase classification when using the Amazon Appstore SDK 3.x."
+
+enhancement:
+  - "Improved internal error reporting."

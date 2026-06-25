@@ -57,7 +57,7 @@ public class TeakInstance implements Unobfuscable {
 
     @SuppressLint("ObsoleteSdkInt")
     TeakInstance(@NonNull Activity activity, @NonNull final IObjectFactory objectFactory) {
-        //noinspection all -- Disable warning on the null check
+        // noinspection all -- Disable warning on the null check
         if (activity == null) {
             throw new InvalidParameterException("null Activity passed to Teak.onCreate");
         }
@@ -71,6 +71,7 @@ public class TeakInstance implements Unobfuscable {
         // Ravens
         TeakConfiguration.addEventListener(configuration -> {
             TeakInstance.this.sdkRaven = new Raven(context, "sdk", configuration, objectFactory);
+            Teak.log.setSdkRaven(TeakInstance.this.sdkRaven);
             TeakInstance.this.appRaven = new Raven(context, configuration.appConfiguration.bundleId, configuration, objectFactory);
         });
 
@@ -193,7 +194,7 @@ public class TeakInstance implements Unobfuscable {
             Request.submit(null, "POST", "/me/channel_state.json", payload,
                 session, (int responseCode, String responseBody) -> {
                     try {
-                        final JSONObject response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
+                        final JSONObject response = Helpers.fromResponseBody(responseBody, "channel_state");
 
                         final boolean error = !"ok".equalsIgnoreCase(response.optString("status", "error"));
                         final Teak.Channel.State replyState = Teak.Channel.State.fromString(response.optString("state", "unknown"));
@@ -252,7 +253,7 @@ public class TeakInstance implements Unobfuscable {
             Request.submit(null, "POST", "/me/category_state.json", payload,
                 session, (int responseCode, String responseBody) -> {
                     try {
-                        final JSONObject response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
+                        final JSONObject response = Helpers.fromResponseBody(responseBody, "category_state");
 
                         final boolean error = !"ok".equalsIgnoreCase(response.optString("status", "error"));
                         final Teak.Channel.State replyState = Teak.Channel.State.fromString(response.optString("state", "unknown"));
@@ -312,7 +313,7 @@ public class TeakInstance implements Unobfuscable {
             Request.submit(null, "POST", "/me/local_notify.json", payload,
                 session, (int responseCode, String responseBody) -> {
                     try {
-                        final JSONObject response = new JSONObject((responseBody == null || responseBody.trim().isEmpty()) ? "{}" : responseBody);
+                        final JSONObject response = Helpers.fromResponseBody(responseBody, "local_notify");
 
                         final boolean error = !"ok".equalsIgnoreCase(response.optString("status", "error"));
                         final Teak.Notification.Reply.Status status = Teak.Notification.Reply.Status.fromString(response.optString("status", "unknown"));
@@ -488,7 +489,7 @@ public class TeakInstance implements Unobfuscable {
         Paused("Paused"),
         Destroyed("Destroyed");
 
-        //public static final Integer length = 1 + Destroyed.ordinal();
+        // public static final Integer length = 1 + Destroyed.ordinal();
 
         private static final State[][] allowedTransitions = {
             {},

@@ -9,6 +9,8 @@ import org.mockito.junit.MockitoJUnitRunner;
 import io.teak.sdk.Helpers;
 import io.teak.sdk.Teak;
 
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -30,6 +32,22 @@ public class LaunchData {
         assertTrue(Helpers.stringsAreEqual(data.creativeName, teakCreativeName));
         assertTrue(Helpers.stringsAreEqual(data.creativeId, teakCreativeId));
         assertTrue(Helpers.stringsAreEqual(data.channelName, "generic_link"));
+    }
+
+    // Locks the RewardlinkLaunchData constructor contract: a non-null shortLink is retained as
+    // launchLink (and null stays null). That contract is the mechanism the LaunchDataSource fix
+    // relies on to keep the launch link when AndroidPath is absent. It does NOT exercise
+    // LaunchDataSource itself — that path needs a live HttpsURLConnection + real Uri and isn't
+    // cheaply unit-testable, so re-adding the resolver's null branch would not fail this test.
+    @Test
+    public void RewardlinkLaunchDataRetainsShortLinkAsLaunchLink() {
+        final Uri shortLink = mock(Uri.class);
+
+        final Teak.RewardlinkLaunchData withShortLink = new Teak.RewardlinkLaunchData(getGenericUri(), shortLink);
+        assertSame(shortLink, withShortLink.launchLink);
+
+        final Teak.RewardlinkLaunchData withoutShortLink = new Teak.RewardlinkLaunchData(getGenericUri(), null);
+        assertNull(withoutShortLink.launchLink);
     }
 
     private Uri getGenericUri() {

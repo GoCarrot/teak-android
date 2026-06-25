@@ -1,5 +1,6 @@
 package io.teak.sdk.wrapper.unity;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -69,16 +70,27 @@ public class TeakUnity implements Unobfuscable {
         return TeakUnity.unitySendMessage != null;
     }
 
+    static boolean shouldSuppressException(Throwable e) {
+        if (e instanceof UnsatisfiedLinkError) return true;
+        if (e instanceof InvocationTargetException && e.getCause() instanceof UnsatisfiedLinkError) return true;
+        return false;
+    }
+
     private static void unitySendMessage(final String method, final String message) {
         TeakUnity.unitySendMessageExecutor.submit(() -> {
             if (TeakUnity.isAvailable()) {
                 try {
                     TeakUnity.unitySendMessage.invoke(null, "TeakGameObject", method, message);
                 } catch (UnsatisfiedLinkError ignored) {
+                    // defensive: ULE normally arrives wrapped via InvocationTargetException, see below
+                } catch (InvocationTargetException e) {
                     // TEAK-ANDROID-SDK-K4
                     // TEAK-ANDROID-SDK-K5
                     // TEAK-ANDROID-SDK-K6
                     // TEAK-ANDROID-SDK-K9
+                    if (!shouldSuppressException(e)) {
+                        Teak.log.exception(e);
+                    }
                 } catch (Exception e) {
                     Teak.log.exception(e);
                 }
