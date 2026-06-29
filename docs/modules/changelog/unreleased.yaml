@@ -1,0 +1,2 @@
+bug:
+  - FCM registration no longer submits an empty sender ID when the framework delivers the first push token on a fresh install.
