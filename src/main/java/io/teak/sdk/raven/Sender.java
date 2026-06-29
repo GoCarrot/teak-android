@@ -108,7 +108,7 @@ public class Sender extends Worker {
             return Result.success();
         } catch (Exception e) {
             if (this.isDebug) {
-                Log.d(Raven.LOG_TAG, "Sentry POST exception: " + e);
+                Log.d(Raven.LOG_TAG, "Sentry POST exception: " + Log.getStackTraceString(e));
             }
             return Result.failure();
         } finally {
