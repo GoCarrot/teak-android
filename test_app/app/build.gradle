@@ -50,7 +50,7 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:5.14.2'
 
-    // Push-provider selection tests mock GooglePlayServicesUtil / ConnectionResult, which the
+    // GooglePlayServicesMissing tests mock GooglePlayServicesUtil / ConnectionResult, which the
     // SDK pulls in as `implementation` (not exposed to the test compile classpath transitively).
     testImplementation 'com.google.android.gms:play-services-base:17.1.0'
 
