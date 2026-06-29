@@ -165,8 +165,10 @@ public class DefaultObjectFactory implements IObjectFactory {
             try {
                 Class.forName("com.google.android.gms.common.GooglePlayServicesUtil");
                 if (DefaultAndroidDeviceInfo.isGooglePlayServicesMissing(context)) {
-                    // No FCM when the Play Services APK is absent — getToken() throws MISSING_INSTANCEID_SERVICE.
+                    // No FCM when the Play Services APK is absent — getToken() would throw
+                    // MISSING_INSTANCEID_SERVICE. This is the expected outcome, not an error.
                     Teak.log.i("factory.pushProvider", Helpers.mm.h("type", "none"));
+                    return null;
                 } else {
                     ret = FCMPushProvider.initialize(context);
                     Teak.log.i("factory.pushProvider", Helpers.mm.h("type", "fcm"));
