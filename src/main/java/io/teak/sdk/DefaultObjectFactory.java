@@ -182,7 +182,7 @@ public class DefaultObjectFactory implements IObjectFactory {
             if (!admUsable) {
                 Teak.log.i("factory.pushProvider", "ADM is not supported in this context.");
             }
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             Teak.log.i("factory.pushProvider", "ADM is not present.");
         }
 
