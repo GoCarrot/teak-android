@@ -82,6 +82,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
     private final HashMap<String, Object> payloadTemplate = new HashMap<>();
     private final Context applicationContext;
     private final String appId;
+    private final boolean isDebug;
     private Thread.UncaughtExceptionHandler previousUncaughtExceptionHandler;
 
     private String SENTRY_KEY;
@@ -101,6 +102,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
 
         this.applicationContext = context;
         this.appId = appId;
+        this.isDebug = configuration.debugConfiguration.isDebug();
 
         final String proguardUuid = objectFactory.getAndroidResources().getStringResource(Raven.TEAK_SENTRY_PROGUARD_UUID);
         if (proguardUuid != null && proguardUuid.length() > 0) {
@@ -503,9 +505,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
             // Observability: how many breadcrumbs survived size-budgeting and the resulting
             // payload size. Fires once per exception report (rare); trimming is normal operation,
             // hence debug, not warn/error.
-            Log.d(LOG_TAG, "Sentry report: " + fitted.size() + " of " + this.breadcrumbSnapshot.size()
-                               + " breadcrumbs kept, payload " + payloadJson.getBytes(StandardCharsets.UTF_8).length
-                               + " bytes (size budget " + PAYLOAD_BUDGET_BYTES + ").");
+            Log.d(LOG_TAG, "Sentry report: " + fitted.size() + " of " + this.breadcrumbSnapshot.size() + " breadcrumbs kept, payload " + payloadJson.getBytes(StandardCharsets.UTF_8).length + " bytes (size budget " + PAYLOAD_BUDGET_BYTES + ").");
 
             Data data = this.buildData(payloadJson);
             if (data != null) {
@@ -534,6 +534,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
                     .putString(Sender.ENDPOINT_KEY, Raven.this.endpoint.toString())
                     .putString(Sender.SENTRY_KEY_KEY, Raven.this.SENTRY_KEY)
                     .putString(Sender.SENTRY_SECRET_KEY, Raven.this.SENTRY_SECRET)
+                    .putBoolean(Sender.DEBUG_KEY, Raven.this.isDebug)
                     .build();
             } catch (Exception e) {
                 Log.e(LOG_TAG, Log.getStackTraceString(e));

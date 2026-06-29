@@ -1,6 +1,7 @@
 package io.teak.sdk.raven;
 
 import android.content.Context;
+import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -29,12 +30,14 @@ public class Sender extends Worker {
     private final String sentryKey;
     private final String sentrySecret;
     private final long timestamp;
+    private final boolean isDebug;
 
     public static final String ENDPOINT_KEY = "endpoint";
     public static final String PAYLOAD_KEY = "payload";
     public static final String SENTRY_KEY_KEY = "SENTRY_KEY";
     public static final String SENTRY_SECRET_KEY = "SENTRY_SECRET";
     public static final String TIMESTAMP_KEY = "timestamp";
+    public static final String DEBUG_KEY = "debug";
 
     public Sender(@NonNull Context context, @NonNull WorkerParameters workerParams) throws MalformedURLException {
         super(context, workerParams);
@@ -45,6 +48,7 @@ public class Sender extends Worker {
         this.sentryKey = inputData.getString(SENTRY_KEY_KEY);
         this.sentrySecret = inputData.getString(SENTRY_SECRET_KEY);
         this.timestamp = inputData.getLong(TIMESTAMP_KEY, new Date().getTime() / 1000L);
+        this.isDebug = inputData.getBoolean(DEBUG_KEY, false);
     }
 
     @NonNull
@@ -74,8 +78,12 @@ public class Sender extends Worker {
             wr.flush();
             wr.close();
 
+            final int responseCode = connection.getResponseCode();
+            if (this.isDebug) {
+                Log.d(Raven.LOG_TAG, "Sentry POST HTTP " + responseCode);
+            }
             InputStream is;
-            if (connection.getResponseCode() < 400) {
+            if (responseCode < 400) {
                 is = connection.getInputStream();
             } else {
                 is = connection.getErrorStream();
@@ -98,7 +106,10 @@ public class Sender extends Worker {
             }
 
             return Result.success();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            if (this.isDebug) {
+                Log.d(Raven.LOG_TAG, "Sentry POST exception: " + e);
+            }
             return Result.failure();
         } finally {
             if (rd != null) {
