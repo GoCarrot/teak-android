@@ -46,15 +46,35 @@ public class DefaultAndroidDeviceInfo implements IAndroidDeviceInfo {
         }
     }
 
+    /**
+     * Raw Google Play Services availability status, or {@link ConnectionResult#SERVICE_INVALID}
+     * when the check itself throws. Centralizes the {@code GooglePlayServicesUtil} call so
+     * callers can derive their own predicate (available vs. definitively missing) from a single
+     * source rather than copy-pasting it.
+     */
     @SuppressWarnings("deprecation")
-    private boolean isGooglePlayServicesAvailable() {
+    public static int googlePlayServicesAvailability(@NonNull Context context) {
         try {
-            // TODO: This needs to be re-checked in case it's something like SERVICE_UPDATING or SERVICE_VERSION_UPDATE_REQUIRED
-            final int gpsAvailable = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this.context);
-            return (gpsAvailable == ConnectionResult.SUCCESS);
+            return GooglePlayServicesUtil.isGooglePlayServicesAvailable(context);
         } catch (Exception ignored) {
         }
-        return false;
+        return ConnectionResult.SERVICE_INVALID;
+    }
+
+    /**
+     * True only when Google Play Services is <em>definitively absent</em> — the GPS APK is not
+     * installed ({@link ConnectionResult#SERVICE_MISSING}). Transient states such as
+     * {@code SERVICE_UPDATING} / {@code SERVICE_VERSION_UPDATE_REQUIRED} are intentionally NOT
+     * treated as missing, so a device that merely needs an update keeps FCM. Used to avoid
+     * selecting FCM on Fire/Huawei devices, where {@code getToken()} would throw
+     * {@code MISSING_INSTANCEID_SERVICE}.
+     */
+    public static boolean isGooglePlayServicesMissing(@NonNull Context context) {
+        return googlePlayServicesAvailability(context) == ConnectionResult.SERVICE_MISSING;
+    }
+
+    private boolean isGooglePlayServicesAvailable() {
+        return googlePlayServicesAvailability(this.context) == ConnectionResult.SUCCESS;
     }
 
     @NonNull

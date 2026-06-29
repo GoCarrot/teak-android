@@ -142,35 +142,81 @@ public class DefaultObjectFactory implements IObjectFactory {
         return null;
     }
 
+    public enum PushProvider {
+        ADM,
+        FCM,
+        NONE
+    }
+
+    /**
+     * Push-provider selection as a pure function of the three runtime signals, so the decision
+     * is unit-testable independently of class loading and device state.
+     *
+     * <ul>
+     *   <li>ADM whenever it is usable (Amazon).</li>
+     *   <li>FCM only when the Play Services libraries are present AND Google Play Services is not
+     *       definitively missing. Never FCM on a device with no GPS APK ({@code gpsMissing}),
+     *       where {@code getToken()} would throw {@code MISSING_INSTANCEID_SERVICE} — this is the
+     *       behavioral root fix for FCM-on-Amazon (C-899). Transient GPS states are not "missing",
+     *       so real Google devices that merely need an update keep FCM.</li>
+     *   <li>Otherwise no provider.</li>
+     * </ul>
+     */
+    public static PushProvider selectPushProvider(boolean admUsable, boolean gpsLibraryPresent, boolean gpsMissing) {
+        if (admUsable) {
+            return PushProvider.ADM;
+        }
+        if (gpsLibraryPresent && !gpsMissing) {
+            return PushProvider.FCM;
+        }
+        return PushProvider.NONE;
+    }
+
     @SuppressWarnings("WeakerAccess") // Integration tests call this
     public static IPushProvider createPushProvider(@NonNull Context context) throws IntegrationChecker.MissingDependencyException {
-        IPushProvider ret = null;
-        IntegrationChecker.MissingDependencyException pushCreationException = null;
+        // Is ADM present and usable on this device?
+        boolean admUsable = false;
         try {
             Class.forName("com.amazon.device.messaging.ADM");
-            if (new ADM(context).isSupported()) {
-                ADMPushProvider admPushProvider = new ADMPushProvider();
-                admPushProvider.initialize(context);
-                ret = admPushProvider;
-                Teak.log.i("factory.pushProvider", Helpers.mm.h("type", "adm"));
-            } else {
+            admUsable = new ADM(context).isSupported();
+            if (!admUsable) {
                 Teak.log.i("factory.pushProvider", "ADM is not supported in this context.");
             }
         } catch (Exception ignored) {
             Teak.log.i("factory.pushProvider", "ADM is not present.");
         }
 
-        if (ret == null) {
-            try {
-                Class.forName("com.google.android.gms.common.GooglePlayServicesUtil");
+        // Are the FCM / Play Services libraries present, and is Google Play Services definitively
+        // missing at runtime? The gpsMissing check guards a direct GooglePlayServicesUtil reference,
+        // so it only runs once the class is confirmed present.
+        boolean gpsLibraryPresent = false;
+        boolean gpsMissing = false;
+        try {
+            Class.forName("com.google.android.gms.common.GooglePlayServicesUtil");
+            gpsLibraryPresent = true;
+            gpsMissing = DefaultAndroidDeviceInfo.isGooglePlayServicesMissing(context);
+        } catch (Throwable ignored) {
+        }
+
+        IPushProvider ret = null;
+        IntegrationChecker.MissingDependencyException pushCreationException = null;
+        switch (selectPushProvider(admUsable, gpsLibraryPresent, gpsMissing)) {
+            case ADM: {
+                ADMPushProvider admPushProvider = new ADMPushProvider();
+                admPushProvider.initialize(context);
+                ret = admPushProvider;
+                Teak.log.i("factory.pushProvider", Helpers.mm.h("type", "adm"));
+            } break;
+            case FCM: {
                 try {
                     ret = FCMPushProvider.initialize(context);
                     Teak.log.i("factory.pushProvider", Helpers.mm.h("type", "fcm"));
                 } catch (IntegrationChecker.MissingDependencyException e) {
                     pushCreationException = e;
                 }
-            } catch (Exception ignored) {
-            }
+            } break;
+            case NONE:
+                break;
         }
 
         if (ret == null) {
