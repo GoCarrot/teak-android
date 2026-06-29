@@ -46,15 +46,27 @@ public class DefaultAndroidDeviceInfo implements IAndroidDeviceInfo {
         }
     }
 
+    // Google Play Services availability status, or SERVICE_INVALID if the check throws.
     @SuppressWarnings("deprecation")
-    private boolean isGooglePlayServicesAvailable() {
+    private static int googlePlayServicesAvailability(@NonNull Context context) {
         try {
-            // TODO: This needs to be re-checked in case it's something like SERVICE_UPDATING or SERVICE_VERSION_UPDATE_REQUIRED
-            final int gpsAvailable = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this.context);
-            return (gpsAvailable == ConnectionResult.SUCCESS);
+            return GooglePlayServicesUtil.isGooglePlayServicesAvailable(context);
         } catch (Exception ignored) {
         }
-        return false;
+        return ConnectionResult.SERVICE_INVALID;
+    }
+
+    /**
+     * True only when Google Play Services is definitively absent — no Play Services APK
+     * ({@link ConnectionResult#SERVICE_MISSING}). Transient states such as {@code SERVICE_UPDATING}
+     * and {@code SERVICE_VERSION_UPDATE_REQUIRED} do not count as missing.
+     */
+    public static boolean isGooglePlayServicesMissing(@NonNull Context context) {
+        return googlePlayServicesAvailability(context) == ConnectionResult.SERVICE_MISSING;
+    }
+
+    private boolean isGooglePlayServicesAvailable() {
+        return googlePlayServicesAvailability(this.context) == ConnectionResult.SUCCESS;
     }
 
     @NonNull
