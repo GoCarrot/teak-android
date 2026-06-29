@@ -120,6 +120,7 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
     public void onNewToken(@NonNull String token) {
         Teak.log.i("google.fcm.registered", Helpers.mm.h("fcmId", token));
         if (Teak.isEnabled()) {
+            ensureFirebaseApp();
             final String senderId = this.firebaseApp == null ? null : this.firebaseApp.getOptions().getGcmSenderId();
             TeakEvent.postEvent(new PushRegistrationEvent("gcm_push_key", token, senderId));
         }
@@ -134,16 +135,20 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
         FCMPushProvider.onMessageReceivedExternal(remoteMessage, getApplicationContext(), false);
     }
 
-    //// IPushProvider
-
-    @Override
-    public void requestPushKey() {
+    private void ensureFirebaseApp() {
         if (this.firebaseApp == null) {
             try {
                 this.firebaseApp = FirebaseApp.getInstance();
             } catch (Exception ignored) {
             }
         }
+    }
+
+    //// IPushProvider
+
+    @Override
+    public void requestPushKey() {
+        ensureFirebaseApp();
 
         if (this.firebaseApp == null) {
             Teak.log.e("google.fcm.null_app", "Could not get Firebase App. Push notifications are unlikely to work.");

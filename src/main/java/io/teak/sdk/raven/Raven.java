@@ -82,6 +82,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
     private final HashMap<String, Object> payloadTemplate = new HashMap<>();
     private final Context applicationContext;
     private final String appId;
+    private final boolean isDebug;
     private Thread.UncaughtExceptionHandler previousUncaughtExceptionHandler;
 
     private String SENTRY_KEY;
@@ -101,6 +102,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
 
         this.applicationContext = context;
         this.appId = appId;
+        this.isDebug = configuration.debugConfiguration.isDebug();
 
         final String proguardUuid = objectFactory.getAndroidResources().getStringResource(Raven.TEAK_SENTRY_PROGUARD_UUID);
         if (proguardUuid != null && proguardUuid.length() > 0) {
@@ -534,6 +536,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
                     .putString(Sender.ENDPOINT_KEY, Raven.this.endpoint.toString())
                     .putString(Sender.SENTRY_KEY_KEY, Raven.this.SENTRY_KEY)
                     .putString(Sender.SENTRY_SECRET_KEY, Raven.this.SENTRY_SECRET)
+                    .putBoolean(Sender.DEBUG_KEY, Raven.this.isDebug)
                     .build();
             } catch (Exception e) {
                 Log.e(LOG_TAG, Log.getStackTraceString(e));
