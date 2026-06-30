@@ -23,9 +23,12 @@ import io.teak.sdk.Teak;
 import io.teak.sdk.TeakConfiguration;
 import io.teak.sdk.TeakEvent;
 import io.teak.sdk.Unobfuscable;
+import io.teak.sdk.configuration.DataCollectionConfiguration;
 import io.teak.sdk.core.TeakCore;
 import io.teak.sdk.event.PushNotificationEvent;
 import io.teak.sdk.event.PushRegistrationEvent;
+import io.teak.sdk.io.AndroidResources;
+import io.teak.sdk.io.DefaultAndroidResources;
 
 public class FCMPushProvider extends FirebaseMessagingService implements IPushProvider, Unobfuscable {
     private static FCMPushProvider Instance = null;
@@ -151,8 +154,7 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
         ensureFirebaseApp();
 
         if (this.firebaseApp == null) {
-            Teak.log.e("google.fcm.null_app", "Could not get Firebase App. Push notifications are unlikely to work.");
-            IntegrationChecker.addErrorToReport("google.fcm.null_app", "Could not get Firebase App. Push notifications are unlikely to work.");
+            reportMissingFirebaseApp(isPushKeyEnabled());
         } else {
             try {
                 final Task<String> instanceIdTask = FirebaseMessaging.getInstance().getToken();
@@ -185,6 +187,33 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
             return TeakConfiguration.get().debugConfiguration.isDebug();
         } catch (Exception ignored) {
             return false;
+        }
+    }
+
+    // Read directly from resources/manifest because requestPushKey() runs during DeviceConfiguration
+    // construction, before TeakConfiguration (and its DataCollectionConfiguration) is initialized.
+    // Default to enabled — when in doubt, surface a real misconfiguration rather than hide it.
+    private boolean isPushKeyEnabled() {
+        try {
+            final AndroidResources androidResources = new AndroidResources(this.context, new DefaultAndroidResources(this.context));
+            final Boolean enabled = androidResources.getTeakBoolResource(DataCollectionConfiguration.TEAK_ENABLE_PUSH_KEY_RESOURCE, true);
+            return enabled == null || enabled;
+        } catch (Exception ignored) {
+            return true;
+        }
+    }
+
+    // An absent FirebaseApp is only an integration error when push is expected. Apps that
+    // intentionally ship no push set io_teak_enable_push_key=false and have no Firebase configuration
+    // by design, so surface that case as info rather than an error. Reached only when there is no
+    // FirebaseApp; takes pushKeyEnabled so the gate is exercised by tests via the real report path.
+    static void reportMissingFirebaseApp(boolean pushKeyEnabled) {
+        if (pushKeyEnabled) {
+            final String message = "Could not get a valid Firebase App; push notifications will not work. If you intentionally do not use push notifications, set io_teak_enable_push_key to false to silence this.";
+            Teak.log.e("google.fcm.null_app", message);
+            IntegrationChecker.addErrorToReport("google.fcm.null_app", message);
+        } else {
+            Teak.log.i("google.fcm.no_push", "No Firebase App, and push is disabled (io_teak_enable_push_key=false); skipping push registration.");
         }
     }
 
