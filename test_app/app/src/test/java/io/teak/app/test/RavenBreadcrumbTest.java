@@ -77,6 +77,35 @@ public class RavenBreadcrumbTest extends TeakUnitTest {
         assertTrue("pre-configuration log event must replay into the raven as a breadcrumb", found);
     }
 
+    // C-740 (C-863 positive-proof): the null-Raven fallback. TeakInstance hands setSdkRaven a
+    // possibly-null Raven from a try/finally, so the queue still drains if Raven construction throws
+    // -- otherwise the queued pre-config events would be silently lost when Teak.onCreate swallows
+    // the exception and the SDK runs on disabled. With a null Raven the events must still flush
+    // through logEvent (observed here via a LogListener); breadcrumbs are skipped because there is
+    // no Raven to receive them.
+    @Test
+    public void nullRavenStillFlushesQueuedEventsAsLogs() {
+        final Log log = new Log("Teak.Test", 0);
+
+        final List<String> flushed = new ArrayList<>();
+        log.setLogListener(new Teak.LogListener() {
+            @Override
+            public void logEvent(String logEvent, String logLevel, Map<String, Object> logData) {
+                if ("pre.config.event".equals(logEvent)) {
+                    flushed.add(logEvent);
+                }
+            }
+        });
+
+        log.i("pre.config.event", "fired before the raven existed");
+        assertTrue("queued event must not flush before setSdkRaven drains the queue", flushed.isEmpty());
+
+        // Raven-construction-failed path: a null Raven must still drain the queue.
+        log.setSdkRaven(null);
+
+        assertEquals("queued event must flush as a log even with a null raven", 1, flushed.size());
+    }
+
     @Test
     public void breadcrumbCapAt100() throws Exception {
         Raven raven = makeRaven();
