@@ -32,7 +32,7 @@ public class DeviceScreenState {
         ScreenOn("ScreenOn"),
         ScreenOff("ScreenOff");
 
-        //public static final Integer length = 1 + Expired.ordinal();
+        // public static final Integer length = 1 + Expired.ordinal();
 
         private static final State[][] allowedTransitions = {
             {State.ScreenOn, State.ScreenOff},

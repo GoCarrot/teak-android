@@ -229,8 +229,8 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
         }
         final String msg = e.getMessage();
         return msg != null && (msg.equals("SERVICE_NOT_AVAILABLE") ||
-                               msg.equals("MISSING_INSTANCEID_SERVICE") ||
-                               msg.equals("FIS_AUTH_ERROR"));
+                                  msg.equals("MISSING_INSTANCEID_SERVICE") ||
+                                  msg.equals("FIS_AUTH_ERROR"));
     }
 
     ///// Beware of the Leopard

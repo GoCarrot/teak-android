@@ -133,7 +133,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         try {
             if (intent != null && intent.getData() != null) {
                 final Uri intentData = intent.getData();
-                if(intentData.isHierarchical()) {
+                if (intentData.isHierarchical()) {
                     if (intentData.getBooleanQueryParameter("teak_log", false)) {
                         Teak.forceDebug = true;
                     }
@@ -150,14 +150,14 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
                     if (intentData.getBooleanQueryParameter("teak_strict_mode", false)) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                             StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder()
-                                                       .detectNonSdkApiUsage()
-                                                       .penaltyLog()
-                                                       .build());
+                                    .detectNonSdkApiUsage()
+                                    .penaltyLog()
+                                    .build());
                         }
                     }
                 }
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             android.util.Log.e(LOG_TAG, android.util.Log.getStackTraceString(e));
         }
 
@@ -495,7 +495,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             SMS("sms"),                    ///< SMS channel
             Invalid("invalid");            ///< Invalid channel, will be ignored if used
 
-            //public static final Integer length = 1 + Invalid.ordinal();
+            // public static final Integer length = 1 + Invalid.ordinal();
 
             public final String name;
 
@@ -526,7 +526,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             Absent("absent"),
             Unknown("unknown");
 
-            //public static final Integer length = 1 + Absent.ordinal();
+            // public static final Integer length = 1 + Absent.ordinal();
 
             public final String name;
 
@@ -1236,7 +1236,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         protected AttributedLaunchData(@Nullable final Uri shortLink, @NonNull Uri deepLink) {
             super(shortLink);
 
-            if(deepLink.isOpaque()) {
+            if (deepLink.isOpaque()) {
                 this.scheduleName = this.scheduleId = this.creativeName = this.creativeId = this.rewardId = this.channelName = this.optOutCategory = null;
                 this.deepLink = deepLink;
                 return;
@@ -1276,7 +1276,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             this.rewardId = Helpers.newIfNotOld(oldLaunchData.rewardId, newLaunchData.rewardId);
             this.channelName = Helpers.newIfNotOld(oldLaunchData.channelName, newLaunchData.channelName);
             this.deepLink = updatedDeepLink;
-            if(updatedDeepLink.isHierarchical()) {
+            if (updatedDeepLink.isHierarchical()) {
                 this.optOutCategory = Helpers.newIfNotOld(oldLaunchData.optOutCategory,
                     updatedDeepLink.getQueryParameter("teak_opt_out_category") != null ? updatedDeepLink.getQueryParameter("teak_opt_out_category") : "teak");
             } else {
@@ -1302,7 +1302,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
             // Put the URI and any query parameters that start with 'teak_' into 'deep_link'
             if (this.deepLink != null) {
                 map.put("deep_link", this.deepLink.toString());
-                if(this.deepLink.isHierarchical()) {
+                if (this.deepLink.isHierarchical()) {
                     for (final String name : this.deepLink.getQueryParameterNames()) {
                         if (name.startsWith("teak_")) {
                             final List<String> values = this.deepLink.getQueryParameters(name);
@@ -1376,7 +1376,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
          */
         protected NotificationLaunchData(@NonNull final NotificationLaunchData oldLaunchData, @NonNull Uri updatedDeepLink) {
             super(oldLaunchData, updatedDeepLink);
-            if(updatedDeepLink.isHierarchical()) {
+            if (updatedDeepLink.isHierarchical()) {
                 this.sourceSendId = Helpers.newIfNotOld(oldLaunchData.sourceSendId, updatedDeepLink.getQueryParameter("teak_notif_id"));
             } else {
                 this.sourceSendId = oldLaunchData.sourceSendId;
@@ -1506,7 +1506,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
         public JSONObject toJSON() {
             final JSONObject json = new JSONObject();
             final ArrayList<JSONObject> categories = new ArrayList<JSONObject>();
-            for(Teak.Channel.Category category : this.remoteConfiguration.categories) {
+            for (Teak.Channel.Category category : this.remoteConfiguration.categories) {
                 categories.add(category.toJSON());
             }
 

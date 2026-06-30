@@ -286,7 +286,7 @@ public class TeakNotification implements Unobfuscable {
 
                 try {
                     // https://rewards.gocarrot.com/<<teak_reward_id>>/clicks?clicking_user_id=<<your_user_id>>
-                    //String requestBody = "clicking_user_id=" + URLEncoder.encode(session.userId(), "UTF-8");
+                    // String requestBody = "clicking_user_id=" + URLEncoder.encode(session.userId(), "UTF-8");
                     HashMap<String, Object> payload = new HashMap<>();
                     payload.put("clicking_user_id", session.userId());
 
