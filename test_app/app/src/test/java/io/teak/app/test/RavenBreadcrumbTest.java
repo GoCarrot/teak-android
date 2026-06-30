@@ -51,11 +51,9 @@ public class RavenBreadcrumbTest extends TeakUnitTest {
         assertTrue(crumb.containsKey("timestamp"));
     }
 
-    // C-740 regression: an event logged before configuration is ready (before the Raven exists) is
-    // queued and must replay into the Raven as a breadcrumb when setSdkRaven() is called. A fresh
-    // Log reproduces the pre-configuration window deterministically -- the singleton Teak.log is
-    // already past it. Reverting the fix (draining in the config listener with a null Raven) drops
-    // the event, leaving it absent from the snapshot, and fails this test.
+    // An event logged before configuration is ready (before the Raven exists) is queued and must
+    // replay into the Raven as a breadcrumb when setSdkRaven() is called. A fresh Log reproduces
+    // the pre-configuration window deterministically; the singleton Teak.log is already past it.
     @Test
     public void preConfigurationEventReplaysAsBreadcrumbWhenRavenIsSet() {
         final Log log = new Log("Teak.Test", 0);
@@ -77,12 +75,10 @@ public class RavenBreadcrumbTest extends TeakUnitTest {
         assertTrue("pre-configuration log event must replay into the raven as a breadcrumb", found);
     }
 
-    // C-740 (C-863 positive-proof): the null-Raven fallback. TeakInstance hands setSdkRaven a
-    // possibly-null Raven from a try/finally, so the queue still drains if Raven construction throws
-    // -- otherwise the queued pre-config events would be silently lost when Teak.onCreate swallows
-    // the exception and the SDK runs on disabled. With a null Raven the events must still flush
-    // through logEvent (observed here via a LogListener); breadcrumbs are skipped because there is
-    // no Raven to receive them.
+    // The null-Raven fallback. TeakInstance hands setSdkRaven a possibly-null Raven from a
+    // try/finally, so the queue still drains even if Raven construction throws -- otherwise the
+    // queued events would be silently lost. With a null Raven the events still flush through
+    // logEvent (observed here via a LogListener); breadcrumbs are skipped, as there is no Raven.
     @Test
     public void nullRavenStillFlushesQueuedEventsAsLogs() {
         final Log log = new Log("Teak.Test", 0);
