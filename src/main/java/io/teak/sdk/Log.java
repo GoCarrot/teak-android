@@ -190,8 +190,23 @@ public class Log {
     private volatile Raven sdkRaven;
 
     // Kept in sync with TeakInstance.sdkRaven by the TeakConfiguration listener in TeakInstance.
+    //
+    // On the first call this also drains any log events that were queued before configuration was
+    // ready, replaying them through the now-available Raven as breadcrumbs. TeakInstance creates the
+    // Raven from a TeakConfiguration listener that fires after Log's own listener, so this is the
+    // earliest point the Raven exists -- draining here is what gives pre-configuration events
+    // breadcrumbs, aligning Android's observable behavior with iOS. See C-740.
     public void setSdkRaven(Raven raven) {
-        this.sdkRaven = raven;
+        synchronized (queuedLogEvents) {
+            this.sdkRaven = raven;
+            if (!processedQueuedLogEvents) {
+                for (LogEvent event : queuedLogEvents) {
+                    logEvent(event, raven);
+                }
+                queuedLogEvents.clear();
+                processedQueuedLogEvents = true;
+            }
+        }
     }
 
     private Teak.LogListener logListener;
@@ -232,12 +247,8 @@ public class Log {
                 // Log data collection configuration
                 log(Level.Info, "configuration.data_collection", configuration.dataCollectionConfiguration.toMap());
 
-                synchronized (queuedLogEvents) {
-            for (LogEvent event : queuedLogEvents) {
-                logEvent(event, null);
-            }
-            processedQueuedLogEvents = true;
-                }
+        // Queued pre-configuration events are drained in setSdkRaven(), once the Raven
+        // exists, so they land as breadcrumbs. See C-740.
     }
 });
 }

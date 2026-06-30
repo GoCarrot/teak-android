@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.teak.sdk.Log;
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakConfiguration;
 import io.teak.sdk.json.JSONObject;
@@ -48,6 +49,32 @@ public class RavenBreadcrumbTest extends TeakUnitTest {
         assertEquals("test.breadcrumb", crumb.get("category"));
         assertEquals("info", crumb.get("level"));
         assertTrue(crumb.containsKey("timestamp"));
+    }
+
+    // C-740 regression: an event logged before configuration is ready (before the Raven exists) is
+    // queued and must replay into the Raven as a breadcrumb when setSdkRaven() is called. A fresh
+    // Log reproduces the pre-configuration window deterministically -- the singleton Teak.log is
+    // already past it. Reverting the fix (draining in the config listener with a null Raven) drops
+    // the event, leaving it absent from the snapshot, and fails this test.
+    @Test
+    public void preConfigurationEventReplaysAsBreadcrumbWhenRavenIsSet() {
+        final Log log = new Log("Teak.Test", 0);
+
+        // Logged before the Raven exists -- queued, not yet a breadcrumb.
+        log.i("pre.config.event", "fired before the raven existed");
+
+        final Raven raven = makeRaven();
+        log.setSdkRaven(raven);
+
+        boolean found = false;
+        for (Map<String, Object> crumb : raven.snapshotBreadcrumbs()) {
+            if ("pre.config.event".equals(crumb.get("category"))) {
+                assertEquals("info", crumb.get("level"));
+                found = true;
+                break;
+            }
+        }
+        assertTrue("pre-configuration log event must replay into the raven as a breadcrumb", found);
     }
 
     @Test
