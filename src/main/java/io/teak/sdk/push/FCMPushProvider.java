@@ -154,16 +154,7 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
         ensureFirebaseApp();
 
         if (this.firebaseApp == null) {
-            // A missing FirebaseApp is only an integration error when push is expected. Apps that
-            // intentionally ship no push set io_teak_enable_push_key=false and have no Firebase
-            // configuration by design, so surface that case as info rather than an error.
-            if (isFirebaseMisconfiguration(this.firebaseApp != null, isPushKeyEnabled())) {
-                final String message = "Could not get a valid Firebase App; push notifications will not work. If you intentionally do not use push notifications, set io_teak_enable_push_key to false to silence this.";
-                Teak.log.e("google.fcm.null_app", message);
-                IntegrationChecker.addErrorToReport("google.fcm.null_app", message);
-            } else {
-                Teak.log.i("google.fcm.no_push", "No Firebase App, and push is disabled (io_teak_enable_push_key=false); skipping push registration.");
-            }
+            reportMissingFirebaseApp(isPushKeyEnabled());
         } else {
             try {
                 final Task<String> instanceIdTask = FirebaseMessaging.getInstance().getToken();
@@ -212,11 +203,18 @@ public class FCMPushProvider extends FirebaseMessagingService implements IPushPr
         }
     }
 
-    // Pure predicate: an absent FirebaseApp is only an integration error when push is expected.
-    // When the developer opts out of push (io_teak_enable_push_key=false), a missing Firebase
-    // configuration is by-design, not a misconfiguration.
-    static boolean isFirebaseMisconfiguration(boolean firebaseAppPresent, boolean pushKeyEnabled) {
-        return !firebaseAppPresent && pushKeyEnabled;
+    // An absent FirebaseApp is only an integration error when push is expected. Apps that
+    // intentionally ship no push set io_teak_enable_push_key=false and have no Firebase configuration
+    // by design, so surface that case as info rather than an error. Reached only when there is no
+    // FirebaseApp; takes pushKeyEnabled so the gate is exercised by tests via the real report path.
+    static void reportMissingFirebaseApp(boolean pushKeyEnabled) {
+        if (pushKeyEnabled) {
+            final String message = "Could not get a valid Firebase App; push notifications will not work. If you intentionally do not use push notifications, set io_teak_enable_push_key to false to silence this.";
+            Teak.log.e("google.fcm.null_app", message);
+            IntegrationChecker.addErrorToReport("google.fcm.null_app", message);
+        } else {
+            Teak.log.i("google.fcm.no_push", "No Firebase App, and push is disabled (io_teak_enable_push_key=false); skipping push registration.");
+        }
     }
 
     // Firebase client contract: SERVICE_NOT_AVAILABLE / MISSING_INSTANCEID_SERVICE / FIS_AUTH_ERROR

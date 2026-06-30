@@ -165,8 +165,7 @@ public class DefaultObjectFactory implements IObjectFactory {
         // libraries cannot work (no Google Play Services). Warn if they were bundled anyway. Probe the
         // FCM messaging class specifically — play-services-base alone can legitimately appear via other
         // Google libs (e.g. advertising id) without a push misconfiguration.
-        final boolean admSelected = ret instanceof ADMPushProvider;
-        if (admSelected) {
+        if (ret instanceof ADMPushProvider) {
             boolean fcmLibsPresent;
             try {
                 Class.forName("com.google.firebase.messaging.FirebaseMessagingService");
@@ -174,10 +173,7 @@ public class DefaultObjectFactory implements IObjectFactory {
             } catch (Throwable ignored) {
                 fcmLibsPresent = false;
             }
-            if (shouldWarnFcmLibsOnAmazon(admSelected, fcmLibsPresent)) {
-                IntegrationChecker.addErrorToReport("push.amazon.fcm_libs_bundled",
-                    "FCM/Play-Services push libraries are bundled but this build is using ADM (Amazon), where they cannot work. If this is an Amazon-targeted build, remove the FCM/Play-Services libraries. If this is a universal Google+Amazon build, you can ignore this.");
-            }
+            warnIfFcmLibsBundledOnAmazon(fcmLibsPresent);
         }
 
         if (ret == null) {
@@ -207,10 +203,15 @@ public class DefaultObjectFactory implements IObjectFactory {
         return ret;
     }
 
-    // Pure predicate: FCM/Play-Services libraries bundled into an ADM (Amazon) build cannot work —
-    // Amazon devices have no Google Play Services. Warn the developer. A universal Google+Amazon APK
-    // legitimately bundles both, so this surfaces as a diagnostic rather than failing hard.
-    static boolean shouldWarnFcmLibsOnAmazon(boolean admSelected, boolean fcmLibsPresent) {
-        return admSelected && fcmLibsPresent;
+    // FCM/Play-Services libraries bundled into an ADM (Amazon) build cannot work — Amazon devices
+    // have no Google Play Services. Warn the developer. A universal Google+Amazon APK legitimately
+    // bundles both, so this surfaces as a diagnostic rather than failing hard. Reached only when ADM
+    // is the selected provider; takes fcmLibsPresent so the gate is exercised by tests via the real
+    // report path.
+    static void warnIfFcmLibsBundledOnAmazon(boolean fcmLibsPresent) {
+        if (fcmLibsPresent) {
+            IntegrationChecker.addErrorToReport("push.amazon.fcm_libs_bundled",
+                "FCM/Play-Services push libraries are bundled but this build is using ADM (Amazon), where they cannot work. If this is an Amazon-targeted build, remove the FCM/Play-Services libraries. If this is a universal Google+Amazon build, you can ignore this.");
+        }
     }
 }
