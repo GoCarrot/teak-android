@@ -505,9 +505,7 @@ public class Raven implements Thread.UncaughtExceptionHandler {
             // Observability: how many breadcrumbs survived size-budgeting and the resulting
             // payload size. Fires once per exception report (rare); trimming is normal operation,
             // hence debug, not warn/error.
-            Log.d(LOG_TAG, "Sentry report: " + fitted.size() + " of " + this.breadcrumbSnapshot.size()
-                               + " breadcrumbs kept, payload " + payloadJson.getBytes(StandardCharsets.UTF_8).length
-                               + " bytes (size budget " + PAYLOAD_BUDGET_BYTES + ").");
+            Log.d(LOG_TAG, "Sentry report: " + fitted.size() + " of " + this.breadcrumbSnapshot.size() + " breadcrumbs kept, payload " + payloadJson.getBytes(StandardCharsets.UTF_8).length + " bytes (size budget " + PAYLOAD_BUDGET_BYTES + ").");
 
             Data data = this.buildData(payloadJson);
             if (data != null) {

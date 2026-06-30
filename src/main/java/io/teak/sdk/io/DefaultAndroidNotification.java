@@ -135,11 +135,11 @@ public class DefaultAndroidNotification implements IAndroidNotification {
         // return the summary notification, which breaks our downstream logic.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             StatusBarNotification[] notifications = notificationManager.getActiveNotifications();
-            if(notifications != null) {
-                for(StatusBarNotification sbn : notifications) {
+            if (notifications != null) {
+                for (StatusBarNotification sbn : notifications) {
                     final Notification notification = sbn.getNotification();
-                    if(Objects.equals(groupKey, NotificationCompat.getGroup(notification))) {
-                        if(NotificationCompat.isGroupSummary(notification)) {
+                    if (Objects.equals(groupKey, NotificationCompat.getGroup(notification))) {
+                        if (NotificationCompat.isGroupSummary(notification)) {
                             summary = sbn;
                         } else {
                             children.add(sbn);
@@ -154,7 +154,7 @@ public class DefaultAndroidNotification implements IAndroidNotification {
         Arrays.sort(childrenArr, (a, b) -> {
             long diff = b.getNotification().when - a.getNotification().when;
             // Bit of absurdity to deal with converting long to int.
-            if(diff < 0) {
+            if (diff < 0) {
                 return -1;
             } else if (diff == 0) {
                 return 0;
@@ -172,7 +172,7 @@ public class DefaultAndroidNotification implements IAndroidNotification {
 
         this.notificationManager.cancel(NOTIFICATION_TAG, platformId);
 
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && groupKey != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && groupKey != null) {
             final NotificationGroup groupInfo = DefaultAndroidNotification.this.getActiveNotificationsForGroup(groupKey);
 
             final StatusBarNotification groupSummary = groupInfo.summary;
@@ -181,25 +181,23 @@ public class DefaultAndroidNotification implements IAndroidNotification {
             // out, that was not the issue, but at this point I don't trust Android so I'm going to leave this
             // check in, in case there are devices where getting active notifications immediately after cancelling
             // one still returns the cancelled one.
-            for(StatusBarNotification sbn : groupInfo.children) {
-                if(sbn.getId() != platformId) {
+            for (StatusBarNotification sbn : groupInfo.children) {
+                if (sbn.getId() != platformId) {
                     ourNotifications.add(sbn.getNotification());
                 }
             }
 
             Teak.log.i(
                 "default_android_notification.cancel_notification.summary_info",
-                Helpers.mm.h("liveCount", ourNotifications.size(), "hasSummary", groupSummary != null)
-            );
+                Helpers.mm.h("liveCount", ourNotifications.size(), "hasSummary", groupSummary != null));
 
-            if(groupSummary != null && ourNotifications.size() > 0) {
+            if (groupSummary != null && ourNotifications.size() > 0) {
                 this.handler.post(() -> {
                     try {
                         DefaultAndroidNotification.this.notificationManager.notify(
                             NOTIFICATION_TAG,
                             groupSummary.getId(),
-                            NotificationBuilder.createSummaryNotification(context, groupKey, ourNotifications)
-                        );
+                            NotificationBuilder.createSummaryNotification(context, groupKey, ourNotifications));
                     } catch (SecurityException ignored) {
                         // This likely means that they need the VIBRATE permission on old versions of Android
                         Teak.log.e("notification.permission_needed.vibrate", "Please add this to your AndroidManifest.xml: <uses-permission android:name=\"android.permission.VIBRATE\" />");
@@ -209,9 +207,8 @@ public class DefaultAndroidNotification implements IAndroidNotification {
                         Teak.log.exception(e);
                         throw e;
                     }
-
                 });
-            } else if(groupSummary != null && ourNotifications.size() == 0) {
+            } else if (groupSummary != null && ourNotifications.size() == 0) {
                 // This came up in the Android 7.1 test -- if the group summary was not explicitly cancelled then
                 // it would show up as a notification using the inbox style and already issued intents so it
                 // couldn't launch the game.
@@ -259,20 +256,20 @@ public class DefaultAndroidNotification implements IAndroidNotification {
 
                 final String groupKey = NotificationCompat.getGroup(nativeNotification);
 
-                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && groupKey != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && groupKey != null) {
                     final NotificationGroup groupInfo = DefaultAndroidNotification.this.getActiveNotificationsForGroup(groupKey);
 
                     final StatusBarNotification groupSummary = groupInfo.summary;
                     final StatusBarNotification[] extantNotifications = groupInfo.children;
                     final ArrayList<Notification> ourNotifications = new ArrayList<Notification>();
                     boolean listNeedsUs = true;
-                    for(StatusBarNotification n : extantNotifications) {
-                        if(n.getId() == platformId) {
+                    for (StatusBarNotification n : extantNotifications) {
+                        if (n.getId() == platformId) {
                             listNeedsUs = false;
                         }
                         ourNotifications.add(n.getNotification());
                     }
-                    if(listNeedsUs) {
+                    if (listNeedsUs) {
                         ourNotifications.add(0, nativeNotification);
                     }
 
@@ -280,20 +277,18 @@ public class DefaultAndroidNotification implements IAndroidNotification {
 
                     Teak.log.i(
                         "default_android_notification.display_notification.summary_info",
-                        Helpers.mm.h("liveCount", notificationCount, "hasSummary", groupSummary != null)
-                    );
+                        Helpers.mm.h("liveCount", notificationCount, "hasSummary", groupSummary != null));
 
-                    if(notificationCount >= teakNotification.minGroupSize) {
+                    if (notificationCount >= teakNotification.minGroupSize) {
                         int summaryId = teakNotification.groupSummaryId;
-                        if(groupSummary != null) {
+                        if (groupSummary != null) {
                             summaryId = groupSummary.getId();
                         }
 
                         DefaultAndroidNotification.this.notificationManager.notify(
                             NOTIFICATION_TAG,
                             summaryId,
-                            NotificationBuilder.createSummaryNotification(context, groupKey, ourNotifications)
-                        );
+                            NotificationBuilder.createSummaryNotification(context, groupKey, ourNotifications));
                     }
                 }
 

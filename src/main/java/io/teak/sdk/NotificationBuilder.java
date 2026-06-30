@@ -243,7 +243,7 @@ public class NotificationBuilder {
         final String contentTextTemplate = "{{ notification_count }} new messages";
 
         String contentTitle = null;
-        if(contentTitleTemplate != null) {
+        if (contentTitleTemplate != null) {
             contentTitle = contentTitleTemplate.replaceAll("\\{\\{\\h*notification_count\\h*\\}\\}", Integer.toString(notificationCount));
         } else {
             contentTitle = applicationName;
@@ -252,15 +252,15 @@ public class NotificationBuilder {
         final String contentText = contentTextTemplate.replaceAll("\\{\\{\\h*notification_count\\h*\\}\\}", Integer.toString(notificationCount));
         final NotificationCompat.InboxStyle style = new NotificationCompat.InboxStyle().setBigContentTitle(contentText);
 
-        for(Notification notification : notifications) {
+        for (Notification notification : notifications) {
             final Bundle extras = notification.extras;
             final String notifTitle = extras.getString(NotificationCompat.EXTRA_TITLE);
             final String notifText = extras.getString(NotificationCompat.EXTRA_TEXT);
             final String title = notifTitle == null ? "" : notifTitle;
             final String text = notifText == null ? "" : notifText;
-            if(title.length() > 0 || text.length() > 0) {
+            if (title.length() > 0 || text.length() > 0) {
                 final SpannableString line = new SpannableString(title + text);
-                if(title.length() > 0) {
+                if (title.length() > 0) {
                     line.setSpan(new StyleSpan(Typeface.BOLD), 0, title.length(), 0);
                 }
                 style.addLine(line);
@@ -273,15 +273,14 @@ public class NotificationBuilder {
         builder.setContentIntent(mostRecentNotif.contentIntent);
 
         return builder.setGroup(groupKey)
-                .setGroupSummary(true)
-                .setOnlyAlertOnce(true)
-                .setAutoCancel(false)
-                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
-                .setContentText(contentText)
-                .setContentTitle(contentTitle)
-                .setStyle(style)
-                .build();
-
+            .setGroupSummary(true)
+            .setOnlyAlertOnce(true)
+            .setAutoCancel(false)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+            .setContentText(contentText)
+            .setContentTitle(contentTitle)
+            .setStyle(style)
+            .build();
     }
 
     private static boolean isHostAppDebug() {
@@ -362,9 +361,9 @@ public class NotificationBuilder {
 
                     if (soundUri != null) {
                         final AudioAttributes audioAttributes = new AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                                .build();
+                                                                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                                                                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                                                    .build();
                         channel.setSound(soundUri, audioAttributes);
                     }
                 }
@@ -560,67 +559,67 @@ public class NotificationBuilder {
                         final String value = viewConfig.getString(key);
                         remoteViews.setViewVisibility(viewElementId, View.VISIBLE);
                         remoteViews.setTextViewText(viewElementId, fromHtml(value));
-                    } else //noinspection StatementWithEmptyBody
+                    } else // noinspection StatementWithEmptyBody
                         if (isUIType(viewElement, ImageButton.class)) {
-                        // ImageButton must go before ImageView, because ImageButton is a ImageView
-                    } else if (isUIType(viewElement, ImageView.class)) {
-                        final String value = viewConfig.getString(key);
-                        if (value.equalsIgnoreCase("BUILTIN_APP_ICON")) {
-                            remoteViews.setImageViewResource(viewElementId, R.appIconResourceId);
-                        } else if (value.equalsIgnoreCase("NONE")) {
-                            remoteViews.setViewVisibility(viewElementId, View.GONE);
-                        } else {
-                            final Result<Bitmap> bitmapResult = loadBitmapWithOOMFallbacks(key, viewConfig);
-                            if (bitmapResult.value == null) {
-                                // If an asset failed to load, throw an AssetLoadException, unless it's
-                                // the "left_image" in which case just ignore it.
-                                if (!"left_image".equals(key)) {
-                                    throw new AssetLoadException(value, bitmapResult.error);
-                                }
+                            // ImageButton must go before ImageView, because ImageButton is a ImageView
+                        } else if (isUIType(viewElement, ImageView.class)) {
+                            final String value = viewConfig.getString(key);
+                            if (value.equalsIgnoreCase("BUILTIN_APP_ICON")) {
+                                remoteViews.setImageViewResource(viewElementId, R.appIconResourceId);
+                            } else if (value.equalsIgnoreCase("NONE")) {
+                                remoteViews.setViewVisibility(viewElementId, View.GONE);
                             } else {
-                                remoteViews.setImageViewBitmap(viewElementId, bitmapResult.value);
-                            }
-                        }
-                    } else if (isUIType(viewElement, ViewFlipper.class)) {
-                        final Result<AnimationConfiguration> animationConfigResult = loadAnimationConfigWithOOMFallbacks(viewConfig);
-                        if (animationConfigResult.value == null) {
-                            final JSONObject jsonConfig = viewConfig.getJSONObject("view_animator");
-                            throw new AssetLoadException(jsonConfig.getString("sprite_sheet"), animationConfigResult.error);
-                        } else if (animationConfigResult.value.spriteSheet == null) {
-                            throw new AssetLoadException(animationConfigResult.value.spriteSheetUrl, animationConfigResult.error);
-                        }
-                        final Bitmap bitmap = animationConfigResult.value.spriteSheet;
-                        final int frameWidth = animationConfigResult.value.width;
-                        final int frameHeight = animationConfigResult.value.height;
-                        final int msPerFrame = animationConfigResult.value.displayMs;
-
-                        final int numCols = bitmap.getWidth() / frameWidth;
-                        final int numRows = bitmap.getHeight() / frameHeight;
-
-                        for (int x = 0; x < numCols; x++) {
-                            for (int y = 0; y < numRows; y++) {
-                                final int startX = x * frameWidth;
-                                final int startY = y * frameHeight;
-                                Bitmap frame = Bitmap.createBitmap(bitmap, startX, startY, frameWidth, frameHeight);
-
-                                if (frame == null) {
-                                    throw new IllegalArgumentException("Frame [" + x + ", " + y + "] is null (" + animationConfigResult.value.spriteSheetUrl + ")");
+                                final Result<Bitmap> bitmapResult = loadBitmapWithOOMFallbacks(key, viewConfig);
+                                if (bitmapResult.value == null) {
+                                    // If an asset failed to load, throw an AssetLoadException, unless it's
+                                    // the "left_image" in which case just ignore it.
+                                    if (!"left_image".equals(key)) {
+                                        throw new AssetLoadException(value, bitmapResult.error);
+                                    }
+                                } else {
+                                    remoteViews.setImageViewBitmap(viewElementId, bitmapResult.value);
                                 }
-
-                                final RemoteViews frameView = new RemoteViews(context.getPackageName(),
-                                    isLargeView ? R.layout("teak_big_frame") : R.layout("teak_frame"));
-                                final int frameViewId = R.id("notification_background");
-                                frameView.setImageViewBitmap(frameViewId, frame);
-                                remoteViews.addView(viewElementId, frameView);
                             }
+                        } else if (isUIType(viewElement, ViewFlipper.class)) {
+                            final Result<AnimationConfiguration> animationConfigResult = loadAnimationConfigWithOOMFallbacks(viewConfig);
+                            if (animationConfigResult.value == null) {
+                                final JSONObject jsonConfig = viewConfig.getJSONObject("view_animator");
+                                throw new AssetLoadException(jsonConfig.getString("sprite_sheet"), animationConfigResult.error);
+                            } else if (animationConfigResult.value.spriteSheet == null) {
+                                throw new AssetLoadException(animationConfigResult.value.spriteSheetUrl, animationConfigResult.error);
+                            }
+                            final Bitmap bitmap = animationConfigResult.value.spriteSheet;
+                            final int frameWidth = animationConfigResult.value.width;
+                            final int frameHeight = animationConfigResult.value.height;
+                            final int msPerFrame = animationConfigResult.value.displayMs;
+
+                            final int numCols = bitmap.getWidth() / frameWidth;
+                            final int numRows = bitmap.getHeight() / frameHeight;
+
+                            for (int x = 0; x < numCols; x++) {
+                                for (int y = 0; y < numRows; y++) {
+                                    final int startX = x * frameWidth;
+                                    final int startY = y * frameHeight;
+                                    Bitmap frame = Bitmap.createBitmap(bitmap, startX, startY, frameWidth, frameHeight);
+
+                                    if (frame == null) {
+                                        throw new IllegalArgumentException("Frame [" + x + ", " + y + "] is null (" + animationConfigResult.value.spriteSheetUrl + ")");
+                                    }
+
+                                    final RemoteViews frameView = new RemoteViews(context.getPackageName(),
+                                        isLargeView ? R.layout("teak_big_frame") : R.layout("teak_frame"));
+                                    final int frameViewId = R.id("notification_background");
+                                    frameView.setImageViewBitmap(frameViewId, frame);
+                                    remoteViews.addView(viewElementId, frameView);
+                                }
+                            }
+
+                            // Set frame rate
+                            remoteViews.setInt(viewElementId, "setFlipInterval", msPerFrame);
+
+                            // Mark notification as containing animated element(s)
+                            teakNotificaton.isAnimated = true;
                         }
-
-                        // Set frame rate
-                        remoteViews.setInt(viewElementId, "setFlipInterval", msPerFrame);
-
-                        // Mark notification as containing animated element(s)
-                        teakNotificaton.isAnimated = true;
-                    }
                     // TODO: Else, report error to dashboard.
                 }
 
