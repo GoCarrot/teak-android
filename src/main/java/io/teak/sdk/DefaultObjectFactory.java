@@ -161,21 +161,6 @@ public class DefaultObjectFactory implements IObjectFactory {
             Teak.log.i("factory.pushProvider", "ADM is not present.");
         }
 
-        // When ADM is the selected provider this is an Amazon build, where FCM/Play-Services push
-        // libraries cannot work (no Google Play Services). Warn if they were bundled anyway. Probe the
-        // FCM messaging class specifically — play-services-base alone can legitimately appear via other
-        // Google libs (e.g. advertising id) without a push misconfiguration.
-        if (ret instanceof ADMPushProvider) {
-            boolean fcmLibsPresent;
-            try {
-                Class.forName("com.google.firebase.messaging.FirebaseMessagingService");
-                fcmLibsPresent = true;
-            } catch (Throwable ignored) {
-                fcmLibsPresent = false;
-            }
-            warnIfFcmLibsBundledOnAmazon(fcmLibsPresent);
-        }
-
         if (ret == null) {
             try {
                 Class.forName("com.google.android.gms.common.GooglePlayServicesUtil");
@@ -201,17 +186,5 @@ public class DefaultObjectFactory implements IObjectFactory {
             }
         }
         return ret;
-    }
-
-    // FCM/Play-Services libraries bundled into an ADM (Amazon) build cannot work — Amazon devices
-    // have no Google Play Services. Warn the developer. A universal Google+Amazon APK legitimately
-    // bundles both, so this surfaces as a diagnostic rather than failing hard. Reached only when ADM
-    // is the selected provider; takes fcmLibsPresent so the gate is exercised by tests via the real
-    // report path.
-    static void warnIfFcmLibsBundledOnAmazon(boolean fcmLibsPresent) {
-        if (fcmLibsPresent) {
-            IntegrationChecker.addErrorToReport("push.amazon.fcm_libs_bundled",
-                "FCM/Play-Services push libraries are bundled but this build is using ADM (Amazon), where they cannot work. If this is an Amazon-targeted build, remove the FCM/Play-Services libraries. If this is a universal Google+Amazon build, you can ignore this.");
-        }
     }
 }
