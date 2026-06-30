@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.teak.sdk.Log;
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakConfiguration;
 import io.teak.sdk.json.JSONObject;
@@ -48,6 +49,57 @@ public class RavenBreadcrumbTest extends TeakUnitTest {
         assertEquals("test.breadcrumb", crumb.get("category"));
         assertEquals("info", crumb.get("level"));
         assertTrue(crumb.containsKey("timestamp"));
+    }
+
+    // An event logged before configuration is ready (before the Raven exists) is queued and must
+    // replay into the Raven as a breadcrumb when setSdkRaven() is called. A fresh Log reproduces
+    // the pre-configuration window deterministically; the singleton Teak.log is already past it.
+    @Test
+    public void preConfigurationEventReplaysAsBreadcrumbWhenRavenIsSet() {
+        final Log log = new Log("Teak.Test", 0);
+
+        // Logged before the Raven exists -- queued, not yet a breadcrumb.
+        log.i("pre.config.event", "fired before the raven existed");
+
+        final Raven raven = makeRaven();
+        log.setSdkRaven(raven);
+
+        boolean found = false;
+        for (Map<String, Object> crumb : raven.snapshotBreadcrumbs()) {
+            if ("pre.config.event".equals(crumb.get("category"))) {
+                assertEquals("info", crumb.get("level"));
+                found = true;
+                break;
+            }
+        }
+        assertTrue("pre-configuration log event must replay into the raven as a breadcrumb", found);
+    }
+
+    // The null-Raven fallback. TeakInstance hands setSdkRaven a possibly-null Raven from a
+    // try/finally, so the queue still drains even if Raven construction throws -- otherwise the
+    // queued events would be silently lost. With a null Raven the events still flush through
+    // logEvent (observed here via a LogListener); breadcrumbs are skipped, as there is no Raven.
+    @Test
+    public void nullRavenStillFlushesQueuedEventsAsLogs() {
+        final Log log = new Log("Teak.Test", 0);
+
+        final List<String> flushed = new ArrayList<>();
+        log.setLogListener(new Teak.LogListener() {
+            @Override
+            public void logEvent(String logEvent, String logLevel, Map<String, Object> logData) {
+                if ("pre.config.event".equals(logEvent)) {
+                    flushed.add(logEvent);
+                }
+            }
+        });
+
+        log.i("pre.config.event", "fired before the raven existed");
+        assertTrue("queued event must not flush before setSdkRaven drains the queue", flushed.isEmpty());
+
+        // Raven-construction-failed path: a null Raven must still drain the queue.
+        log.setSdkRaven(null);
+
+        assertEquals("queued event must flush as a log even with a null raven", 1, flushed.size());
     }
 
     @Test

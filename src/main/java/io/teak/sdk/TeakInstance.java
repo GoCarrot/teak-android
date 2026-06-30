@@ -66,8 +66,16 @@ public class TeakInstance implements Unobfuscable {
 
         // Ravens
         TeakConfiguration.addEventListener(configuration -> {
-            TeakInstance.this.sdkRaven = new Raven(context, "sdk", configuration, objectFactory);
-            Teak.log.setSdkRaven(TeakInstance.this.sdkRaven);
+            try {
+                TeakInstance.this.sdkRaven = new Raven(context, "sdk", configuration, objectFactory);
+            } finally {
+                // Always hand the (possibly null) Raven to Log so the pre-configuration event
+                // queue drains even if the Raven constructor throws. The exception still unwinds
+                // and disables the SDK (Teak.onCreate catches it, so the host app keeps running),
+                // and without this the queued events would be silently lost. A null Raven still
+                // drains (events logged, breadcrumbs skipped).
+                Teak.log.setSdkRaven(TeakInstance.this.sdkRaven);
+            }
             TeakInstance.this.appRaven = new Raven(context, configuration.appConfiguration.bundleId, configuration, objectFactory);
         });
 
