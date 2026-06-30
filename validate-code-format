@@ -14,8 +14,15 @@
 
 ##################################################################
 # SETTINGS
-# set path to clang-format binary
-CLANG_FORMAT="/usr/local/bin/clang-format"
+# locate the clang-format binary: prefer whatever's on PATH, fall back to
+# the Homebrew prefix (covers both Apple Silicon /opt/homebrew and Intel
+# /usr/local without hardcoding either).
+# Baseline verified against clang-format 21.1.8 -- a different version can
+# produce spurious diffs on otherwise-conformant files.
+CLANG_FORMAT="$(command -v clang-format || true)"
+if [ -z "$CLANG_FORMAT" ] && command -v brew >/dev/null 2>&1; then
+    CLANG_FORMAT="$(brew --prefix clang-format 2>/dev/null)/bin/clang-format"
+fi
 
 # remove any older patches from previous commits. Set to true or false.
 # DELETE_OLD_PATCHES=false
@@ -29,7 +36,10 @@ PARSE_EXTS=true
 
 # file types to parse. Only effective when PARSE_EXTS is true.
 # FILE_EXTS=".c .h .cpp .hpp"
-FILE_EXTS=".c .h .cpp .hpp .cc .hh .cxx .m"
+FILE_EXTS=".c .h .cpp .hpp .cc .hh .cxx .m .java"
+
+# vendored paths excluded from formatting/validation (mirrors format-code's prune list)
+VENDORED_PATHS="src/main/java/io/teak/sdk/shortcutbadger src/main/java/io/teak/sdk/json"
 
 ##################################################################
 # There should be no need to change anything below this line.
@@ -79,6 +89,20 @@ matches_extension() {
     return 1
 }
 
+# check whether the given file lives under a vendored path excluded from formatting
+is_vendored_path() {
+    local filename="$1"
+    local vendored
+
+    for vendored in $VENDORED_PATHS; do
+        case "$filename" in
+            "$vendored"/*) return 0 ;;
+        esac
+    done
+
+    return 1
+}
+
 # necessary check for initial commit
 if git rev-parse --verify HEAD >/dev/null 2>&1 ; then
     against=HEAD
@@ -107,6 +131,10 @@ do
     # ignore file if we do check for file extensions and the file
     # does not match any of the extensions specified in $FILE_EXTS
     if $PARSE_EXTS && ! matches_extension "$file"; then
+        continue;
+    fi
+
+    if is_vendored_path "$file"; then
         continue;
     fi
 
