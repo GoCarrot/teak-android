@@ -1,5 +1,9 @@
 = Integration
 
+== Requirements
+
+* [x] Android {min-android-name} (API level {min-android-sdk}) or newer
+
 The latest version of the Teak Android SDK is always available at:
 
 * http://sdks.teakcdn.com/android/teak.aar
@@ -170,25 +174,68 @@ This tells Android to look for deep link URLs created by Teak.
 
 Teak uses https://github.com/greenrobot/EventBus[EventBus] to send events to your game.
 
+=== Register an object to handle events
+
+You can register any object to handle events posted by Teak. A quick way to get started would be to register your main activity as a handler, like so:
+
+.Registering an event handler
+[source,java]
+----
+import androidx.appcompat.app.AppCompatActivity;
+
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+
+public class MainActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Register with EventBus
+        EventBus.getDefault().register(this);
+    }
+}
+----
+
+To receive events, declare methods with the `@Subscribe` annotation which take the type of event that method should handle. We'll show some examples below.
+
 === Events
 
 <<Teak.NotificationEvent>>:: A notification has been received.
 
-<<Teak.RewardClaimEvent>>:: A reward claim has happened.
+<<Teak.RewardClaimEvent>>:: A reward claim has been processed.
 
 <<Teak.LaunchFromLinkEvent>>:: The app was launched from a URL created on the Teak dashboard.
 
 <<Teak.UserDataEvent>>:: Data about the user has become available, or has been updated.
 
-.Subscribing to an event
+.Handling a Reward Claim
 [source,java]
 ----
 @Subscribe
-public void onNotification(Teak.NotificationEvent event) {
-  if (event.isForeground) {
-    // A notification was received while the game was in the foreground
-  } else {
-    // The game was launched via this notification
+public void onRewardClaim(Teak.RewardClaimEvent event) {
+  TeakNotification.Reward rewardInfo = event.reward;
+  String rewardId = rewardInfo.json.getString("teakRewardId");
+  switch(rewardInfo.status) {
+    case TeakNotification.Reward.GRANT_REWARD: {
+      Map<String, Object> reward = rewardInfo.json.getJSONObject("reward").toMap();
+      Log.d("TeakExample.Reward", "Reward with id " + rewardId + "Granted! " + reward.toString());
+    } break;
+    case TeakNotification.Reward.ALREADY_CLICKED: {
+      Log.d("TeakExample.Reward", "You already claimed this reward!");
+    } break;
+    case TeakNotification.Reward.EXPIRED: {
+      Log.d("TeakExample.Reward", "The reward has expired");
+    } break;
+    case TeakNotification.Reward.TOO_MANY_CLICKS: {
+      Log.d("TeakExample.Reward", "Too many other players already claimed this reward");
+    } break;
+    case TeakNotification.Reward.EXCEED_MAX_CLICKS_FOR_DAY: {
+      Log.d("TeakExample.Reward", "You've already claimed too many rewards today");
+    } break;
+    default: {
+      Log.d("TeakExample.Reward", "The reward was rejected for a different reason: " + rewardInfo.json.getString("status"));
+    }
   }
 }
 ----

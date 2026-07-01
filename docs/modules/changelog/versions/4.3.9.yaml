@@ -1,0 +1,4 @@
+bug:
+  - Resolved issue where a single notification could create a notification group
+  - Resolved issue with customizing notification group minimum size from server
+  - Resolved issue with customizing notification group id from server
