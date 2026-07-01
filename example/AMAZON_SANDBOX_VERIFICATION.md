@@ -35,11 +35,15 @@ adb logcat | grep -E "billing.amazon.v2|purchase.succeeded|request.send|is_sandb
 - An **Amazon device** (Fire tablet, or any device where `Build.MANUFACTURER == "amazon"` /
   installer is `com.amazon.venezia`). Teak only builds the Amazon store there — a Google-installer
   device will silently use Google Play billing instead.
-- **Amazon App Tester** installed (for sandbox purchases), configured with an
-  `amazon.sdktester.json` that defines your SKUs.
+- **Amazon App Tester** installed (sandbox purchases only — it doesn't work with release builds),
+  configured with an `amazon.sdktester.json` that defines your SKUs.
+  [Install & configure the App Tester](https://developer.amazon.com/docs/in-app-purchasing/iap-install-and-configure-app-tester.html)
+  walks the sideload + `adb push … /sdcard/amazon.sdktester.json` steps.
 - An **Amazon Appstore listing** for this app's package (`io.teak.app.unity.dev`) with matching
-  IAP SKUs, for the production (live-account) cases. If your listing uses a different package, set
-  `applicationId` in `example/app/build.gradle` accordingly.
+  IAP SKUs (needed for the production / live-account cases), created in the
+  [Amazon Developer Console](https://developer.amazon.com/apps-and-games/console) — also where you
+  download the `amazon.sdktester.json` for your items. If your listing uses a different package,
+  set `applicationId` in `example/app/build.gradle` accordingly.
 - **The SKU to purchase.** Default is `io.teak.app.sku.dollar`; override per build with
   `-PamazonSku=your.consumable.sku`. It must exist in your App Tester JSON (sandbox) / listing
   (production).
@@ -50,8 +54,20 @@ The proprietary jars aren't committed. Drop the jar into the matching slot under
 `app/amazon-libs/` and select it with `-PamazonIap`. See `app/amazon-libs/README.md` for the slot
 table. Only the legacy IAP v2 jar (`-PamazonIap=v2`, the default) is committed.
 
+**These are two different Amazon SDKs — don't conflate them:**
+
+- **`appstore3x`** — the **Amazon Appstore SDK 3.x** (currently 3.0.9), which bundles both IAP and
+  DRM (`LicensingService.getAppstoreSDKMode()`). Download the ZIP from
+  [Amazon's SDKs page](https://developer.amazon.com/apps-and-games/sdks) ("Download Appstore SDK")
+  and drop the IAP jar it contains into `app/amazon-libs/appstore3x/`. This is what the must-run
+  cases exercise.
+- **`v2`** (committed) — the **legacy In-App Purchasing v2.0** standalone jar
+  (`in-app-purchasing-2.0.76.jar`), a *separate, now-deprecated* SDK whose sandbox flag is
+  `PurchasingService.IS_SANDBOX_MODE`. Already in the repo, nothing to download. Background:
+  [Transitioning from IAP v2.0 to the Appstore SDK](https://developer.amazon.com/docs/in-app-purchasing/transitioning-to-appstore-sdk.html).
+
 ```
-# Appstore SDK 3.x cases:
+# Appstore SDK 3.x cases (drop the jar from the Appstore SDK ZIP):
 cp AmazonAppstoreSDK-3.x.x.jar app/amazon-libs/appstore3x/
 ./gradlew :app:installAmazonDebug -PamazonIap=appstore3x
 
@@ -108,3 +124,20 @@ Sandbox Purchase** and complete it in App Tester (sandbox) or with a real accoun
 - Trigger: normal purchases.
 - Expected: **zero per-purchase Raven exceptions** from the sandbox lookup (the ClassNotFound
   fall-through is silent).
+
+## Amazon references (official docs only)
+
+- **Appstore SDK download** (the `appstore3x` jar): https://developer.amazon.com/apps-and-games/sdks
+  — "Download Appstore SDK" (currently 3.0.9); the ZIP contains the IAP jar.
+- **Appstore SDK overview**: https://developer.amazon.com/docs/appstore-sdk/appstore-sdk-overview.html
+- **IAP v2.0 vs Appstore SDK** (why there are two slots): https://developer.amazon.com/docs/in-app-purchasing/transitioning-to-appstore-sdk.html
+- **Appstore SDK API reference** (`getAppstoreSDKMode`, `IS_SANDBOX_MODE`, `verifyLicense`, Javadoc
+  by version): https://developer.amazon.com/docs/in-app-purchasing/appstore-sdk-api-reference.html
+- **IAP testing overview**: https://developer.amazon.com/docs/in-app-purchasing/iap-testing-overview.html
+- **App Tester — install & configure** (sideload + `amazon.sdktester.json`): https://developer.amazon.com/docs/in-app-purchasing/iap-install-and-configure-app-tester.html
+- **App Tester — user guide**: https://developer.amazon.com/docs/in-app-purchasing/iap-app-tester-user-guide.html
+- **Developer Console** (create IAP items, download the JSON data file): https://developer.amazon.com/apps-and-games/console
+
+> The `drm-standalone` slot (case A4) is the *legacy* standalone DRM library
+> (`com.amazon.device.drm` without `getAppstoreSDKMode`) that predates the Appstore SDK — it ships
+> with an existing pre-Appstore-SDK DRM integration, not as a current standalone download.
