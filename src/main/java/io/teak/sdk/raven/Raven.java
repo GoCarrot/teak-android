@@ -201,6 +201,13 @@ public class Raven implements Thread.UncaughtExceptionHandler {
     @Override
     public void uncaughtException(@NonNull Thread thread, @NonNull Throwable ex) {
         if (!(ex instanceof OutOfMemoryError)) {
+            // Emit the observable log event for parity with the caught path (Log.exception).
+            // reportToRaven=false: this handler reports to Sentry itself on the next line, so the
+            // false avoids a duplicate report through the SDK Raven. Signal-prefixed throwables are
+            // skipped here exactly as reportException skips them, so a native crash emits no event.
+            if (!Raven.shouldSuppressThrowable(ex)) {
+                Teak.log.exception(ex, false);
+            }
             reportException(ex, null);
         }
     }
