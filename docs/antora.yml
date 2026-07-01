@@ -11,5 +11,3 @@ asciidoc:
     table-caption: false
     caution-caption: Deprecated@
     source-language: java@
-    min-android-name: '5'
-    min-android-sdk: '21'
