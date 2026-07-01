@@ -16,10 +16,11 @@ gives you one button that starts an Amazon purchase. Teak's registered listener 
 ## What you read off each run (two observables)
 
 Both are Teak logcat lines (Android tag `Teak`, JSON payload). A `Debug` build auto-enables Teak
-logging, so no extra flag is needed:
+logging, so no extra flag is needed. The harness's own diagnostics (purchase started, verifyLicense
+result) log under tag `Teak.Example`, so watch both tags:
 
 ```
-adb logcat -s Teak:I
+adb logcat -s Teak:I Teak.Example:I
 # or narrow it:
 adb logcat | grep -E "billing.amazon.v2|purchase.succeeded|request.send|is_sandbox|sandboxMode"
 ```
