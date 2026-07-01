@@ -1,0 +1,5 @@
+# Proprietary Amazon SDK jars are not committed. Drop them into the matching slot dir
+# (appstore3x/, drm-standalone/) and select with -PamazonIap. The legacy IAP v2 jar in
+# iap-v2/ is the one exception and is committed.
+appstore3x/*.jar
+drm-standalone/*.jar
