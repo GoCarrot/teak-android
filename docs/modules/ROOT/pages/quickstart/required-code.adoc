@@ -108,13 +108,27 @@ If a player has opted out of specific data collection, set the corresponding opt
 
 == Ask the Player for Push Permissions
 
-On Android 13 (API level 33) and newer, you must ask the player before you can send them notifications. Do that with `<<requestNotificationPermissions()>>[Teak.requestNotificationPermissions()]`.
+On Android 13 (API level 33) and newer, you must ask the player before you can send them notifications. Teak does not request this permission for you — use Android's standard runtime permission APIs.
 
 In the long term, you can increase your opt-in rates by being strategic about when you ask. Ideally, you'd ask at a moment that makes sense for your game. For getting up and running fast, let's request permission right at launch for now.
 
 [source,java]
 ----
-Teak.requestNotificationPermissions();
+private final ActivityResultLauncher<String> requestPermissionLauncher =
+    registerForActivityResult(new RequestPermission(), isGranted -> {
+        // Handle the player's response here.
+    });
+
+protected void onCreate(Bundle savedInstanceState) {
+  Teak.onCreate(this);
+  super.onCreate(savedInstanceState);
+
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+      && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+             != PackageManager.PERMISSION_GRANTED) {
+    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+  }
+}
 ----
 
 Now your game will ask for push permissions when it launches. Make sure to approve them on your test device, so we can send our notification at the end of this guide.

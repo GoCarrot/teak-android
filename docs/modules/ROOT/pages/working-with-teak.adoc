@@ -72,13 +72,11 @@ Teak.incrementEvent("coins_spent", "store", "gems", 50);
 
 == Notification Permissions
 
-On Android 13 (API level 33) and newer, you must ask the player before you can send them push notifications. On older versions, permission is granted automatically.
+On Android 13 (API level 33) and newer, you must ask the player before you can send them push notifications, using Android's standard runtime permission APIs. On older versions, permission is granted automatically.
 
-The xref:quickstart/required-code.adoc[quickstart] requests permission at launch to get you up and running. In production, ask at a moment that makes sense for your game; being strategic about when you ask improves your opt-in rates.
+The xref:quickstart/required-code.adoc[quickstart] shows requesting permission at launch to get you up and running. In production, ask at a moment that makes sense for your game; being strategic about when you ask improves your opt-in rates.
 
-doxygen2adoc:Teak.requestNotificationPermissions()[]
-
-Unlike some platforms, this call does not take a callback. To find out whether notifications are currently enabled, check the status:
+To find out whether notifications are currently enabled, check the status:
 
 doxygen2adoc:Teak.getNotificationStatus()[]
 
