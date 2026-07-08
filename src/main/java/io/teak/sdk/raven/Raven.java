@@ -205,8 +205,14 @@ public class Raven implements Thread.UncaughtExceptionHandler {
             // reportToRaven=false: this handler reports to Sentry itself on the next line, so the
             // false avoids a duplicate report through the SDK Raven. Signal-prefixed throwables are
             // skipped here exactly as reportException skips them, so a native crash emits no event.
+            // Guarded because this is the last-resort handler: the synchronous host LogListener is
+            // the only host code on this path, so a throwing listener would escape and suppress the
+            // Sentry crash report below. Swallow it -- don't re-log, the log system is what threw.
             if (!Raven.shouldSuppressThrowable(ex)) {
-                Teak.log.exception(ex, false);
+                try {
+                    Teak.log.exception(ex, false);
+                } catch (Throwable ignored) {
+                }
             }
             reportException(ex, null);
         }
