@@ -24,8 +24,6 @@ dependencies {
 
 Teak relies on the following libraries. Add them to your app-level `build.gradle` if they aren't already present.
 
-include::partial$dependencies.adoc[]
-
 [source,groovy]
 ----
 dependencies {

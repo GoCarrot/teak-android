@@ -120,7 +120,6 @@ private final ActivityResultLauncher<String> requestPermissionLauncher =
     });
 
 protected void onCreate(Bundle savedInstanceState) {
-  Teak.onCreate(this);
   super.onCreate(savedInstanceState);
 
   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU

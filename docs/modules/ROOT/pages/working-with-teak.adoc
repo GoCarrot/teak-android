@@ -289,7 +289,7 @@ Future<Teak.Notification.Reply> scheduled =
 
 === Cancel a Scheduled Notification
 
-Cancel a single scheduled notification with a schedule id from the reply, or cancel all of the current player's scheduled notifications.
+Cancel a single scheduled notification with a schedule id from the reply, or cancel all of the current player's scheduled notifications. Note that cancellation is on `TeakNotification`, not `Teak.Notification`.
 
 doxygen2adoc:TeakNotification.cancelNotification(String)[]
 
