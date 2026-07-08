@@ -16,13 +16,13 @@ Pass a <<Teak.UserConfiguration>> to `identifyUser` to provide additional player
 
 * `email` — the player's email address, used for sending email.
 * `facebookId` — the player's Facebook ID, used for templating their name into content.
-* `optOutFacebook` — set `true` to opt the player out of Facebook data collection.
 * `optOutIDFA` — set `true` to opt the player out of advertising-identifier collection.
 * `optOutPushKey` — set `true` to opt the player out of push-token collection.
+* `optOutFacebook` — deprecated; see xref:sdk5.adoc[SDK 5 Behaviors]. Don't pass a `facebookId` instead.
 
 [source,java]
 ----
-// email, facebookId, optOutFacebook, optOutIDFA, optOutPushKey
+// email, facebookId, optOutFacebook (deprecated, always false), optOutIDFA, optOutPushKey
 Teak.UserConfiguration userConfiguration =
     new Teak.UserConfiguration(YOUR_USER_EMAIL, YOUR_USER_FACEBOOK_ID, false, true, false);
 Teak.identifyUser(YOUR_USER_ID, userConfiguration);
@@ -32,7 +32,7 @@ If a player has opted out of all data collection, don't call `identifyUser` at a
 
 == Logout
 
-When a player logs out of your game, tell Teak so it stops associating this device with that player until the next `identifyUser` call.
+When a player logs out of your game, tell Teak with `logout`. This is a client-side call: it doesn't clear the device's association with the player, but it does stop Teak from associating any further events — like a notification click — with that player until you call `identifyUser` again.
 
 doxygen2adoc:Teak.logout()[]
 
@@ -92,11 +92,11 @@ doxygen2adoc:Teak.openNotificationSettings()[]
 
 == Application Badge Count
 
-Teak does not manage your app icon's badge automatically. Set it yourself when your unread count changes.
+A dashboard notification can only set your app icon's badge to no badge or 1. To show your own count -- for example, an in-game unread count -- call `setApplicationBadgeNumber` yourself.
 
 doxygen2adoc:Teak.setApplicationBadgeNumber(int)[]
 
-NOTE: Badge support depends on the device's launcher. The call returns `false` if the current launcher does not support badges.
+NOTE: Badge support depends on the device's launcher. The call returns `false` if the current launcher does not support badges. On Android, a badge is fundamentally set-or-not-set rather than numbered -- most launchers show only a dot regardless of the count you pass, though some show the number.
 
 == Deep Links
 

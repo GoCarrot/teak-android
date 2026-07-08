@@ -1,6 +1,6 @@
 = Android Notification Icon Assets
 
-Teak shows a small icon in the status bar and at the top of each notification. Setting it up has two parts: declaring the icon and tint-color resources, then generating the white-and-transparent icon assets that Android 5 and above require.
+Android shows a small icon in the status bar and at the top of each notification. Setting it up has two parts: declaring the icon and tint-color resources, then generating the white-and-transparent icon assets that Android 5 and above require.
 
 == Declare Your Notification Icon Resources
 

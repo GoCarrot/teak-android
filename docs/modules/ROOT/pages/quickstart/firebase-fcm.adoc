@@ -10,9 +10,7 @@ We'll do the project side first, then copy the credentials into Teak.
 
 [IMPORTANT]
 ====
-Firebase is **required** for Teak push notifications on Android. If your game doesn't already use Firebase, you'll add it in the steps below.
-
-The Teak SDK already bundles the `firebase-messaging` dependency, so you don't add that yourself. What you do add is the connection between your app and your Firebase project: a `google-services.json` file and the Google Services Gradle plugin.
+Firebase is **required** for Teak push notifications on Android. If your game doesn't already use Firebase, you'll add it in the steps below: connecting your app to a Firebase project (`google-services.json` + the Google Services Gradle plugin) here, then adding `firebase-messaging` alongside Teak's other dependencies in the next step.
 ====
 
 == Add Firebase to your Android Project
@@ -47,13 +45,11 @@ plugins {
 }
 ----
 +
-TIP: Google occasionally bumps the plugin version. For the authoritative, current steps, see Firebase's own https://firebase.google.com/docs/android/setup[**Add Firebase to your Android project**, window=_blank] guide. You do **not** need to add the Firebase SDK dependencies it lists, only `google-services.json` and the Google Services plugin. Teak provides the messaging dependency.
+TIP: Google occasionally bumps the plugin version. For the authoritative, current steps, see Firebase's own https://firebase.google.com/docs/android/setup[**Add Firebase to your Android project**, window=_blank] guide. You do **not** need to add the Firebase SDK dependencies it lists — `firebase-messaging` is covered as one of Teak's own required dependencies in the next step.
 
 With your app connected to Firebase, you can copy the credentials over to Teak.
 
 == Connect Your Credentials to Teak
-
-This is the uncomplicated task of copying keys from the Firebase dashboard to ours.
 
 include::ROOT:integrations:firebase-fcm.adoc[leveloffset=+1]
 
@@ -61,4 +57,6 @@ With that setup complete, we're ready to install the Teak SDK.
 
 == Amazon Fire Devices
 
-IMPORTANT: If you also ship to Amazon Fire devices, those use Amazon Device Messaging (ADM) rather than FCM. The Teak SDK supports ADM, but it needs separate Amazon credentials. Reach out to Teak support to get Amazon push set up for your game.
+If you also ship to Amazon Fire devices, those use Amazon Device Messaging (ADM) rather than FCM. The Teak SDK's manifest entries for ADM (services, receivers, and permissions) are already bundled in the AAR and merge into your app automatically — there's nothing to add there.
+
+What you do need is Amazon push credentials: xref:ROOT:integrations:page$amazon-device-messaging.adoc[Finding your Amazon Device Messaging Credentials]. Store the resulting API key as `assets/api_key.txt` in your app module, per Amazon's https://developer.amazon.com/docs/adm/integrate-your-app.html#store-your-api-key-as-an-asset[Store Your API Key as an Asset, window=_blank] guide.
