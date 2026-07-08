@@ -1,0 +1,2 @@
+bug:
+  - "A host `LogListener` that throws during an uncaught exception no longer suppresses the Sentry crash report."

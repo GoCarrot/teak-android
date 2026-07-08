@@ -5,6 +5,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -92,5 +93,32 @@ public class UncaughtExceptionLogEventTest extends TeakUnitTest {
         makeRaven().uncaughtException(Thread.currentThread(), new OutOfMemoryError("oom"));
 
         assertNull("OutOfMemoryError must emit no log event", firstExceptionEvent());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Object> queuedReports(Raven raven) throws Exception {
+        Field field = Raven.class.getDeclaredField("queuedReports");
+        field.setAccessible(true);
+        return (List<Object>) field.get(raven);
+    }
+
+    // This is the last-resort handler: a throwing host LogListener must not escape
+    // uncaughtException and suppress the Sentry report. Proves the positive -- that
+    // reportException still ran and queued a report -- not just that no exception escaped.
+    @Test
+    public void uncaughtExceptionStillReportsWhenLogListenerThrows() throws Exception {
+        Teak.log.setLogListener(new Teak.LogListener() {
+            @Override
+            public void logEvent(String logEvent, String logLevel, Map<String, Object> logData) {
+                throw new RuntimeException("listener boom");
+            }
+        });
+        Teak.log.markConfigurationReady();
+
+        Raven raven = makeRaven();
+        raven.uncaughtException(Thread.currentThread(), new RuntimeException("boom"));
+
+        assertEquals("reportException must still queue a Sentry report despite the throwing listener",
+            1, queuedReports(raven).size());
     }
 }
