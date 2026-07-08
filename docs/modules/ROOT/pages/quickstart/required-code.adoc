@@ -1,4 +1,3 @@
-// Created by Claude for C-851 (Android stepped quickstart).
 = Add Required Code
 :page-pagination:
 
