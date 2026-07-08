@@ -1,7 +1,0 @@
-enhancement:
-  - Uncaught exceptions now emit an observable `exception` log event (visible to a `LogListener`), matching the caught-exception path.
-
-bug:
-  - FCM registration no longer omits the sender ID when the framework delivers the first push token on a fresh install.
-  - No longer select the FCM push provider on devices that have no Google Play Services installed (e.g. Amazon Fire), where requesting a push token would fail with `MISSING_INSTANCEID_SERVICE`. ADM is still preferred on Amazon, and Google devices that merely need a Play Services update keep FCM.
-  - A missing or invalid Firebase configuration now raises an integration error only when push is in use; apps that intentionally ship no push (`io_teak_enable_push_key=false`) no longer see a spurious error, and the message now points at that opt-out.
