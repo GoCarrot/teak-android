@@ -66,7 +66,7 @@ public class Session {
         Expiring("Expiring"),
         Expired("Expired");
 
-        //public static final Integer length = 1 + Expired.ordinal();
+        // public static final Integer length = 1 + Expired.ordinal();
 
         private static final State[][] allowedTransitions = {
             {},
@@ -294,7 +294,7 @@ public class Session {
                         TeakCore.operationQueue.execute(this.userProfile);
                     }
 
-                    if(this.serverSessionId != null) {
+                    if (this.serverSessionId != null) {
                         this.sessionVectorClock++;
                         // This is a message to the server that, in effect, says "If you don't hear
                         // from me again, consider this session over"
@@ -334,7 +334,7 @@ public class Session {
             TeakEvent.postEvent(new SessionStateEvent(this, this.state, this.previousState));
 
             TeakConfiguration teakConfiguration = TeakConfiguration.get();
-            //noinspection all - Seriously, that is not a simplification
+            // noinspection all - Seriously, that is not a simplification
             if (this.state == State.Created && teakConfiguration != null && teakConfiguration.remoteConfiguration != null) {
                 return setState(State.Configured);
             } else {
@@ -355,7 +355,7 @@ public class Session {
         }
 
         // TODO: Revist this when we have time, if it is important
-        //noinspection deprecation - Alex said "ehhhhhhh" to changing the heartbeat param to a map
+        // noinspection deprecation - Alex said "ehhhhhhh" to changing the heartbeat param to a map
         @SuppressWarnings("deprecation")
         final String teakSdkVersion = Teak.SDKVersion;
 
@@ -722,7 +722,7 @@ public class Session {
                     }
                     break;
                 case LifecycleEvent.Resumed:
-                    LifecycleEvent lEvent = (LifecycleEvent)event;
+                    LifecycleEvent lEvent = (LifecycleEvent) event;
                     onActivityResumed(lEvent.intent, lEvent.context);
                     break;
             }
@@ -939,7 +939,7 @@ public class Session {
     private void forceExpire() {
         stateLock.lock();
         try {
-            if(state != State.Expired) {
+            if (state != State.Expired) {
                 setState(State.Expiring);
                 setState(State.Expired);
             }
@@ -988,7 +988,7 @@ public class Session {
             } else if (launchDataSource != LaunchDataSource.Unattributed) {
                 Session oldSession = currentSession;
                 currentSession = new Session(oldSession, launchDataSource);
-                if(oldSession != null) {
+                if (oldSession != null) {
                     oldSession.forceExpire();
                 }
             } else {

@@ -15,6 +15,28 @@ android {
                 teakAppId:"613659812345256"
         ]
     }
+
+    // The 'google' flavor is the existing demo, untouched. The 'amazon' flavor is the
+    // Amazon sandbox-detection harness: its manifest re-enables automatic purchase tracking
+    // and its source set adds the purchase trigger + Appstore SDK license-verify hook.
+    flavorDimensions = ["store"]
+    productFlavors {
+        google {
+            dimension "store"
+        }
+        amazon {
+            dimension "store"
+
+            // SKU to purchase; must exist in your Amazon listing / App Tester sdktester.json.
+            // Override per build with -PamazonSku=your.sku.here.
+            resValue "string", "amazon_sandbox_sku", (project.findProperty('amazonSku') ?: 'io.teak.app.sku.dollar')
+
+            // Whether to call LicensingService.verifyLicense at launch so getAppstoreSDKMode
+            // resolves. Set -PverifyLicenseAtLaunch=false to read the UNKNOWN pre-verify window.
+            resValue "bool", "amazon_verify_license_at_launch", (project.findProperty('verifyLicenseAtLaunch') ?: 'true')
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -35,7 +57,6 @@ gradle.projectsEvaluated {
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
     testImplementation 'junit:junit:4.13.2'
 
     implementation 'androidx.core:core:1.6+'
@@ -47,6 +68,22 @@ dependencies {
     implementation "com.android.billingclient:billing:5.0.0"
 
     implementation project(path: ':teak')
+
+    // Amazon IAP jars are proprietary, so only the legacy v2 jar is committed. Select the SDK
+    // to link against with -PamazonIap=v2|appstore3x|v2-drm (default v2). The jars are linked
+    // into the 'amazon' flavor only — the 'google' demo never sees them. See amazon-libs/README.md.
+    def amazonIapVariant = (project.findProperty('amazonIap') ?: 'v2')
+    def amazonIapDirs = [
+            'v2'        : ['amazon-libs/iap-v2'],
+            'appstore3x': ['amazon-libs/appstore3x'],
+            'v2-drm'    : ['amazon-libs/iap-v2', 'amazon-libs/drm-standalone'],
+    ]
+    if (!amazonIapDirs.containsKey(amazonIapVariant)) {
+        throw new GradleException("Unknown -PamazonIap='${amazonIapVariant}'. Valid: ${amazonIapDirs.keySet().join(', ')}")
+    }
+    amazonIapDirs[amazonIapVariant].each { dir ->
+        amazonImplementation fileTree(dir: dir, include: ['*.jar'])
+    }
 }
 
 apply plugin: 'com.google.gms.google-services'

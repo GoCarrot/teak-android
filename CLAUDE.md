@@ -27,11 +27,12 @@ These run in CI and will fail the build if violated:
 
 - **`./org_json_check`** — No imports of `org.json.*` allowed. Must use vendored `io.teak.sdk.json.*` (exists to avoid Android API < 19 differences).
 - **`./check_thread_use`** — No direct `import java.util.concurrent.Executors` except in `Executors.java`. All executor creation goes through `io.teak.sdk.core.Executors`.
-- **`./validate-code-format`** — clang-format validation (also runs as pre-commit hook).
+
+`./validate-code-format` is **not** run by CI — it's local-only, wired up as a pre-commit hook (`pre-commit` → `./validate-code-format`). It's the sole enforcement point for clang-format style, including `.java`.
 
 ## Code Style
 
-- **clang-format** enforced (config in `.clang-format`)
+- **clang-format** enforced (config in `.clang-format`); baseline-verified against clang-format 21.1.8 — a different version can produce spurious diffs on otherwise-conformant files
 - 4-space indent, no column limit, K&R braces
 - `BreakAfterJavaFieldAnnotations: true`
 - Vendored code (`shortcutbadger/`, `json/`) is excluded from formatting and linting

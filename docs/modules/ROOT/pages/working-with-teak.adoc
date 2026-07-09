@@ -10,6 +10,36 @@ doxygen2adoc:Teak.identifyUser(String,UserConfiguration)[]
 
 IMPORTANT: This should be the same way that you identify the user in your system, so that when you export data from Teak, it will be easy for you to associate with your own data.
 
+=== Player Configuration
+
+Pass a <<Teak.UserConfiguration>> to `identifyUser` to provide additional player data and to control what Teak collects:
+
+* `email` — the player's email address, used for sending email.
+* `facebookId` — the player's Facebook ID, used for templating their name into content.
+* `optOutIDFA` — set `true` to opt the player out of advertising-identifier collection.
+* `optOutPushKey` — set `true` to opt the player out of push-token collection.
+* `optOutFacebook` — deprecated; see xref:sdk5.adoc[SDK 5 Behaviors]. Don't pass a `facebookId` instead.
+
+[source,java]
+----
+// email, facebookId, optOutFacebook (deprecated, always false), optOutIDFA, optOutPushKey
+Teak.UserConfiguration userConfiguration =
+    new Teak.UserConfiguration(YOUR_USER_EMAIL, YOUR_USER_FACEBOOK_ID, false, true, false);
+Teak.identifyUser(YOUR_USER_ID, userConfiguration);
+----
+
+If a player has opted out of all data collection, don't call `identifyUser` at all, and Teak won't track them.
+
+== Logout
+
+When a player logs out of your game, tell Teak with `logout`. This is a client-side call: it doesn't clear the device's association with the player, but it does stop Teak from associating any further events — like a notification click — with that player until you call `identifyUser` again.
+
+doxygen2adoc:Teak.logout()[]
+
+If a player asks you to remove the email address you've collected for them, use:
+
+doxygen2adoc:Teak.deleteEmail()[]
+
 == User Attributes
 
 Teak allows you to add a limited number of attributes to users. A maximum of 16 string and 16 numeric attributes can be used.
@@ -17,3 +47,306 @@ Teak allows you to add a limited number of attributes to users. A maximum of 16 
 doxygen2adoc:Teak.setNumericAttribute(String,double)[]
 
 doxygen2adoc:Teak.setStringAttribute(String,String)[]
+
+== Custom Analytics Events
+
+You can send custom analytics events to Teak to track player behavior. Teak models an event as an action taken on a type of object, optionally with a specific instance of that object.
+
+doxygen2adoc:Teak.trackEvent(String,String,String)[]
+
+For example, to track that a player completed level 10:
+
+[source,java]
+----
+Teak.trackEvent("level_complete", "level", "10");
+----
+
+To keep a running count for an event, use `incrementEvent`:
+
+doxygen2adoc:Teak.incrementEvent(String,String,String,long)[]
+
+[source,java]
+----
+Teak.incrementEvent("coins_spent", "store", "gems", 50);
+----
+
+== Notification Permissions
+
+On Android 13 (API level 33) and newer, you must ask the player before you can send them push notifications, using Android's standard runtime permission APIs. On older versions, permission is granted automatically.
+
+The xref:quickstart/required-code.adoc[quickstart] shows requesting permission at launch to get you up and running. In production, ask at a moment that makes sense for your game; being strategic about when you ask improves your opt-in rates.
+
+To find out whether notifications are currently enabled, check the status:
+
+doxygen2adoc:Teak.getNotificationStatus()[]
+
+It returns one of `Teak.TEAK_NOTIFICATIONS_ENABLED`, `Teak.TEAK_NOTIFICATIONS_DISABLED`, or `Teak.TEAK_NOTIFICATIONS_UNKNOWN`.
+
+=== Prompting a Player to Re-enable Notifications
+
+If a player has turned notifications off, you can no longer prompt them from within the app. Instead, you can send them to the system settings, where they can turn notifications back on.
+
+doxygen2adoc:Teak.canOpenNotificationSettings()[]
+
+doxygen2adoc:Teak.openNotificationSettings()[]
+
+== Application Badge Count
+
+A dashboard notification can only set your app icon's badge to no badge or 1. To show your own count -- for example, an in-game unread count -- call `setApplicationBadgeNumber` yourself.
+
+doxygen2adoc:Teak.setApplicationBadgeNumber(int)[]
+
+NOTE: Badge support depends on the device's launcher. The call returns `false` if the current launcher does not support badges. On Android, a badge is fundamentally set-or-not-set rather than numbered -- most launchers show only a dot regardless of the count you pass, though some show the number.
+
+== Deep Links
+
+Teak can open your game from a URL, whether the link comes from a notification or from a link you created on the Teak dashboard. To enable this, register Teak's URL schemes in your Android manifest.
+
+Add the following to the `<activity>` section of your `AndroidManifest.xml`:
+
+.AndroidManifest.xml
+[source,xml]
+----
+<intent-filter android:autoVerify="true">
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="http" android:host="YOUR_SHORTLINK_DOMAIN.jckpt.me" />
+  <data android:scheme="https" android:host="YOUR_SHORTLINK_DOMAIN.jckpt.me" />
+</intent-filter>
+<intent-filter>
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="teakYOUR_TEAK_APP_ID" android:host="*" />
+</intent-filter>
+----
+
+NOTE: Replace `YOUR_TEAK_APP_ID` with your Teak App Id and `YOUR_SHORTLINK_DOMAIN` with your Teak ShortLink Domain. Both are found in the Settings for your app on the Teak dashboard.
+
+This tells Android to look for deep link URLs created by Teak.
+
+== Subscribing to Events
+
+Teak uses https://github.com/greenrobot/EventBus[EventBus] to send events to your game.
+
+=== Register an Object to Handle Events
+
+You can register any object to handle events posted by Teak. A quick way to get started is to register your main activity as a handler:
+
+.Registering an event handler
+[source,java]
+----
+import androidx.appcompat.app.AppCompatActivity;
+
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+
+public class MainActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Register with EventBus
+        EventBus.getDefault().register(this);
+}
+----
+
+To receive events, declare methods with the `@Subscribe` annotation that take the type of event the method should handle.
+
+=== Events
+
+<<Teak.NotificationEvent>>:: A notification has been received.
+
+<<Teak.RewardClaimEvent>>:: A reward claim has been processed. See <<Rewards>>.
+
+<<Teak.LaunchFromLinkEvent>>:: The app was launched from a URL created on the Teak dashboard.
+
+<<Teak.PostLaunchSummaryEvent>>:: Attribution data for the launch is available. See <<Session Attribution>>.
+
+<<Teak.UserDataEvent>>:: Data about the user has become available, or has been updated.
+
+== Rewards
+
+Teak notifications and links can grant rewards to your players. When a player opens your game from a rewarded notification or link, Teak validates the claim with the server and posts a <<Teak.RewardClaimEvent>> with the result.
+
+Subscribe to it the same way as any other event (see <<Subscribing to Events>>), then grant the reward in your game when the claim succeeds.
+
+.Handling a Reward Claim
+[source,java]
+----
+@Subscribe
+public void onRewardClaim(Teak.RewardClaimEvent event) {
+  TeakNotification.Reward rewardInfo = event.reward;
+  String rewardId = rewardInfo.json.getString("teakRewardId");
+  switch(rewardInfo.status) {
+    case TeakNotification.Reward.GRANT_REWARD: {
+      Map<String, Object> reward = rewardInfo.json.getJSONObject("reward").toMap();
+      Log.d("TeakExample.Reward", "Reward with id " + rewardId + "Granted! " + reward.toString());
+    } break;
+    case TeakNotification.Reward.ALREADY_CLICKED: {
+      Log.d("TeakExample.Reward", "You already claimed this reward!");
+    } break;
+    case TeakNotification.Reward.EXPIRED: {
+      Log.d("TeakExample.Reward", "The reward has expired");
+    } break;
+    case TeakNotification.Reward.TOO_MANY_CLICKS: {
+      Log.d("TeakExample.Reward", "Too many other players already claimed this reward");
+    } break;
+    case TeakNotification.Reward.EXCEED_MAX_CLICKS_FOR_DAY: {
+      Log.d("TeakExample.Reward", "You've already claimed too many rewards today");
+    } break;
+    default: {
+      Log.d("TeakExample.Reward", "The reward was rejected for a different reason: " + rewardInfo.json.getString("status"));
+    }
+  }
+}
+----
+
+The `status` field reports the outcome of the claim:
+
+[cols="1,3", stripes="even"]
+|===
+| Status | Meaning
+
+| `GRANT_REWARD`
+| The reward was granted. Apply it in your game.
+
+| `SELF_CLICK`
+| The player clicked their own shared link, so no reward was granted.
+
+| `ALREADY_CLICKED`
+| The player already claimed this reward.
+
+| `TOO_MANY_CLICKS`
+| The reward's click limit has been reached.
+
+| `EXCEED_MAX_CLICKS_FOR_DAY`
+| The player has already claimed the maximum number of rewards for the day.
+
+| `EXPIRED`
+| The reward has expired.
+
+| `INVALID_POST`
+| The claim was invalid.
+|===
+
+== Session Attribution
+
+Each time your game launches, Teak posts a <<Teak.PostLaunchSummaryEvent>> with all the attribution data it has for that launch. This fires after you call `identifyUser`, and is primarily intended to help you report session attribution to other analytics systems.
+
+Subscribe to it like any other event (see <<Subscribing to Events>>). The event's `launchData` is a <<Teak.LaunchData>>. When the launch is attributed to a Teak source, it is a <<Teak.AttributedLaunchData>> carrying the channel, creative, schedule, reward, and deep link details.
+
+.Example Post-Launch Summary Handler
+[source,java]
+----
+@Subscribe
+public void onPostLaunchSummary(Teak.PostLaunchSummaryEvent event) {
+  Teak.LaunchData launchData = event.launchData;
+  if (launchData instanceof Teak.AttributedLaunchData) {
+    Teak.AttributedLaunchData attributed = (Teak.AttributedLaunchData) launchData;
+    Log.d("Teak.Attribution", "Launch attributed to channel: " + attributed.channelName);
+    Log.d("Teak.Attribution", "From creative: " + attributed.creativeName);
+    Log.d("Teak.Attribution", "Rewarded: " + attributed.isIncentivized());
+  } else {
+    Log.d("Teak.Attribution", "Launch was not attributed to a Teak source.");
+  }
+}
+----
+
+== Local Notifications
+
+Local Notifications let you schedule push notifications directly from your game code for the current player. This differs from standard notifications, which your marketing team schedules for delivery from the Teak dashboard.
+
+Use Local Notifications when the timing or personalization is something your game code is best positioned to determine. The notification's content is still created on the Teak dashboard, so coordinate with your marketing team and document when your game schedules them.
+
+NOTE: Don't use Local Notifications for new-player or lapsing-player flows. Your marketing team should create xref:ROOT:user-guide:scheduling.adoc#_triggered[Triggered Schedules] for those instead.
+
+=== Schedule a Notification
+
+Schedule a notification by the identifier of a creative on the Teak dashboard and a delay in seconds. The call returns a `Future` carrying a `Teak.Notification.Reply`, whose `scheduleIds` you can keep if you later want to cancel it.
+
+[source,java]
+----
+import io.teak.sdk.Teak;
+import java.util.concurrent.Future;
+
+// Schedule the "daily_bonus" creative to fire one hour from now.
+Future<Teak.Notification.Reply> scheduled =
+    Teak.Notification.schedule("daily_bonus", 3600);
+----
+
+To template custom data into the notification, pass a `personalizationData` map. Tell your marketing team which keys you send so they can configure the matching xref:ROOT:user-guide:custom-tags.adoc#_local_notification_tags[Local Notification Tags].
+
+[source,java]
+----
+Map<String, Object> personalizationData = new HashMap<>();
+personalizationData.put("coins", 100);
+
+Future<Teak.Notification.Reply> scheduled =
+    Teak.Notification.schedule("daily_bonus", 3600, personalizationData);
+----
+
+=== Cancel a Scheduled Notification
+
+Cancel a single scheduled notification with a schedule id from the reply, or cancel all of the current player's scheduled notifications. Note that cancellation is on `TeakNotification`, not `Teak.Notification`.
+
+doxygen2adoc:TeakNotification.cancelNotification(String)[]
+
+doxygen2adoc:TeakNotification.cancelAll()[]
+
+== Notification Channels and Opt-Out Preferences
+
+Teak can reach players over several channels: mobile push, desktop push, email, and SMS. Each channel, and each category within a channel, has an opt-in state. You can read a player's current preferences and update them from your game, for example to build an in-game notification-settings screen.
+
+=== Reading Opt-Out Preferences
+
+A player's channel preferences arrive in the <<Teak.UserDataEvent>>, which Teak posts when player data becomes available or changes. Subscribe to it (see <<Subscribing to Events>>) and read the per-channel status.
+
+[source,java]
+----
+@Subscribe
+public void onUserData(Teak.UserDataEvent event) {
+  Teak.Channel.State pushState = event.pushStatus.state;
+  Teak.Channel.State emailState = event.emailStatus.state;
+  Teak.Channel.State smsState = event.smsStatus.state;
+  Log.d("Teak.Channels", "Push opt-in state: " + pushState);
+}
+----
+
+Each status's `state` is one of `OptOut`, `Available`, `OptIn`, `Absent`, or `Unknown`.
+
+=== Updating Opt-Out Preferences
+
+Update an entire channel with `setChannelState`, or a single category within a channel with `setCategoryState`.
+
+doxygen2adoc:Teak.setChannelState(Channel.Type,Channel.State)[]
+
+doxygen2adoc:Teak.setCategoryState(Channel.Type,String,Channel.State)[]
+
+The channel is one of `Teak.Channel.Type.MobilePush`, `DesktopPush`, `PlatformPush`, `Email`, or `SMS`, and the state is typically `OptIn` or `OptOut`.
+
+[source,java]
+----
+// Opt the player out of marketing emails.
+Teak.setChannelState(Teak.Channel.Type.Email, Teak.Channel.State.OptOut);
+
+// Opt the player in to a specific push category.
+Teak.setCategoryState(Teak.Channel.Type.MobilePush, "daily_reminders", Teak.Channel.State.OptIn);
+----
+
+== Debugging with a Log Listener
+
+Teak emits internal log events as it runs. You can observe them by registering a `Teak.LogListener`, which is useful for debugging your integration or forwarding Teak's diagnostics into your own logging system.
+
+doxygen2adoc:Teak.setLogListener(LogListener)[]
+
+[source,java]
+----
+Teak.setLogListener(new Teak.LogListener() {
+  @Override
+  public void logEvent(String logEvent, String logLevel, Map<String, Object> logData) {
+    Log.d("Teak.Log", logLevel + " " + logEvent + " " + logData);
+  }
+});
+----

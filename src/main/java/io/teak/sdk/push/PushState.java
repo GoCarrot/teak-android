@@ -34,7 +34,7 @@ public class PushState implements Unobfuscable {
         Authorized("authorized"),
         Denied("denied");
 
-        //public static final Integer length = 1 + Denied.ordinal();
+        // public static final Integer length = 1 + Denied.ordinal();
 
         private static final State[][] allowedTransitions = {
             {State.Authorized, State.Denied},
