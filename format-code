@@ -2,4 +2,4 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-find src -not \( -path src/main/java/io/teak/sdk/shortcutbadger -prune \) -type f -name "*.java" | xargs clang-format -style=file -i
+find src \( -path src/main/java/io/teak/sdk/shortcutbadger -o -path src/main/java/io/teak/sdk/json \) -prune -o -type f -name "*.java" -print | xargs clang-format -style=file -i

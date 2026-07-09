@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <!-- The Amazon store registers Teak's purchase listener only when automatic purchase
+             tracking is enabled. The shared demo opts out; turn it back on so sandbox detection
+             runs and is_sandbox lands in the purchase-tracking payload. -->
+        <meta-data
+            android:name="io_teak_no_auto_track_purchase"
+            android:value="false"
+            tools:replace="android:value" />
+
+        <!-- Replace the shared demo launcher with the sandbox harness screen so the amazon flavor
+             boots straight into it and the google flavor is untouched. -->
+        <activity android:name=".LauncherActivity" tools:node="remove" />
+
+        <activity
+            android:name=".store.AmazonSandboxActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <meta-data android:name="io.teak.sdk.initialize" android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

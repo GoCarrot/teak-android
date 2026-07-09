@@ -193,6 +193,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Register with EventBus
         EventBus.getDefault().register(this);
+    }
 }
 ----
 

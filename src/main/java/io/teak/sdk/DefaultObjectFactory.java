@@ -146,6 +146,7 @@ public class DefaultObjectFactory implements IObjectFactory {
     public static IPushProvider createPushProvider(@NonNull Context context) throws IntegrationChecker.MissingDependencyException {
         IPushProvider ret = null;
         IntegrationChecker.MissingDependencyException pushCreationException = null;
+
         try {
             Class.forName("com.amazon.device.messaging.ADM");
             if (new ADM(context).isSupported()) {
@@ -163,12 +164,17 @@ public class DefaultObjectFactory implements IObjectFactory {
         if (ret == null) {
             try {
                 Class.forName("com.google.android.gms.common.GooglePlayServicesUtil");
-                try {
+                if (DefaultAndroidDeviceInfo.isGooglePlayServicesMissing(context)) {
+                    // No FCM when the Play Services APK is absent — getToken() would throw
+                    // MISSING_INSTANCEID_SERVICE. This is the expected outcome, not an error.
+                    Teak.log.i("factory.pushProvider", Helpers.mm.h("type", "none"));
+                    return null;
+                } else {
                     ret = FCMPushProvider.initialize(context);
                     Teak.log.i("factory.pushProvider", Helpers.mm.h("type", "fcm"));
-                } catch (IntegrationChecker.MissingDependencyException e) {
-                    pushCreationException = e;
                 }
+            } catch (IntegrationChecker.MissingDependencyException e) {
+                pushCreationException = e;
             } catch (Exception ignored) {
             }
         }

@@ -1,0 +1,6 @@
+enhancement:
+  - "Uncaught exceptions now emit an `exception` log event to registered log listeners."
+bug:
+  - "FCM registration no longer omits the sender ID on the first push token after a fresh install."
+  - "The FCM push provider is no longer selected on devices without Google Play Services (e.g. Amazon Fire); ADM remains preferred on Amazon."
+  - "A missing or invalid Firebase configuration now raises an integration error only when push is in use, not for apps that intentionally ship without push."

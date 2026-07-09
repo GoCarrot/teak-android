@@ -1,0 +1,61 @@
+= Install the Teak SDK in Android
+:page-pagination:
+
+It's time to add the Teak SDK to your Android project and give it your game's credentials.
+
+* [x] Teak supports Android {min-android-name} (API level {min-android-sdk}) or newer.
+* [x] Your project is connected to a Firebase project (from the xref:quickstart/firebase-fcm.adoc[previous step]).
+
+== Add the Teak AAR
+
+The latest Teak Android SDK is always available as an AAR at https://sdks.teakcdn.com/android/teak.aar[`sdks.teakcdn.com/android/teak.aar`, window=_blank].
+
+Download it and add it to your project's `libs/` directory, then reference it from your app-level `build.gradle`:
+
+[source,groovy]
+----
+dependencies {
+  implementation files('libs/teak.aar')
+  // ... your other dependencies
+}
+----
+
+== Add Teak's Dependencies
+
+Teak relies on the following libraries. Add them to your app-level `build.gradle` if they aren't already present.
+
+[source,groovy]
+----
+dependencies {
+  implementation 'org.greenrobot:eventbus:3.3.1'
+  implementation 'com.google.android.gms:play-services-ads-identifier:16+'
+  implementation 'com.google.android.gms:play-services-base:16+'
+  implementation 'com.google.android.gms:play-services-basement:16+'
+  implementation 'com.google.firebase:firebase-messaging:21+'
+  implementation 'androidx.core:core:1.0.+'
+  implementation 'androidx.work:work-runtime:2.5.+'
+
+  // Optional: enables install-attribution reporting
+  implementation 'com.android.installreferrer:installreferrer:2.2+'
+}
+----
+
+== Configure Teak Credentials
+
+Teak needs your **Teak App ID** and **Teak API Key** to talk to the Teak service. You provide these through a `res/values/teak.xml` resource file.
+
+Create `res/values/teak.xml` in your app module:
+
+.res/values/teak.xml
+[source,xml]
+----
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="io_teak_app_id">YOUR_TEAK_APP_ID</string>
+  <string name="io_teak_api_key">YOUR_TEAK_API_KEY</string>
+</resources>
+----
+
+NOTE: Replace `YOUR_TEAK_APP_ID` and `YOUR_TEAK_API_KEY` with your game's values. You'll find both in menu:Settings[General] for your app on the https://app.teak.io/[Teak dashboard, window=_blank].
+
+The Teak SDK is now installed and has its credentials. Next, we'll add the code that brings it to life.
