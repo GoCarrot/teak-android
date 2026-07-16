@@ -190,10 +190,13 @@ public class TeakCore {
 
                     // Create & display native notification asynchronously, image downloads etc
                     asyncExecutor.submit(new RetriableTask<>(3, 2000L, 2, () -> {
-                        // Send metric
+                        // Send metric, but only if the system would display this notification. This
+                        // matches iOS, where receipt is reported by the notification service extension,
+                        // which the system only runs when it is going to display an alert. A notification
+                        // withheld because the game is in the foreground is still reported, as on iOS.
                         final String teakUserId = bundle.getString("teakUserId", null);
                         final String teakAppId = bundle.getString("teakAppId", null);
-                        if (teakAppId != null && teakUserId != null) {
+                        if (teakAppId != null && teakUserId != null && NotificationBuilder.canDisplayNotification(context, teakNotification)) {
                             HashMap<String, Object> payload = new HashMap<>();
                             payload.put("app_id", teakAppId);
                             payload.put("user_id", teakUserId);
