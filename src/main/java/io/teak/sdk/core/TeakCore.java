@@ -157,6 +157,11 @@ public class TeakCore {
                     final Context context = ((PushNotificationEvent) event).context;
                     if (isHealthCheckPush || bundle.containsKey("teakExpectedDisplay")) {
                         final boolean expectedDisplay = Helpers.getBooleanFromBundle(bundle, "teakExpectedDisplay");
+
+                        // Keyed off the app-level toggle by design, and intentionally not the same
+                        // question the receipt gate below asks. This tracks the global notification
+                        // setting; receipt reporting asks whether the OS would display one specific
+                        // notification, which also depends on that notification's channel.
                         final boolean canDisplayNotification = NotificationManagerCompat.from(context).areNotificationsEnabled();
                         final boolean shouldSendHealthCheck = isHealthCheckPush || (expectedDisplay != canDisplayNotification);
 
@@ -190,10 +195,10 @@ public class TeakCore {
 
                     // Create & display native notification asynchronously, image downloads etc
                     asyncExecutor.submit(new RetriableTask<>(3, 2000L, 2, () -> {
-                        // Send metric, but only if the system would display this notification. This
-                        // matches iOS, where receipt is reported by the notification service extension,
-                        // which the system only runs when it is going to display an alert. A notification
-                        // withheld because the game is in the foreground is still reported, as on iOS.
+                        // Send metric, but only if the OS would display this notification. A notification
+                        // withheld because the game is in the foreground is still reported: iOS reports
+                        // receipt from its notification service extension, which the system runs
+                        // regardless of app state, so foregrounded receipts are reported there too.
                         final String teakUserId = bundle.getString("teakUserId", null);
                         final String teakAppId = bundle.getString("teakAppId", null);
                         if (teakAppId != null && teakUserId != null && NotificationBuilder.canDisplayNotification(context, teakNotification)) {
