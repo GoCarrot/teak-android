@@ -1,2 +1,0 @@
-bug:
-  - "Notification receipt is no longer reported when the OS would not display the notification, either because notifications are disabled for the app or because the notification's channel is blocked."
