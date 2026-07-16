@@ -330,12 +330,12 @@ public class NotificationBuilder {
     }
 
     /**
-     * Determine whether the system would display this notification.
+     * Determine whether the OS would display this notification.
      *
-     * This mirrors iOS, where receipt is reported by the notification service extension, which the
-     * system only runs when it is going to display an alert. It deliberately does not consider
-     * whether the game is in the foreground: iOS runs the extension regardless of app state, so a
-     * notification withheld because the game is foregrounded still counts as displayable here.
+     * Answers that question only, and deliberately says nothing about whether the game is in the
+     * foreground: a notification the game withholds while foregrounded is still displayable by this
+     * measure. iOS reports receipt from its notification service extension, which the system runs
+     * regardless of app state, so foregrounded receipts are reported there too.
      */
     public static boolean canDisplayNotification(@NonNull Context context, @NonNull TeakNotification teakNotification) {
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
