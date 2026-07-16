@@ -51,6 +51,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import io.teak.sdk.configuration.RemoteConfiguration;
 import io.teak.sdk.core.Result;
 import io.teak.sdk.json.JSONArray;
@@ -326,6 +327,34 @@ public class NotificationBuilder {
             }
         }
         return NotificationBuilder.DEFAULT_NOTIFICATION_CHANNEL_ID;
+    }
+
+    /**
+     * Determine whether the OS would display this notification.
+     *
+     * Answers that question only, and deliberately says nothing about whether the game is in the
+     * foreground: a notification the game withholds while foregrounded is still displayable by this
+     * measure. iOS reports receipt from its notification service extension, which the system runs
+     * regardless of app state, so foregrounded receipts are reported there too.
+     */
+    public static boolean canDisplayNotification(@NonNull Context context, @NonNull TeakNotification teakNotification) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            return false;
+        }
+
+        final NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && notificationManager != null) {
+            final String channelId = NotificationBuilder.channelIdForOptOutId(context, teakNotification.teakOptOutCategory);
+            final NotificationChannel channel = notificationManager.getNotificationChannel(channelId);
+
+            // A channel that does not exist yet is created when the notification is displayed, so treat
+            // it as displayable. Only a blocked channel is not: IMPORTANCE_MIN still displays, minimized.
+            if (channel != null && channel.getImportance() == NotificationManager.IMPORTANCE_NONE) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public static void configureNotificationChannelId(Context context, Teak.Channel.Category category) {
