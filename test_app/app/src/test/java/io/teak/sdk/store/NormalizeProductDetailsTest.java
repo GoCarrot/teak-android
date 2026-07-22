@@ -11,7 +11,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 // Guards GooglePlayBilling.normalizeProductDetails — the one billing-version-divergent step the
-// whole SDK fix hinges on. Billing 7 hands the product-details callback a List<ProductDetails>;
+// whole SDK fix hinges on. Billing 6-7 hands the product-details callback a List<ProductDetails>;
 // billing 8+ hands it a QueryProductDetailsResult whose getProductDetailsList() yields the List.
 // These fakes stand in for both shapes so the unwrap is verified without a real BillingClient.
 public class NormalizeProductDetailsTest {
@@ -33,7 +33,7 @@ public class NormalizeProductDetailsTest {
     @Test
     public void billing7Shape_listPassesThroughUnchanged() {
         final List<Object> list = Arrays.asList(new Object(), new Object());
-        // Billing 7: the argument already IS the List, returned as-is.
+        // Billing 6-7: the argument already IS the List, returned as-is.
         assertSame(list, GooglePlayBilling.normalizeProductDetails(list));
     }
 
