@@ -4,8 +4,10 @@
 
     <application>
         <!-- The Amazon store registers Teak's purchase listener only when automatic purchase
-             tracking is enabled. The shared demo opts out; turn it back on so sandbox detection
-             runs and is_sandbox lands in the purchase-tracking payload. -->
+             tracking is enabled. It is on by default in the shared demo; this pins it on
+             explicitly so sandbox detection always runs and is_sandbox lands in the
+             purchase-tracking payload. tools:replace keeps this authoritative even if the
+             shared manifest later opts out. -->
         <meta-data
             android:name="io_teak_no_auto_track_purchase"
             android:value="false"

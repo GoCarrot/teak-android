@@ -2,18 +2,14 @@ package io.teak.app.java.dev;
 
 import android.app.ActivityManager;
 import android.app.AlertDialog;
-import android.app.PendingIntent;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.os.StrictMode;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -21,7 +17,17 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
 
-import com.android.vending.billing.IInAppBillingService;
+import com.android.billingclient.api.BillingClient;
+import com.android.billingclient.api.BillingClientStateListener;
+import com.android.billingclient.api.BillingFlowParams;
+import com.android.billingclient.api.BillingResult;
+import com.android.billingclient.api.ConsumeParams;
+import com.android.billingclient.api.PendingPurchasesParams;
+import com.android.billingclient.api.ProductDetails;
+import com.android.billingclient.api.Purchase;
+import com.android.billingclient.api.PurchasesUpdatedListener;
+import com.android.billingclient.api.QueryProductDetailsParams;
+import com.android.billingclient.api.QueryPurchasesParams;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -34,7 +40,7 @@ import java.lang.reflect.Field;
 import java.net.SocketException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
 
@@ -205,10 +211,11 @@ public class MainActivity extends AppCompatActivity {
         final Teak.UserConfiguration userConfiguration = new Teak.UserConfiguration("pat@teak.io");
         Teak.identifyUser(userId, userConfiguration);
 
-        // Binding the in app billing service
-        Intent serviceIntent = new Intent("com.android.vending.billing.InAppBillingService.BIND");
-        serviceIntent.setPackage("com.android.vending");
-        bindService(serviceIntent, mServiceConn, Context.BIND_AUTO_CREATE);
+        // Stand up this app's own BillingClient — this mirrors the game's IAP library
+        // (e.g. Unity IAP). Teak registers a separate, parallel BillingClient for automatic
+        // purchase tracking; Play delivers a purchase launched here to Teak's
+        // onPurchasesUpdated. That is the path this harness exercises.
+        setupBillingClient();
 
         // HAX
         Teak.setStringAttribute("automated_test_string", "asdfasdfasdf");
@@ -220,38 +227,6 @@ public class MainActivity extends AppCompatActivity {
         // Call setIntent() for Teak
         setIntent(intent);
         super.onNewIntent(intent);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        // If your In App Purchase activity needs to be modified to call Teak, you can do this
-        // easily without needing to import Teak (useful for other libraries, etc).
-        /*
-        try {
-            Class<?> cls = Class.forName("io.teak.sdk.Teak");
-            Method m = cls.getMethod("checkActivityResultForPurchase", int.class, Intent.class);
-            m.invoke(null, resultCode, data);
-        } catch (Exception ignored) {} */
-
-        // TODO: Update this to new google billing
-
-        if (requestCode == 1001) {
-            int responseCode = data.getIntExtra("RESPONSE_CODE", 0);
-            String purchaseData = data.getStringExtra("INAPP_PURCHASE_DATA");
-            String dataSignature = data.getStringExtra("INAPP_DATA_SIGNATURE");
-
-            if (resultCode == RESULT_OK) {
-                try {
-                    JSONObject jo = new JSONObject(purchaseData);
-                    String sku = jo.getString("productId");
-                    int response = mService.consumePurchase(3, getPackageName(), jo.getString("purchaseToken"));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
     }
 
     ///////
@@ -332,16 +307,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showPurchaseDialogForSku(final String sku) {
-        runOnUiThread(new Runnable() {
-            public void run() {
-                try {
-                    Bundle buyIntentBundle = mService.getBuyIntent(3, MainActivity.this.getPackageName(), sku, "inapp", "");
-                    PendingIntent pendingIntent = buyIntentBundle.getParcelable("BUY_INTENT");
-                    MainActivity.this.startIntentSenderForResult(pendingIntent.getIntentSender(), 1001, new Intent(), 0, 0, 0);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+        final QueryProductDetailsParams params = QueryProductDetailsParams.newBuilder()
+                .setProductList(Collections.singletonList(
+                        QueryProductDetailsParams.Product.newBuilder()
+                                .setProductId(sku)
+                                .setProductType(BillingClient.ProductType.INAPP)
+                                .build()))
+                .build();
+
+        billingClient.queryProductDetailsAsync(params, (billingResult, productDetailsList) -> {
+            if (productDetailsList.isEmpty()) {
+                Log.e(LOG_TAG, "No product details for " + sku + " (" + billingResult.getResponseCode() + "). Is it an active managed product?");
+                return;
             }
+
+            final ProductDetails productDetails = productDetailsList.get(0);
+            final BillingFlowParams flowParams = BillingFlowParams.newBuilder()
+                    .setProductDetailsParamsList(Collections.singletonList(
+                            BillingFlowParams.ProductDetailsParams.newBuilder()
+                                    .setProductDetails(productDetails)
+                                    .build()))
+                    .build();
+
+            runOnUiThread(() -> billingClient.launchBillingFlow(MainActivity.this, flowParams));
         });
     }
 
@@ -351,8 +339,8 @@ public class MainActivity extends AppCompatActivity {
 
         EventBus.getDefault().unregister(this);
 
-        if (mService != null) {
-            unbindService(mServiceConn);
+        if (billingClient != null) {
+            billingClient.endConnection();
         }
     }
 
@@ -480,49 +468,59 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    static IInAppBillingService mService;
-    ServiceConnection mServiceConn = new ServiceConnection() {
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            mService = null;
-        }
+    private BillingClient billingClient;
 
-        @Override
-        public void onServiceConnected(ComponentName name,
-                                       IBinder service) {
-            mService = IInAppBillingService.Stub.asInterface(service);
-
-            // Clear inventory
-            if (true) {
-                try {
-                    Bundle ownedItems = mService.getPurchases(3, getPackageName(), "inapp", null);
-                    int response = ownedItems.getInt("RESPONSE_CODE");
-                    if (response == 0) {
-                        ArrayList<String>  purchaseDataList = ownedItems.getStringArrayList("INAPP_PURCHASE_DATA_LIST");
-
-                        for (int i = 0; i < purchaseDataList.size(); ++i) {
-                            String purchaseData = purchaseDataList.get(i);
-                            Log.d(LOG_TAG, purchaseData);
-                            try {
-                                JSONObject purchase = new JSONObject(purchaseData);
-                                mService.consumePurchase(3, getPackageName(), purchase.getString("purchaseToken"));
-                            } catch (Exception e) {
-                                Log.e(LOG_TAG, Log.getStackTraceString(e));
-                            }
-
-                            // do something with this purchase information
-                            // e.g. display the updated list of products owned by user
-                            //response =
-                        }
-
-                        // if continuationToken != null, call getPurchases again
-                        // and pass in the token to retrieve more items
-                    }
-
-                } catch (Exception e) {
-                    Log.e(LOG_TAG, Log.getStackTraceString(e));
-                }
+    // This app's own purchase listener. Consumes one-time products so they can be
+    // re-purchased across test runs. Teak's separate BillingClient observes the same
+    // purchase independently for tracking.
+    private final PurchasesUpdatedListener purchasesUpdatedListener = (billingResult, purchases) -> {
+        if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK && purchases != null) {
+            for (Purchase purchase : purchases) {
+                Log.d(LOG_TAG, "Example client purchase: " + purchase.getProducts());
+                consumePurchase(purchase);
             }
+        } else {
+            Log.d(LOG_TAG, "Example client purchase flow ended: " + billingResult.getResponseCode());
         }
     };
+
+    private void setupBillingClient() {
+        billingClient = BillingClient.newBuilder(this)
+                .setListener(purchasesUpdatedListener)
+                .enablePendingPurchases(
+                        PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+                .build();
+
+        billingClient.startConnection(new BillingClientStateListener() {
+            @Override
+            public void onBillingSetupFinished(BillingResult billingResult) {
+                Log.d(LOG_TAG, "Example BillingClient setup: " + billingResult.getResponseCode());
+                clearInventory();
+            }
+
+            @Override
+            public void onBillingServiceDisconnected() {
+                Log.d(LOG_TAG, "Example BillingClient disconnected.");
+            }
+        });
+    }
+
+    // Consume any leftover unconsumed one-time products so the test SKU can be bought again.
+    private void clearInventory() {
+        billingClient.queryPurchasesAsync(
+                QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
+                (billingResult, purchases) -> {
+                    for (Purchase purchase : purchases) {
+                        consumePurchase(purchase);
+                    }
+                });
+    }
+
+    private void consumePurchase(Purchase purchase) {
+        final ConsumeParams params = ConsumeParams.newBuilder()
+                .setPurchaseToken(purchase.getPurchaseToken())
+                .build();
+        billingClient.consumeAsync(params, (billingResult, purchaseToken) ->
+                Log.d(LOG_TAG, "Consumed " + purchase.getProducts() + ": " + billingResult.getResponseCode()));
+    }
 }
