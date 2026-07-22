@@ -76,6 +76,23 @@ public class DefaultObjectFactory implements IObjectFactory {
     ///// Helpers
 
     static IStore createStore(@NonNull Context context) {
+        final Class<?> clazz = selectStoreClass(context);
+        if (clazz != null) {
+            try {
+                return (IStore) clazz.getDeclaredConstructor(Context.class).newInstance(context);
+            } catch (Exception e) {
+                Teak.log.exception(e);
+            }
+        }
+
+        return null;
+    }
+
+    // Selects the IStore implementation for this device/config, or null if automatic purchase
+    // tracking should be disabled or no supported store is present. Split out from createStore
+    // so the selection logic can be unit-tested without constructing a real BillingClient (which
+    // requires the Android runtime).
+    static Class<?> selectStoreClass(@NonNull Context context) {
         // If automatic purchase collection is disabled, just return null
         //
         // Note that we cannot use TeakConfiguration here because this happens before it is initialized.
@@ -111,35 +128,16 @@ public class DefaultObjectFactory implements IObjectFactory {
             }
         } else {
             try {
-                // Check if the billing library is present at all
-                Class<?> billingClientClass = Class.forName("com.android.billingclient.api.BillingClient");
-
-                try {
-                    // If the 'BillingClient.queryProductDetailsAsync' method is present
-                    // this is Google Play Billing v5 so use that instead.
-                    billingClientClass.getMethod("queryProductDetailsAsync");
-                    clazz = Class.forName("io.teak.sdk.store.GooglePlayBillingV5");
-                } catch (NoSuchMethodException ignored) {
-                }
-
-                if (clazz == null) {
-                    // Default to Billing v4
-                    clazz = Class.forName("io.teak.sdk.store.GooglePlayBillingV4");
-                }
+                // Check if the billing library is present at all, then use the single
+                // GooglePlayBilling store — it is runtime-compatible across billing 7, 8, and 9.
+                Class.forName("com.android.billingclient.api.BillingClient");
+                clazz = Class.forName("io.teak.sdk.store.GooglePlayBilling");
             } catch (Throwable e) {
                 Teak.log.exception(e);
             }
         }
 
-        if (clazz != null) {
-            try {
-                return (IStore) clazz.getDeclaredConstructor(Context.class).newInstance(context);
-            } catch (Exception e) {
-                Teak.log.exception(e);
-            }
-        }
-
-        return null;
+        return clazz;
     }
 
     @SuppressWarnings("WeakerAccess") // Integration tests call this
