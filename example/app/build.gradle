@@ -5,7 +5,7 @@ android {
 
     defaultConfig {
         applicationId "io.teak.app.unity.dev"
-        minSdkVersion 21
+        minSdkVersion 23
         targetSdk 35
         versionCode 1
         versionName "1.0"
@@ -65,7 +65,14 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.3.1'
     implementation 'com.google.firebase:firebase-messaging:24.0.0'
     implementation 'org.greenrobot:eventbus:3.3.1'
-    implementation "com.android.billingclient:billing:7.1.1"
+
+    // Play Billing version the example links against. Defaults to 8.3.0 (the reporting
+    // customer's version); override to test a newer release, e.g.:
+    //     ./gradlew :app:assembleGoogleDebug -PbillingVersion=9.1.0
+    // Any billing 8.x or 9.x value works as-is — they share the QueryProductDetailsResult
+    // callback that MainActivity already unwraps. Going back to billing 7.x additionally
+    // requires reverting that callback to the List<ProductDetails> shape.
+    implementation "com.android.billingclient:billing:${project.findProperty('billingVersion') ?: '8.3.0'}"
 
     implementation project(path: ':teak')
 

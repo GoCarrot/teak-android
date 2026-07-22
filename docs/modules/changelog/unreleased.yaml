@@ -1,0 +1,2 @@
+bug:
+  - Resolve purchase tracking failure on Billing Library 8.0+
