@@ -46,9 +46,21 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
                                  .setListener(this)
                                  .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
                                  .build();
-        Teak.log.i("billing.google", "Google Play Billing registered.");
+        Teak.log.i("billing.google", "Google Play Billing registered.", Helpers.mm.h("billing_version", billingLibraryVersion()));
 
         this.billingClient.startConnection(this);
+    }
+
+    // The Play Billing version the host game actually ships, read reflectively. A direct reference
+    // to BillingClient.BuildConfig.VERSION_NAME would inline to Teak's compileOnly version (7.1.1)
+    // at compile time; reading the field reflectively yields the real runtime version (7, 8, or 9).
+    // Best-effort — returns "unknown" if the constant can't be read.
+    private static String billingLibraryVersion() {
+        try {
+            return (String) Class.forName("com.android.billingclient.BuildConfig").getField("VERSION_NAME").get(null);
+        } catch (Throwable e) {
+            return "unknown";
+        }
     }
 
     @Override

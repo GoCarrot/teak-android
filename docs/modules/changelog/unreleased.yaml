@@ -1,4 +1,2 @@
 bug:
-  - Automatic Google Play purchase tracking now initializes correctly on Billing Library 8.0 and newer, where the removal of the no-argument `enablePendingPurchases()` method previously stopped the billing store from starting
-enhancement:
-  - Automatic Google Play purchase tracking now works across Billing Library 7, 8, and 9 from a single build
+  - Resolve purchase tracking failure on Billing Library 8.0+
