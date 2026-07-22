@@ -41,6 +41,7 @@ import java.net.SocketException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -315,7 +316,10 @@ public class MainActivity extends AppCompatActivity {
                                 .build()))
                 .build();
 
-        billingClient.queryProductDetailsAsync(params, (billingResult, productDetailsList) -> {
+        billingClient.queryProductDetailsAsync(params, (billingResult, queryResult) -> {
+            // Billing 8.0 changed this callback to deliver QueryProductDetailsResult
+            // instead of List<ProductDetails>.
+            final List<ProductDetails> productDetailsList = queryResult.getProductDetailsList();
             if (productDetailsList.isEmpty()) {
                 Log.e(LOG_TAG, "No product details for " + sku + " (" + billingResult.getResponseCode() + "). Is it an active managed product?");
                 return;
