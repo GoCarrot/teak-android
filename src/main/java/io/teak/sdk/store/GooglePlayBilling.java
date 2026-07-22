@@ -78,7 +78,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
     // The Play Billing version the host game actually ships, read reflectively. A direct reference
     // to BillingClient.BuildConfig.VERSION_NAME would inline to Teak's compileOnly version (7.1.1)
-    // at compile time; reading the field reflectively yields the real runtime version (7, 8, or 9).
+    // at compile time; reading the field reflectively yields the real runtime version (6, 7, 8, or 9).
     // Best-effort — returns "unknown" if the constant can't be read.
     private static String billingLibraryVersion() {
         try {
@@ -127,8 +127,8 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         }
     }
 
-    // The one version-divergent call. Billing 7 invokes the listener with a List<ProductDetails>;
-    // billing 8+ invokes it with a QueryProductDetailsResult. We implement whichever
+    // Billing 6-7 invokes the listener with a List<ProductDetails>; billing 8+ invokes it with a
+    // QueryProductDetailsResult. We implement whichever
     // ProductDetailsResponseListener the runtime declares via a dynamic proxy so the same code
     // links against every version, and normalize the second argument in onProductDetails.
     private ProductDetailsResponseListener productDetailsListener(final String purchaseSku, final Map<String, Object> payload) {
@@ -168,7 +168,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         }
     }
 
-    // Billing 7: the argument is already the List<ProductDetails>. Billing 8+: it is a
+    // Billing 6-7: the argument is already the List<ProductDetails>. Billing 8+: it is a
     // QueryProductDetailsResult whose getProductDetailsList() yields the List. Reflection is
     // confined to this single unwrap — there is no second code path to fall into.
     // Package-private so the version-divergence unwrap is unit-testable without a real BillingClient.

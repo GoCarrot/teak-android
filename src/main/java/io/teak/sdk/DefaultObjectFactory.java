@@ -129,7 +129,7 @@ public class DefaultObjectFactory implements IObjectFactory {
         } else {
             try {
                 // Check if the billing library is present at all, then use the single
-                // GooglePlayBilling store — it is runtime-compatible across billing 7, 8, and 9.
+                // GooglePlayBilling store — it is runtime-compatible across billing 6, 7, 8, and 9.
                 Class.forName("com.android.billingclient.api.BillingClient");
                 clazz = Class.forName("io.teak.sdk.store.GooglePlayBilling");
             } catch (Throwable e) {
