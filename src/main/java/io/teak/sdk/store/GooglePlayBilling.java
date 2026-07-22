@@ -134,9 +134,10 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     // Billing 7: the argument is already the List<ProductDetails>. Billing 8+: it is a
     // QueryProductDetailsResult whose getProductDetailsList() yields the List. Reflection is
     // confined to this single unwrap — there is no second code path to fall into.
+    // Package-private so the version-divergence unwrap is unit-testable without a real BillingClient.
     @SuppressWarnings("unchecked")
     @Nullable
-    private static List<ProductDetails> normalizeProductDetails(@Nullable Object response) {
+    static List<ProductDetails> normalizeProductDetails(@Nullable Object response) {
         if (response instanceof List) {
             return (List<ProductDetails>) response;
         }
