@@ -42,11 +42,14 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     private final BillingClient billingClient;
 
     public GooglePlayBilling(Context context) {
+        // Log the version before registering so a failure in build()/startConnection() still
+        // tells us which billing version was being set up.
+        Teak.log.i("billing.google", "Registering Google Play Billing.", Helpers.mm.h("billing_version", billingLibraryVersion()));
+
         this.billingClient = BillingClient.newBuilder(context)
                                  .setListener(this)
                                  .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
                                  .build();
-        Teak.log.i("billing.google", "Google Play Billing registered.", Helpers.mm.h("billing_version", billingLibraryVersion()));
 
         this.billingClient.startConnection(this);
     }
@@ -132,9 +135,9 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
                 payload.put("price_amount_micros", otpDetails.getPriceAmountMicros());
                 payload.put("price_currency_code", otpDetails.getPriceCurrencyCode());
 
-                Teak.log.i("billing.google.sku", "SKU Details retrieved.", Helpers.mm.h(purchaseSku, otpDetails.getPriceAmountMicros()));
+                Teak.log.i("billing.google.sku", "SKU Details retrieved.", payload);
             } else {
-                Teak.log.e("billing.google.sku", "SKU Details query failed.");
+                Teak.log.e("billing.google.sku", "SKU Details query failed.", payload);
             }
 
             TeakEvent.postEvent(new PurchaseEvent(payload));
