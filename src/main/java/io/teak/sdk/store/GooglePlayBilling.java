@@ -29,15 +29,18 @@ import io.teak.sdk.Unobfuscable;
 import io.teak.sdk.event.PurchaseEvent;
 
 // Single Google Play Billing store. Teak compiles against billing 7.1.1 but the host game
-// supplies the runtime library; this class is runtime-compatible across billing 7, 8, and 9.
+// supplies the runtime library; this class is runtime-compatible across billing 6, 7, 8, and 9.
 //
-// Only one billing API the tracking path uses diverges across those versions: the
-// product-details query callback hands back a List<ProductDetails> on 7 and a
-// QueryProductDetailsResult on 8+. That listener is registered through a dynamic proxy whose
-// sole job is to normalize the second argument back to List<ProductDetails>. Every other call —
-// client construction, enablePendingPurchases, purchases-updated, the product-details query
-// itself, and the price read — is a single native call site valid on all three versions
-// (verified against the 7.1.1 / 8.3.0 / 9.1.0 runtime interfaces).
+// Two billing APIs the tracking path uses diverge across those versions:
+// - enablePendingPurchases: 6.x only has the no-arg overload (PendingPurchasesParams doesn't
+//   exist below billing 7.0); 7.x has both; 8+ only has the PendingPurchasesParams overload (the
+//   no-arg one was removed). Gated by a Class.forName check on PendingPurchasesParams.
+// - the product-details query callback hands back a List<ProductDetails> on 6-7 and a
+//   QueryProductDetailsResult on 8+. That listener is registered through a dynamic proxy whose
+//   sole job is to normalize the second argument back to List<ProductDetails>.
+// Every other call — client construction, purchases-updated, the product-details query itself,
+// and the price read — is a single native call site valid on all four versions (verified against
+// the 6.2.1 / 7.1.1 / 8.3.0 / 9.1.0 runtime interfaces).
 public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
     private final BillingClient billingClient;
 
@@ -46,12 +49,31 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         // tells us which billing version was being set up.
         Teak.log.i("billing.google", "Registering Google Play Billing.", Helpers.mm.h("billing_version", billingLibraryVersion()));
 
-        this.billingClient = BillingClient.newBuilder(context)
-                                 .setListener(this)
-                                 .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
-                                 .build();
+        this.billingClient = enablePendingPurchases(BillingClient.newBuilder(context).setListener(this)).build();
 
         this.billingClient.startConnection(this);
+    }
+
+    // billing 7+ has the PendingPurchasesParams-typed overload; billing 6.x only has the
+    // deprecated no-arg one (removed again in 8+, which is why 7+ always prefers the typed
+    // overload here). Gate on class presence rather than calling the no-arg overload
+    // unconditionally, since that one doesn't exist at all on 8+.
+    private static BillingClient.Builder enablePendingPurchases(BillingClient.Builder builder) {
+        if (pendingPurchasesParamsAvailable()) {
+            return builder.enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build());
+        }
+        return builder.enablePendingPurchases();
+    }
+
+    // Package-private so the version gate is unit-testable without a real BillingClient.Builder
+    // (which needs the Android runtime, per CreateStoreTest).
+    static boolean pendingPurchasesParamsAvailable() {
+        try {
+            Class.forName("com.android.billingclient.api.PendingPurchasesParams");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 
     // The Play Billing version the host game actually ships, read reflectively. A direct reference
