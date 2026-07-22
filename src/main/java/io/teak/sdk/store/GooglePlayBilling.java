@@ -49,7 +49,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         // tells us which billing version was being set up.
         Teak.log.i("billing.google", "Registering Google Play Billing.", Helpers.mm.h("billing_version", billingLibraryVersion()));
 
-        this.billingClient = enablePendingPurchases(BillingClient.newBuilder(context).setListener(this)).build();
+        this.billingClient = enablePendingPurchases(BillingClient.newBuilder(context).setListener(this), pendingPurchasesParamsAvailable()).build();
 
         this.billingClient.startConnection(this);
     }
@@ -58,8 +58,13 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     // deprecated no-arg one (removed again in 8+, which is why 7+ always prefers the typed
     // overload here). Gate on class presence rather than calling the no-arg overload
     // unconditionally, since that one doesn't exist at all on 8+.
-    private static BillingClient.Builder enablePendingPurchases(BillingClient.Builder builder) {
-        if (pendingPurchasesParamsAvailable()) {
+    //
+    // Package-private + boolean-injectable so both selections are unit-testable against a mocked
+    // Builder — CI always runs against the 7.1.1 compileOnly floor, so pendingPurchasesParamsAvailable()
+    // itself can only ever probe "present" there; injecting the flag lets the no-arg (6.x) branch
+    // get a real regression guard too.
+    static BillingClient.Builder enablePendingPurchases(BillingClient.Builder builder, boolean pendingPurchasesParamsAvailable) {
+        if (pendingPurchasesParamsAvailable) {
             return builder.enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build());
         }
         return builder.enablePendingPurchases();
