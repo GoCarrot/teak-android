@@ -671,7 +671,8 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
     public static class Notification implements Unobfuscable {
         /**
          * Class used to communicate replies to:
-         * - {@link Notification#schedule(String, long, Map)} ()}
+         * - {@link Notification#schedule(String, long)}
+         * - {@link Notification#schedule(String, long, Map)}
          */
         public static class Reply implements Unobfuscable {
             public enum Status {
@@ -723,7 +724,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
 
         /**
          * Schedule a notification to be sent to the current user in the future
-         * @param creativeId     The identifier of the notification creative on the Teak dashboard.
+         * @param creativeId     The identifier of the notification creative on the Teak dashboard, this must already exist.
          * @param delayInSeconds The delay, in seconds, before sending the notification.
          * @return A {@link Future} for the {@link Reply} to this operation.
          */
@@ -741,7 +742,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
 
         /**
          * Schedule a notification to be sent to the current user in the future
-         * @param creativeId            The identifier of the notification creative on the Teak dashboard.
+         * @param creativeId            The identifier of the notification creative on the Teak dashboard, this must already exist.
          * @param delayInSeconds        The delay, in seconds, before sending the notification.
          * @param personalizationData   A dictionary containing parameters that the server can use for templating.
          * @return A {@link Future} for the {@link Reply} to this operation.
