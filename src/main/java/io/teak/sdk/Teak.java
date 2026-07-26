@@ -686,7 +686,8 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
     public static class Notification implements Unobfuscable {
         /**
          * Class used to communicate replies to:
-         * - {@link Notification#schedule(String, long, Map)} ()}
+         * - {@link Notification#schedule(String, long)}
+         * - {@link Notification#schedule(String, long, Map)}
          */
         public static class Reply implements Unobfuscable {
             public enum Status {
