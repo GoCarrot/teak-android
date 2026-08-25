@@ -127,9 +127,7 @@ public class TeakInstance implements Unobfuscable {
 
     void setMainActivity(Activity activity) {
         int newHashCode = activity.hashCode();
-        Teak.log.i("setMainActivity", Helpers.mm.h(
-            "oldHashCode", activityHashCode, "newHashCode", newHashCode, "name", activity.getComponentName().flattenToString()
-        ));
+        Teak.log.i("setMainActivity", Helpers.mm.h("oldHashCode", activityHashCode, "newHashCode", newHashCode, "name", activity.getComponentName().flattenToString()));
         this.mainActivity = activity;
         this.activityHashCode = newHashCode;
     }
@@ -561,10 +559,7 @@ public class TeakInstance implements Unobfuscable {
     private int activityHashCode;
 
     private void lifecycleTrace(String method, Activity activity) {
-        Teak.log.i("lifecycle_trace", Helpers.mm.h(
-            "callback", method, "name", activity.getComponentName().flattenToString(),
-            "ourHashCode", activityHashCode, "theirHashCode", activity.hashCode()
-        ));
+        Teak.log.i("lifecycle_trace", Helpers.mm.h("callback", method, "name", activity.getComponentName().flattenToString(), "ourHashCode", activityHashCode, "theirHashCode", activity.hashCode()));
     }
 
     // Needs to be public for TeakInitProvider
@@ -686,14 +681,13 @@ public class TeakInstance implements Unobfuscable {
     public void requestNotificationPermissions() {
         Teak.log.i("instance.requestNotificationPermissions", "trace");
         // Android pre 13 has no notification permissions.
-        if(Build.VERSION.SDK_INT < 33) {
+        if (Build.VERSION.SDK_INT < 33) {
             Teak.log.i("instance.requestNotificationPermissions", "Android < 13");
             return;
         }
 
         int permissionInfo = ContextCompat.checkSelfPermission(
-            this.context, Teak.NOTIFICATION_PERMISSION
-        );
+            this.context, Teak.NOTIFICATION_PERMISSION);
 
         if (permissionInfo == PackageManager.PERMISSION_GRANTED) {
             Teak.log.i("instance.requestNotificationPermissions", "Permission  granted");
@@ -708,7 +702,6 @@ public class TeakInstance implements Unobfuscable {
 
     ///// Permissions handling
     public void onNotificationPermissionResult(boolean result) {
-
     }
 
     ///// Built-in deep links

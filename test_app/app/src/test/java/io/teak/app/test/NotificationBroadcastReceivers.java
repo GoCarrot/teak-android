@@ -63,7 +63,7 @@ public class NotificationBroadcastReceivers {
 
         final PackageManager packageManager = mock(PackageManager.class);
         when(packageManager.getApplicationInfo(any(String.class), any(int.class))).thenReturn(applicationInfo);
-        
+
         final Resources resources = mock(Resources.class);
         when(resources.getIdentifier("config_notificationStripRemoteViewSizeBytes", "integer", "android")).thenReturn(0);
 

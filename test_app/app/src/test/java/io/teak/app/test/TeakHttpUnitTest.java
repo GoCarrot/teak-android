@@ -42,19 +42,19 @@ public class TeakHttpUnitTest extends TeakUnitTest {
         Request.registerStaticEventListeners();
         final AppConfiguration appConfiguration = mock(AppConfiguration.class);
         final RemoteConfiguration remoteConfiguration =
-                new RemoteConfiguration(appConfiguration,
-                        "127.0.0.1",
-                        null,
-                        null,
-                        "mock_gcm_sender_id",
-                        "mock_firebase_app_id",
-                        false,
-                        false,
-                        null,
-                        null,
-                        600,
-                        new ArrayList<Teak.Channel.Category>(),
-                        true);
+            new RemoteConfiguration(appConfiguration,
+                "127.0.0.1",
+                null,
+                null,
+                "mock_gcm_sender_id",
+                "mock_firebase_app_id",
+                false,
+                false,
+                null,
+                null,
+                600,
+                new ArrayList<Teak.Channel.Category>(),
+                true);
         TeakEvent.postEvent(new RemoteConfigurationEvent(remoteConfiguration));
     }
 

@@ -74,26 +74,26 @@ public class MainActivity extends AppCompatActivity {
     public void doTheThing(Teak.RewardClaimEvent event) {
         TeakNotification.Reward rewardInfo = event.reward;
         String rewardId = rewardInfo.json.getString("teakRewardId");
-        switch(rewardInfo.status) {
-        case TeakNotification.Reward.GRANT_REWARD: {
-          Map<String, Object> reward = rewardInfo.json.getJSONObject("reward").toMap();
-          Log.d("TeakExample.Reward", "Reward with id " + rewardId + "Granted! " + reward.toString());
-        } break;
-        case TeakNotification.Reward.ALREADY_CLICKED: {
-          Log.d("TeakExample.Reward", "You already claimed this reward!");
-        } break;
-        case TeakNotification.Reward.EXPIRED: {
-          Log.d("TeakExample.Reward", "The reward has expired");
-        } break;
-        case TeakNotification.Reward.TOO_MANY_CLICKS: {
-          Log.d("TeakExample.Reward", "Too many other players already claimed this reward");
-        } break;
-        case TeakNotification.Reward.EXCEED_MAX_CLICKS_FOR_DAY: {
-          Log.d("TeakExample.Reward", "You've already claimed too many rewards today");
-        } break;
-        default: {
-          Log.d("TeakExample.Reward", "The reward was rejected for a different reason: " + rewardInfo.json.getString("status"));
-        }
+        switch (rewardInfo.status) {
+            case TeakNotification.Reward.GRANT_REWARD: {
+                Map<String, Object> reward = rewardInfo.json.getJSONObject("reward").toMap();
+                Log.d("TeakExample.Reward", "Reward with id " + rewardId + "Granted! " + reward.toString());
+            } break;
+            case TeakNotification.Reward.ALREADY_CLICKED: {
+                Log.d("TeakExample.Reward", "You already claimed this reward!");
+            } break;
+            case TeakNotification.Reward.EXPIRED: {
+                Log.d("TeakExample.Reward", "The reward has expired");
+            } break;
+            case TeakNotification.Reward.TOO_MANY_CLICKS: {
+                Log.d("TeakExample.Reward", "Too many other players already claimed this reward");
+            } break;
+            case TeakNotification.Reward.EXCEED_MAX_CLICKS_FOR_DAY: {
+                Log.d("TeakExample.Reward", "You've already claimed too many rewards today");
+            } break;
+            default: {
+                Log.d("TeakExample.Reward", "The reward was rejected for a different reason: " + rewardInfo.json.getString("status"));
+            }
         }
         if (event.reward != null) {
             final StringBuilder rewardString = new StringBuilder("You got ");
@@ -117,10 +117,10 @@ public class MainActivity extends AppCompatActivity {
                 builder = new AlertDialog.Builder(MainActivity.this);
             }
             builder.setTitle("Reward!")
-                    .setMessage(rewardString.toString())
-                    .setPositiveButton(android.R.string.yes, null)
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
+                .setMessage(rewardString.toString())
+                .setPositiveButton(android.R.string.yes, null)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
         }
     }
 
@@ -177,7 +177,7 @@ public class MainActivity extends AppCompatActivity {
         Teak.registerDeepLink("/store/:sku", "Store", "Link directly to purchase an item", new Teak.DeepLink() {
             @Override
             public void call(Map<String, Object> parameters) {
-                String sku = (String)parameters.get("sku");
+                String sku = (String) parameters.get("sku");
                 showPurchaseDialogForSku(sku);
             }
         });
@@ -195,10 +195,10 @@ public class MainActivity extends AppCompatActivity {
                             builder = new AlertDialog.Builder(MainActivity.this);
                         }
                         builder.setTitle("Slot!")
-                                .setMessage(parameters.get("slot_id").toString())
-                                .setPositiveButton(android.R.string.yes, null)
-                                .setIcon(android.R.drawable.ic_dialog_alert)
-                                .show();
+                            .setMessage(parameters.get("slot_id").toString())
+                            .setPositiveButton(android.R.string.yes, null)
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
                     }
                 });
             }
@@ -279,15 +279,15 @@ public class MainActivity extends AppCompatActivity {
             animated.put("width", 512);
             animated.put("height", 256);*/
 
-            animated.put("sprite_sheet", "https://assets.teakcdn.com/creative_translations-media/53532/original-base64Default.txt?1518130762");//"assets:///teak-slots-banner-sprite.jpg");
+            animated.put("sprite_sheet", "https://assets.teakcdn.com/creative_translations-media/53532/original-base64Default.txt?1518130762"); //"assets:///teak-slots-banner-sprite.jpg");
             animated.put("display_ms", 200);
             animated.put("width", 1920);
             animated.put("height", 225);
 
-            //teak_notif_animated.put("text", "This is the text that doesn't end. Yes it goes on and on my friend. Some people started translating not knowing what it was, and they'll blow their translation budget just because...");
-            //teak_notif_animated.put("view_animator", animated);
+            // teak_notif_animated.put("text", "This is the text that doesn't end. Yes it goes on and on my friend. Some people started translating not knowing what it was, and they'll blow their translation budget just because...");
+            // teak_notif_animated.put("view_animator", animated);
             teak_notif_animated.put("left_image", "BUILTIN_APP_ICON");
-            //teak_notif_animated.put("left_image", "NONE");
+            // teak_notif_animated.put("left_image", "NONE");
             teak_notif_animated.put("notification_background", "assets:///AndroidPushGrid.png");
         } catch (Exception ignored) {
         }
@@ -313,7 +313,7 @@ public class MainActivity extends AppCompatActivity {
             animated.put("width", 2000);
             animated.put("height", 2000);
 
-            //teak_big_notif_image_text.put("text", "This is the text that doesn't end. Yes it goes on and on my friend. Some people started translating not knowing what it was, and they'll blow their translation budget just because...");
+            // teak_big_notif_image_text.put("text", "This is the text that doesn't end. Yes it goes on and on my friend. Some people started translating not knowing what it was, and they'll blow their translation budget just because...");
             teak_big_notif_image_text.put("view_animator", animated);
         } catch (Exception ignored) {
         }
@@ -321,13 +321,13 @@ public class MainActivity extends AppCompatActivity {
         // Display
         JSONObject display = new JSONObject();
         try {
-            //display.put("contentView", "teak_notif_animated");
-            //display.put("teak_notif_animated", teak_notif_animated);
+            // display.put("contentView", "teak_notif_animated");
+            // display.put("teak_notif_animated", teak_notif_animated);
             display.put("contentView", "teak_notif_no_title");
             display.put("teak_notif_no_title", teak_notif_animated);
 
-            //display.put("bigContentView", "teak_big_notif_image_text");
-            //display.put("teak_big_notif_image_text", teak_big_notif_image_text);
+            // display.put("bigContentView", "teak_big_notif_image_text");
+            // display.put("teak_big_notif_image_text", teak_big_notif_image_text);
             display.put("bigContentView", "teak_big_notif_animated");
             display.put("teak_big_notif_animated", teak_big_notif_image_text);
         } catch (Exception ignored) {
@@ -372,13 +372,13 @@ public class MainActivity extends AppCompatActivity {
         moveTaskToBack(true);
 
         // Simulate Notification
-//        final Handler handler = new Handler();
-//        handler.postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                simulateNotification(MainActivity.this);
-//            }
-//        }, 1000);
+        //        final Handler handler = new Handler();
+        //        handler.postDelayed(new Runnable() {
+        //            @Override
+        //            public void run() {
+        //                simulateNotification(MainActivity.this);
+        //            }
+        //        }, 1000);
     }
 
     public void makePurchase(View view) {
@@ -386,13 +386,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void crashApp(View view) {
-//        throw new RuntimeException("I crashed the app!");
-//        Teak.log.exception(new Raven.ReportTestException(Teak.SDKVersion));
-//        Teak.incrementEvent("debug_increment", null, null, 5);
-//        android.os.Process.sendSignal(android.os.Process.myPid(), android.os.Process.SIGNAL_QUIT);
-//        Teak.setChannelState(Teak.Channel.Type.PlatformPush, Teak.Channel.State.Available);
-//        Teak.openNotificationSettings();
-//        Teak.Notification.schedule("test_none", 5);
+        //        throw new RuntimeException("I crashed the app!");
+        //        Teak.log.exception(new Raven.ReportTestException(Teak.SDKVersion));
+        //        Teak.incrementEvent("debug_increment", null, null, 5);
+        //        android.os.Process.sendSignal(android.os.Process.myPid(), android.os.Process.SIGNAL_QUIT);
+        //        Teak.setChannelState(Teak.Channel.Type.PlatformPush, Teak.Channel.State.Available);
+        //        Teak.openNotificationSettings();
+        //        Teak.Notification.schedule("test_none", 5);
         Log.d(LOG_TAG, Teak.Channel.getCategoriesJson());
     }
 
@@ -475,10 +475,10 @@ public class MainActivity extends AppCompatActivity {
             wm.getDefaultDisplay().getMetrics(displayMetrics);
         }
         deviceMetricsView.setText(String.format(Locale.US, "device_memory_class: %d\nxdpi: %f\nydpi: %f\nwidth: %d\nheight: %d\ndensity: %f\ndensity_dpi: %d\nscaled_density: %f",
-                deviceMemoryClass,
-                displayMetrics.xdpi, displayMetrics.ydpi,
-                displayMetrics.widthPixels, displayMetrics.heightPixels,
-                displayMetrics.density, displayMetrics.densityDpi, displayMetrics.scaledDensity));
+            deviceMemoryClass,
+            displayMetrics.xdpi, displayMetrics.ydpi,
+            displayMetrics.widthPixels, displayMetrics.heightPixels,
+            displayMetrics.density, displayMetrics.densityDpi, displayMetrics.scaledDensity));
 
         // Really special
         final Configuration configuration = getResources().getConfiguration();
@@ -497,7 +497,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onServiceConnected(ComponentName name,
-                                       IBinder service) {
+            IBinder service) {
             mService = IInAppBillingService.Stub.asInterface(service);
 
             // Clear inventory
@@ -506,7 +506,7 @@ public class MainActivity extends AppCompatActivity {
                     Bundle ownedItems = mService.getPurchases(3, getPackageName(), "inapp", null);
                     int response = ownedItems.getInt("RESPONSE_CODE");
                     if (response == 0) {
-                        ArrayList<String>  purchaseDataList = ownedItems.getStringArrayList("INAPP_PURCHASE_DATA_LIST");
+                        ArrayList<String> purchaseDataList = ownedItems.getStringArrayList("INAPP_PURCHASE_DATA_LIST");
 
                         for (int i = 0; i < purchaseDataList.size(); ++i) {
                             String purchaseData = purchaseDataList.get(i);
@@ -520,7 +520,7 @@ public class MainActivity extends AppCompatActivity {
 
                             // do something with this purchase information
                             // e.g. display the updated list of products owned by user
-                            //response =
+                            // response =
                         }
 
                         // if continuationToken != null, call getPurchases again

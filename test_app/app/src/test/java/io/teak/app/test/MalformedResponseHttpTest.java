@@ -47,9 +47,9 @@ public class MalformedResponseHttpTest extends TeakHttpUnitTest {
     @Test
     public void htmlBodyFromEndpointFallsBackToEmptyJsonAndLogsBreadcrumb() throws Throwable {
         stubFor(post(urlEqualTo("/me/channel_state.json"))
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withBody("<html><body><h1>502 Bad Gateway</h1></body></html>")));
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withBody("<html><body><h1>502 Bad Gateway</h1></body></html>")));
 
         Raven raven = new Raven(context, "sdk", TeakConfiguration.get(), objectFactory);
         Teak.log.setSdkRaven(raven);

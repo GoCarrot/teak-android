@@ -436,7 +436,7 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
     public static void requestNotificationPermissions() {
         Teak.log.i("Teak.requestNotificationPermissions", "Hello");
 
-        if(Instance != null) {
+        if (Instance != null) {
             asyncExecutor.submit(() -> Instance.requestNotificationPermissions());
         }
     }

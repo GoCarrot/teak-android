@@ -100,9 +100,9 @@ public class DeepLinkRoutes extends TeakUnitTest {
     @Test
     public void queryWithPercentInTeakCreativeName() throws Exception {
         assertQueryDecoding("/store/item123"
-                + "?teak_notif_id=99999"
-                + "&teak_creative_name=50%25%20Off%20Sale"
-                + "&teak_schedule_name=Summer%20Promo",
+                                + "?teak_notif_id=99999"
+                                + "&teak_creative_name=50%25%20Off%20Sale"
+                                + "&teak_schedule_name=Summer%20Promo",
             "sku", "item123",
             "teak_notif_id", "99999",
             "teak_creative_name", "50% Off Sale",
@@ -113,9 +113,9 @@ public class DeepLinkRoutes extends TeakUnitTest {
     @Test
     public void queryWithPercentInTeakScheduleName() throws Exception {
         assertQueryDecoding("/store/item123"
-                + "?teak_notif_id=88888"
-                + "&teak_creative_name=Weekend%20Creative"
-                + "&teak_schedule_name=100%25%20Boost%20Weekend",
+                                + "?teak_notif_id=88888"
+                                + "&teak_creative_name=Weekend%20Creative"
+                                + "&teak_schedule_name=100%25%20Boost%20Weekend",
             "sku", "item123",
             "teak_notif_id", "88888",
             "teak_creative_name", "Weekend Creative",
