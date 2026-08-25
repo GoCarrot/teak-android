@@ -24,10 +24,6 @@ if [ -z "$CLANG_FORMAT" ] && command -v brew >/dev/null 2>&1; then
     CLANG_FORMAT="$(brew --prefix clang-format 2>/dev/null)/bin/clang-format"
 fi
 
-# remove any older patches from previous commits. Set to true or false.
-# DELETE_OLD_PATCHES=false
-DELETE_OLD_PATCHES=false
-
 # only parse files with the extensions in FILE_EXTS. Set to true or false.
 # if false every changed file in the commit will be parsed with clang-format.
 # if true only files matching one of the extensions are parsed with clang-format.
@@ -119,13 +115,12 @@ if [ ! -x "$CLANG_FORMAT" ] ; then
     exit 1
 fi
 
-# create a random filename to store our generated patch
-prefix="pre-commit-clang-format"
-suffix="$(date +%s)"
-patch="/tmp/$prefix-$suffix.patch"
-
-# clean up any older clang-format patches
-$DELETE_OLD_PATCHES && rm -f /tmp/$prefix*.patch
+# create a uniquely-named file to store our generated patch. A whole-second
+# timestamp (the previous scheme) collides between two hook runs in the same
+# second -- the second run's empty-patch-means-clean check then sees the first
+# run's leftover, non-empty file and rejects a clean commit citing a stale
+# diff. mktemp sidesteps that entirely instead of just cleaning up after it.
+patch="$(mktemp -t pre-commit-clang-format)"
 
 # create one patch containing all changes to the files
 git diff-index --cached --diff-filter=ACMR --name-only $against -- | while read file;
