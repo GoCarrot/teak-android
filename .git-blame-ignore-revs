@@ -1,0 +1,6 @@
+# Commits listed here are ignored by `git blame` (GitHub honors this file
+# automatically; locally: `git blame --ignore-revs-file .git-blame-ignore-revs`
+# or `git config blame.ignoreRevsFile .git-blame-ignore-revs`).
+
+# Bring the tree conformant to clang-format (C-1231)
+d7857bc13b71338c01b812ef9c0bd6fe4aff3b62
