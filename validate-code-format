@@ -38,8 +38,10 @@ PARSE_EXTS=true
 # FILE_EXTS=".c .h .cpp .hpp"
 FILE_EXTS=".c .h .cpp .hpp .cc .hh .cxx .m .java"
 
-# vendored paths excluded from formatting/validation (mirrors format-code's prune list)
-VENDORED_PATHS="src/main/java/io/teak/sdk/shortcutbadger src/main/java/io/teak/sdk/json"
+# vendored paths excluded from formatting/validation -- shared with format-code
+# via format-vendored-paths so the two scripts can't drift out of sync.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENDORED_PATHS="$(tr '\n' ' ' < "$SCRIPT_DIR/format-vendored-paths")"
 
 ##################################################################
 # There should be no need to change anything below this line.

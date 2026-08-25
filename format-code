@@ -2,4 +2,29 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-find src \( -path src/main/java/io/teak/sdk/shortcutbadger -o -path src/main/java/io/teak/sdk/json \) -prune -o -type f -name "*.java" -print | xargs clang-format -style=file -i
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Formats every tracked .java file -- the same set validate-code-format enforces
+# (all tracked .java, minus the vendored paths in format-vendored-paths, shared
+# with validate-code-format so the two scripts can't drift out of sync again).
+VENDORED_PATHS=()
+while IFS= read -r line; do
+    [ -n "$line" ] && VENDORED_PATHS+=("$line")
+done < "$SCRIPT_DIR/format-vendored-paths"
+
+is_vendored_path() {
+    local filename="$1"
+    local vendored
+
+    for vendored in "${VENDORED_PATHS[@]}"; do
+        case "$filename" in
+            "$vendored"/*) return 0 ;;
+        esac
+    done
+
+    return 1
+}
+
+git ls-files -- '*.java' | while read -r file; do
+    is_vendored_path "$file" || printf '%s\0' "$file"
+done | xargs -0 clang-format -style=file -i
