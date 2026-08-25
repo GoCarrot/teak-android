@@ -28,7 +28,7 @@ These run in CI and will fail the build if violated:
 - **`./org_json_check`** — No imports of `org.json.*` allowed. Must use vendored `io.teak.sdk.json.*` (exists to avoid Android API < 19 differences).
 - **`./check_thread_use`** — No direct `import java.util.concurrent.Executors` except in `Executors.java`. All executor creation goes through `io.teak.sdk.core.Executors`.
 
-`./validate-code-format` is **not** run by CI — it's local-only, wired up as a pre-commit hook (`pre-commit` → `./validate-code-format`). It's the sole enforcement point for clang-format style, including `.java`.
+`./validate-code-format` is **not** run by CI — it's local-only, wired up as a pre-commit hook (`pre-commit` → `./validate-code-format`). It's the sole enforcement point for clang-format style, including `.java`. The hook installs (and self-repairs) itself automatically on every root `./gradlew` invocation (not `test_app/`'s or `example/`'s, which are separate Gradle projects), so there's no separate setup step to remember for the common case; it's still opt-out via `git commit --no-verify` like any hook.
 
 ## Code Style
 
