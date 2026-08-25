@@ -120,7 +120,9 @@ fi
 # second -- the second run's empty-patch-means-clean check then sees the first
 # run's leftover, non-empty file and rejects a clean commit citing a stale
 # diff. mktemp sidesteps that entirely instead of just cleaning up after it.
-patch="$(mktemp -t pre-commit-clang-format)"
+# explicit XXXXXXXX template rather than `mktemp -t <prefix>`: the latter's
+# behavior differs between BSD/macOS and GNU coreutils mktemp, untested here.
+patch="$(mktemp "${TMPDIR:-/tmp}/pre-commit-clang-format.XXXXXXXX")"
 
 # create one patch containing all changes to the files
 git diff-index --cached --diff-filter=ACMR --name-only $against -- | while read file;
