@@ -159,9 +159,9 @@ public class MainActivity extends AppCompatActivity {
         // For debugging
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder()
-                    .detectNonSdkApiUsage()
-                    .penaltyLog()
-                    .build());
+                                       .detectNonSdkApiUsage()
+                                       .penaltyLog()
+                                       .build());
         }
 
         // Set up view

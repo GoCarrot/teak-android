@@ -15,13 +15,14 @@
 ##################################################################
 # SETTINGS
 # locate the clang-format binary: prefer whatever's on PATH, fall back to
-# the Homebrew prefix (covers both Apple Silicon /opt/homebrew and Intel
-# /usr/local without hardcoding either).
-# Baseline verified against clang-format 21.1.8 -- a different version can
-# produce spurious diffs on otherwise-conformant files.
+# Homebrew's versioned llvm@18 keg (covers both Apple Silicon /opt/homebrew
+# and Intel /usr/local without hardcoding either). CI enforces against
+# Ubuntu's plain `clang-format` package (also major version 18); this isn't
+# byte-pinned to a patch release on either side, so CI is the source of
+# truth if local output ever disagrees with it.
 CLANG_FORMAT="$(command -v clang-format || true)"
 if [ -z "$CLANG_FORMAT" ] && command -v brew >/dev/null 2>&1; then
-    CLANG_FORMAT="$(brew --prefix clang-format 2>/dev/null)/bin/clang-format"
+    CLANG_FORMAT="$(brew --prefix llvm@18 2>/dev/null)/bin/clang-format"
 fi
 
 # only parse files with the extensions in FILE_EXTS. Set to true or false.

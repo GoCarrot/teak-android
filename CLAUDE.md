@@ -27,13 +27,13 @@ These run in CI and will fail the build if violated:
 
 - **`./org_json_check`** — No imports of `org.json.*` allowed. Must use vendored `io.teak.sdk.json.*` (exists to avoid Android API < 19 differences).
 - **`./check_thread_use`** — No direct `import java.util.concurrent.Executors` except in `Executors.java`. All executor creation goes through `io.teak.sdk.core.Executors`.
-- **clang-format compliance** — CI runs `./format-code` (which reformats every tracked `.java` file except the vendored `shortcutbadger/`/`json/` trees, listed in `format-vendored-paths`) and fails the build on any resulting diff. clang-format is installed in CI from a version-pinned, checksum-verified download — not `apt`, which doesn't offer this exact patch release. This is the sole enforcement point for clang-format style now; it is a CI check, not a git hook, by design.
+- **clang-format compliance** — CI runs `./format-code` (which reformats every tracked `.java` file except the vendored `shortcutbadger/`/`json/` trees, listed in `format-vendored-paths`) and fails the build on any resulting diff. clang-format is installed with `apt-get install clang-format` (major version 18 on the current CI image) — deliberately the simplest available install, not byte-pinned to a patch release. This is the sole enforcement point for clang-format style now; it is a CI check, not a git hook, by design.
 
 `./validate-code-format` and `pre-commit` still exist for anyone who wants instant local feedback before pushing (`./pre-commit` runs it), but nothing installs either automatically — wire it up yourself (e.g. `ln -s ../../pre-commit .git/hooks/pre-commit`) if you want it.
 
 ## Code Style
 
-- **clang-format** enforced (config in `.clang-format`); baseline-verified against clang-format 21.1.8 — a different version can produce spurious diffs on otherwise-conformant files
+- **clang-format** enforced (config in `.clang-format`); CI installs it via `apt-get install clang-format` (major version 18). Locally, `brew install llvm@18` matches the major version; CI is the source of truth if local output ever disagrees at the patch level
 - 4-space indent, no column limit, K&R braces
 - `BreakAfterJavaFieldAnnotations: true`
 - Vendored code (`shortcutbadger/`, `json/`) is excluded from formatting and linting

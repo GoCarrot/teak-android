@@ -63,9 +63,9 @@ public class GooglePlayBillingV5 implements Unobfuscable, IStore, PurchasesUpdat
                     final QueryProductDetailsParams params = QueryProductDetailsParams
                                                                  .newBuilder()
                                                                  .setProductList(Collections.singletonList(QueryProductDetailsParams.Product.newBuilder()
-                                                                         .setProductId(purchaseSku)
-                                                                         .setProductType(BillingClient.ProductType.SUBS)
-                                                                         .build()))
+                                                                                                               .setProductId(purchaseSku)
+                                                                                                               .setProductType(BillingClient.ProductType.SUBS)
+                                                                                                               .build()))
                                                                  .build();
 
                     this.billingClient.queryProductDetailsAsync(params, (ignored, productDetailsList) -> {

@@ -155,9 +155,9 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
                     if (intentData.getBooleanQueryParameter("teak_strict_mode", false)) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                             StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder()
-                                    .detectNonSdkApiUsage()
-                                    .penaltyLog()
-                                    .build());
+                                                       .detectNonSdkApiUsage()
+                                                       .penaltyLog()
+                                                       .build());
                         }
                     }
                 }
