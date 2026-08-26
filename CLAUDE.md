@@ -27,8 +27,9 @@ These run in CI and will fail the build if violated:
 
 - **`./org_json_check`** — No imports of `org.json.*` allowed. Must use vendored `io.teak.sdk.json.*` (exists to avoid Android API < 19 differences).
 - **`./check_thread_use`** — No direct `import java.util.concurrent.Executors` except in `Executors.java`. All executor creation goes through `io.teak.sdk.core.Executors`.
+- **clang-format compliance** — CI runs `./format-code` (which reformats every tracked `.java` file except the vendored `shortcutbadger/`/`json/` trees, listed in `format-vendored-paths`) and fails the build on any resulting diff. clang-format is installed in CI from a version-pinned, checksum-verified download — not `apt`, which doesn't offer this exact patch release. This is the sole enforcement point for clang-format style now; it is a CI check, not a git hook, by design.
 
-`./validate-code-format` is **not** run by CI — it's local-only, wired up as a pre-commit hook (`pre-commit` → `./validate-code-format`). It's the sole enforcement point for clang-format style, including `.java`. The hook installs (and self-repairs) itself automatically on every root `./gradlew` invocation (not `test_app/`'s or `example/`'s, which are separate Gradle projects), so there's no separate setup step to remember for the common case; it's still opt-out via `git commit --no-verify` like any hook.
+`./validate-code-format` and `pre-commit` still exist for anyone who wants instant local feedback before pushing (`./pre-commit` runs it), but nothing installs either automatically — wire it up yourself (e.g. `ln -s ../../pre-commit .git/hooks/pre-commit`) if you want it.
 
 ## Code Style
 

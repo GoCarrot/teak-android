@@ -16,6 +16,35 @@ jobs:
       - run:
           name: Check for any usage of the org.json.* namespace
           command: ./org_json_check
+      - run:
+          name: Check clang-format compliance
+          command: |
+            # Pinned to the exact baseline validate-code-format/format-code are
+            # verified against (CLAUDE.md): a different clang-format version can
+            # produce spurious diffs on otherwise-conformant files, which would
+            # fail CI for reasons unrelated to the author's change. Installed from
+            # the clang-format PyPI wheel (a prebuilt binary, not a Python tool)
+            # rather than apt, since apt doesn't offer this exact patch version --
+            # sha256-verified so a tampered or wrong-version download hard-fails
+            # instead of silently drifting off the pin.
+            CLANG_FORMAT_VERSION="21.1.8"
+            CLANG_FORMAT_WHEEL_URL="https://files.pythonhosted.org/packages/a8/c2/403e7371b1ab0f6175d708ecc93cf18085ea9f903e8fe7d17c43df698f06/clang_format-21.1.8-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+            CLANG_FORMAT_WHEEL_SHA256="d12b864b596b80810cdd7f97556c485dc09cfe2952503958535f01359e025fbb"
+
+            curl -sSL -o /tmp/clang-format.whl "$CLANG_FORMAT_WHEEL_URL"
+            echo "$CLANG_FORMAT_WHEEL_SHA256  /tmp/clang-format.whl" | sha256sum -c -
+            unzip -oq /tmp/clang-format.whl -d /tmp/clang-format-pkg
+            chmod +x /tmp/clang-format-pkg/clang_format/data/bin/clang-format
+            export PATH="/tmp/clang-format-pkg/clang_format/data/bin:$PATH"
+
+            clang-format --version | grep -qF "$CLANG_FORMAT_VERSION" || {
+              echo "clang-format version mismatch: expected $CLANG_FORMAT_VERSION"
+              clang-format --version
+              exit 1
+            }
+
+            ./format-code
+            git diff --exit-code
       - restore_cache:
           key: v1-{{ checksum "build.gradle" }}-{{ checksum  "test_app/build.gradle" }}-{{ checksum "Gemfile.lock" }}
       - run:

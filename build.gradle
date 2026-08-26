@@ -12,36 +12,6 @@ apply plugin: 'com.android.library'
 
 import static groovy.io.FileType.FILES
 
-// Install/refresh the clang-format pre-commit hook on every Gradle invocation, so
-// enforcement can't silently go inert -- a hook a developer has to remember to
-// install manually just doesn't get installed. This
-// intentionally does not depend on --git-path resolving *this* worktree: hooks
-// live in the shared common git dir across all worktrees of a checkout, and the
-// hook body below re-resolves the currently active worktree at commit time via
-// `git rev-parse --show-toplevel`, so it always runs whichever worktree's tracked
-// pre-commit/validate-code-format is actually checked out.
-try {
-    def hooksPredicateOut = new ByteArrayOutputStream()
-    exec {
-        commandLine 'git', 'rev-parse', '--git-path', 'hooks/pre-commit'
-        workingDir project.rootDir
-        standardOutput = hooksPredicateOut
-        errorOutput = new ByteArrayOutputStream()
-    }
-    def hookFile = file(hooksPredicateOut.toString().trim())
-    def hookScript = '''#!/bin/bash
-set -euo pipefail
-exec "$(git rev-parse --show-toplevel)/pre-commit" "$@"
-'''
-    if (!hookFile.exists() || hookFile.text != hookScript) {
-        hookFile.parentFile.mkdirs()
-        hookFile.text = hookScript
-    }
-    hookFile.setExecutable(true)
-} catch (Exception e) {
-    logger.warn("Could not install git pre-commit hook (formatting won't be enforced locally): ${e.message}")
-}
-
 gradle.projectsEvaluated {
     android.libraryVariants.all { variant ->
 
