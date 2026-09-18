@@ -62,6 +62,14 @@ jobs:
       - store_test_results:
           path: test_app/app/build/test-results/
 
+  build_docs:
+    resource_class: small
+    docker:
+      - image: cimg/base:current
+    steps:
+      - teak/build-antora-playbook:
+          build_type: development
+
   tag_build:
     docker:
       - image: cimg/base:current
@@ -129,6 +137,14 @@ workflows:
 
   un-tagged-build:
     jobs:
+      - build_docs:
+          context:
+            - Antora
+          filters:
+            branches:
+              only: develop
+            tags:
+              ignore: /.*/
       - build:
           context:
             - Sentry
