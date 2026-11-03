@@ -86,7 +86,7 @@ image::unity::start/sendpreview.png[The Send Preview button, 600]
 [start=12]
 . If everything is set up properly, **the notification will show up** on your device!
 +
-image::unity::start/hello.jpg[The first notification on a device, 600]
+image::start/hello.jpg[The first notification on a device, 600]
 
 Congratulations, you've sent your first push notification using Teak!
 
