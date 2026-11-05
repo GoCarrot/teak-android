@@ -172,6 +172,8 @@ Teak notifications and links can grant rewards to your players. When a player op
 
 Subscribe to it the same way as any other event (see <<Subscribing to Events>>), then grant the reward in your game when the claim succeeds.
 
+Reward values may be fractional for games with fractional rewards enabled. Read fractions with `JSONObject.getDouble`. Fractional values arrive as doubles, so long or high-precision values can lose precision.
+
 .Handling a Reward Claim
 [source,java]
 ----
@@ -181,6 +183,7 @@ public void onRewardClaim(Teak.RewardClaimEvent event) {
   String rewardId = rewardInfo.json.getString("teakRewardId");
   switch(rewardInfo.status) {
     case TeakNotification.Reward.GRANT_REWARD: {
+      // e.g. {"coins": 50, "gems": 2.5}
       Map<String, Object> reward = rewardInfo.json.getJSONObject("reward").toMap();
       Log.d("TeakExample.Reward", "Reward with id " + rewardId + "Granted! " + reward.toString());
     } break;
