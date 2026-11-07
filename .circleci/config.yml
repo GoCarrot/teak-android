@@ -70,6 +70,17 @@ jobs:
       - teak/build-antora-playbook:
           build_type: development
 
+  changelog_check:
+    docker:
+      - image: cimg/node:lts
+    steps:
+      - checkout
+      - run:
+          name: Check changelog fragments
+          command: |
+            yarn install --frozen-lockfile
+            yarn changelog check
+
   tag_build:
     docker:
       - image: cimg/base:current
@@ -151,9 +162,14 @@ workflows:
           filters:
             tags:
               ignore: /.*/
+      - changelog_check:
+          filters:
+            tags:
+              ignore: /.*/
       - tag_build:
           requires:
             - build
+            - changelog_check
           filters:
             tags:
               ignore: /.*/
