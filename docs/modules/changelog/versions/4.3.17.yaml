@@ -1,0 +1,2 @@
+bug:
+  - "Automatic Google Play purchase tracking now works across Billing Library 6 through 9."

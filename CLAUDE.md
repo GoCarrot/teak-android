@@ -21,6 +21,17 @@ Teak Android SDK — a native Android library (AAR) providing push notifications
 # stripping fields used by test setup (NoSuchFieldException: eventListeners). Use debug tests.
 ```
 
+### Example app build flags (`example/`)
+
+The `example/` harness app takes gradle property overrides (`-P…`):
+
+```bash
+(cd example && ./gradlew :app:assembleGoogleDebug -PbillingVersion=9.1.0)   # Play Billing runtime version (default 8.3.0)
+(cd example && ./gradlew :app:assembleAmazonDebug -PamazonIap=appstore3x)   # Amazon IAP SDK variant: v2 | appstore3x | v2-drm (default v2)
+```
+
+`-PbillingVersion` links the example against that Play Billing version so you can exercise Teak's store path on 8.x/9.x without editing the build file (any 8.x/9.x value works as-is; 7.x also needs `MainActivity`'s product-details callback reverted to the `List<ProductDetails>` shape).
+
 ## CI Checks to Know About
 
 These run in CI and will fail the build if violated:
@@ -49,7 +60,7 @@ Single Gradle module (`com.android.library`). All SDK source under `src/main/jav
 | `io.teak.sdk.event` | Internal event types (`LifecycleEvent`, `PushNotificationEvent`, `UserIdEvent`, etc.) |
 | `io.teak.sdk.io` | Platform abstraction interfaces (`IAndroidResources`, `IHttpRequest`) and `Default*` implementations |
 | `io.teak.sdk.push` | Push providers: `FCMPushProvider`, `ADMPushProvider` |
-| `io.teak.sdk.store` | IAP tracking: `GooglePlayBillingV4`, `GooglePlayBillingV5`, `Amazon` |
+| `io.teak.sdk.store` | IAP tracking: `GooglePlayBilling`, `Amazon` |
 | `io.teak.sdk.wrapper` | Cross-engine bridge: `TeakInterface`, `ISDKWrapper` |
 | `io.teak.sdk.wrapper.unity` | Unity integration layer |
 | `io.teak.sdk.json` | **Vendored** — do not use `org.json` |

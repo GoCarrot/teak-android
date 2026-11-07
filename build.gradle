@@ -184,8 +184,9 @@ dependencies {
 
     implementation 'com.google.firebase:firebase-messaging:21.0.0'
 
-    // Optional Google Billing v5
-    compileOnly "com.android.billingclient:billing:5.0.0"
+    // Optional Google Play Billing. Compiled against 7.1.1; the single GooglePlayBilling store
+    // is runtime-compatible with billing 7, 8, and 9 (the host game supplies the runtime lib).
+    compileOnly "com.android.billingclient:billing:7.1.1"
 
     // Optional Facebook dependency
     compileOnly 'com.facebook.android:facebook-login:9+'

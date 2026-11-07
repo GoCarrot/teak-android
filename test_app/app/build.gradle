@@ -45,7 +45,9 @@ dependencies {
 
     implementation 'com.google.firebase:firebase-messaging:21.1.0'
 
-    implementation "com.android.billingclient:billing:3.0.0"
+    // Matches teak's compileOnly billing version so CreateStoreTest can instantiate the
+    // GooglePlayBilling store (needs PendingPurchasesParams / ProductDetailsResponseListener).
+    implementation "com.android.billingclient:billing:7.1.1"
 
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:5.14.2'
