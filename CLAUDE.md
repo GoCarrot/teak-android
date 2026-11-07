@@ -60,7 +60,7 @@ Single Gradle module (`com.android.library`). All SDK source under `src/main/jav
 | `io.teak.sdk.event` | Internal event types (`LifecycleEvent`, `PushNotificationEvent`, `UserIdEvent`, etc.) |
 | `io.teak.sdk.io` | Platform abstraction interfaces (`IAndroidResources`, `IHttpRequest`) and `Default*` implementations |
 | `io.teak.sdk.push` | Push providers: `FCMPushProvider`, `ADMPushProvider` |
-| `io.teak.sdk.store` | IAP tracking: `GooglePlayBillingV4`, `GooglePlayBillingV5`, `Amazon` |
+| `io.teak.sdk.store` | IAP tracking: `GooglePlayBilling`, `Amazon` |
 | `io.teak.sdk.wrapper` | Cross-engine bridge: `TeakInterface`, `ISDKWrapper` |
 | `io.teak.sdk.wrapper.unity` | Unity integration layer |
 | `io.teak.sdk.json` | **Vendored** — do not use `org.json` |
