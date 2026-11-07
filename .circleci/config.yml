@@ -94,43 +94,47 @@ jobs:
         environment:
           ANDROID_HOME=/opt/android/sdk
     steps:
-      - checkout
-      - run: git fetch --tags
-      - run:
-          name: Install Sentry CLI
-          command: curl -sL https://sentry.io/get-cli/ | bash
-      - aws-cli/setup
-      - attach_workspace:
-          at: .
+      - fetch_release_artifacts
       - sentry_upload_proguard
-      - buildomat/aws-oidc-assume
-      - run:
-          name: Upload SDK to S3
-          command: |
-            aws s3 cp build/outputs/aar/teak-release.aar s3://teak-build-artifacts/android/teak-$(git describe --tags --always).aar --acl public-read
-            aws s3 cp teak-release.sha512 s3://teak-build-artifacts/android/teak-$(git describe --tags --always).sha512 --acl public-read
-            aws s3 cp teak-release.sha256 s3://teak-build-artifacts/android/teak-$(git describe --tags --always).sha256 --acl public-read
+      - upload_sdk:
+          prefix: android
+          versioned: true
 
   deploy_latest:
     docker:
       - image: cimg/base:current
     steps:
-      - checkout
-      - run: git fetch --tags
-      - run:
-          name: Install Sentry CLI
-          command: curl -sL https://sentry.io/get-cli/ | bash
-      - aws-cli/setup
-      - attach_workspace:
-          at: .
+      - fetch_release_artifacts
       - sentry_upload_proguard
-      - buildomat/aws-oidc-assume
+      - upload_sdk:
+          prefix: android
+          versioned: false
+
+  # Dry run of deploy_versioned: same steps, but the S3 prefix is a literal android/dev/
+  # (expired by a bucket lifecycle rule after 7 days) and the ProGuard mapping is processed
+  # but not uploaded to Sentry.
+  deploy_dev:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - fetch_release_artifacts
+      - sentry_upload_proguard:
+          sentry_cli_args: --no-upload
+      - upload_sdk:
+          prefix: android/dev
+          versioned: true
+
+  docs:
+    docker:
+      - image: cimg/node:lts
+    steps:
+      - checkout
       - run:
-          name: Upload SDK to S3
-          command: |
-            aws s3 cp build/outputs/aar/teak-release.aar s3://teak-build-artifacts/android/teak.aar --acl public-read
-            aws s3 cp teak-release.sha256 s3://teak-build-artifacts/android/teak.sha256 --acl public-read
-            aws s3 cp teak-release.sha512 s3://teak-build-artifacts/android/teak.sha512 --acl public-read
+          name: Install Doxygen
+          command: sudo apt-get update && sudo apt-get install -y doxygen
+      - run:
+          name: Build API docs
+          command: yarn && yarn docs
 
 workflows:
   nightly:
@@ -145,6 +149,7 @@ workflows:
       - build:
           context:
             - Sentry
+      - docs
 
   un-tagged-build:
     jobs:
@@ -170,6 +175,21 @@ workflows:
           requires:
             - build
             - changelog_check
+          filters:
+            tags:
+              ignore: /.*/
+      # Dry run of the release steps after build. Parallel to tag_build and not required by
+      # it: a failure turns the workflow red but doesn't block promote-tag creation.
+      - deploy_dev:
+          context:
+            - AWS-OIDC-Role
+            - Sentry
+          requires:
+            - build
+          filters:
+            tags:
+              ignore: /.*/
+      - docs:
           filters:
             tags:
               ignore: /.*/
@@ -217,6 +237,40 @@ workflows:
               only: /.*/
 
 commands:
+  fetch_release_artifacts:
+    description: "Fetch tags, the build workspace, Sentry CLI and AWS credentials for a deploy job"
+    steps:
+      - checkout
+      - run: git fetch --tags
+      - run:
+          name: Install Sentry CLI
+          command: curl -sL https://sentry.io/get-cli/ | bash
+      - aws-cli/setup
+      - attach_workspace:
+          at: .
+      - buildomat/aws-oidc-assume
+  # Uploads the built SDK artifacts to s3://teak-build-artifacts/<prefix>/. The prefix is always
+  # a literal at the call site, never a variable, so a dev run can't write a release key.
+  upload_sdk:
+    description: "Upload SDK artifacts to S3"
+    parameters:
+      prefix:
+        type: string
+      versioned:
+        type: boolean
+    steps:
+      - run:
+          name: Upload SDK to S3
+          command: |
+            if [ "<< parameters.versioned >>" = "true" ]; then
+              NAME="teak-$(git describe --tags --always)"
+            else
+              NAME="teak"
+            fi
+            DEST="s3://teak-build-artifacts/<< parameters.prefix >>"
+            aws s3 cp build/outputs/aar/teak-release.aar ${DEST}/${NAME}.aar --acl public-read
+            aws s3 cp teak-release.sha512 ${DEST}/${NAME}.sha512 --acl public-read
+            aws s3 cp teak-release.sha256 ${DEST}/${NAME}.sha256 --acl public-read
   #
   # Persist ProGuard mappings to workspace
   #
