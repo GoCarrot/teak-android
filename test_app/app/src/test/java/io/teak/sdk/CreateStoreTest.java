@@ -11,7 +11,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import io.teak.sdk.store.IStore;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -24,7 +24,6 @@ public class CreateStoreTest {
         PackageManager packageManager = mock(PackageManager.class);
         when(context.getPackageManager()).thenReturn(packageManager);
         when(context.getPackageName()).thenReturn("io.teak.app.test");
-        when(context.getApplicationContext()).thenReturn(context);
 
         ApplicationInfo appInfo = new ApplicationInfo();
         Bundle metaData = mock(Bundle.class);
@@ -66,18 +65,22 @@ public class CreateStoreTest {
         assertNull("Store should be null when bundle ID is null", store);
     }
 
+    // Selection is asserted rather than instantiation: building a real BillingClient requires the
+    // Android runtime, absent under plain-JVM unit tests. selectStoreClass covers the teak logic
+    // (gating + which store class); on-device runs cover instantiation.
     @Test
-    public void noMetadataKey_proceedsNormally() throws Exception {
+    public void noMetadataKey_selectsGooglePlayBilling() throws Exception {
         Context context = createMockContext(null);
-        IStore store = DefaultObjectFactory.createStore(context);
-        // Billing library is on the test classpath, so store should be created
-        assertNotNull("Store should be created when billing library is present and auto-track is not disabled", store);
+        Class<?> storeClass = DefaultObjectFactory.selectStoreClass(context);
+        assertEquals("GooglePlayBilling should be selected when billing library is present and auto-track is not disabled",
+            io.teak.sdk.store.GooglePlayBilling.class, storeClass);
     }
 
     @Test
-    public void autoTrackExplicitlyEnabled_proceedsNormally() throws Exception {
+    public void autoTrackExplicitlyEnabled_selectsGooglePlayBilling() throws Exception {
         Context context = createMockContext(false);
-        IStore store = DefaultObjectFactory.createStore(context);
-        assertNotNull("Store should be created when auto-track is explicitly enabled", store);
+        Class<?> storeClass = DefaultObjectFactory.selectStoreClass(context);
+        assertEquals("GooglePlayBilling should be selected when auto-track is explicitly enabled",
+            io.teak.sdk.store.GooglePlayBilling.class, storeClass);
     }
 }
