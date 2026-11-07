@@ -1,0 +1,2 @@
+bug:
+  - Remote logging on app launch now follows the saved `log_remote` setting rather than `verbose_logging`
