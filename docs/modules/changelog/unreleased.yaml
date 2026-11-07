@@ -1,0 +1,2 @@
+bug:
+  - "A `Teak.LogListener` that logs from inside its callback during startup no longer risks a `ConcurrentModificationException`, and a throwing listener no longer interrupts the startup log replay. Teak no longer holds an internal lock while calling the listener, so callbacks can arrive on any SDK thread, including concurrently."

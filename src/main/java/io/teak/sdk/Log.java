@@ -9,6 +9,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
@@ -193,20 +194,43 @@ public class Log {
     // configuration was ready, replaying them through the now-available Raven as breadcrumbs --
     // the listener that creates the Raven fires after Log's own, so this is the earliest point it
     // exists and the only place those queued events can become breadcrumbs.
+    //
+    // Replay runs outside the lock, since it calls the host LogListener. Events logged meanwhile
+    // (including by the listener itself) are queued and picked up by the next pass, and
+    // processedQueuedLogEvents only flips once the queue is empty, so order is preserved.
     public void setSdkRaven(Raven raven) {
         synchronized (queuedLogEvents) {
             this.sdkRaven = raven;
-            if (!processedQueuedLogEvents) {
-                for (LogEvent event : queuedLogEvents) {
-                    logEvent(event, raven);
+            if (processedQueuedLogEvents || drainingQueuedLogEvents) {
+                return;
+            }
+            drainingQueuedLogEvents = true;
+        }
+
+        while (true) {
+            final List<LogEvent> batch;
+            synchronized (queuedLogEvents) {
+                if (queuedLogEvents.isEmpty()) {
+                    processedQueuedLogEvents = true;
+                    drainingQueuedLogEvents = false;
+                    return;
                 }
+                batch = new ArrayList<>(queuedLogEvents);
                 queuedLogEvents.clear();
-                processedQueuedLogEvents = true;
+            }
+
+            for (LogEvent event : batch) {
+                // A throwing host listener must not strand the rest of the queue or leave the
+                // drain unfinished. Its own event (and that event's breadcrumb) is dropped.
+                try {
+                    logEvent(event, this.sdkRaven);
+                } catch (Throwable ignored) {
+                }
             }
         }
     }
 
-    private Teak.LogListener logListener;
+    private volatile Teak.LogListener logListener;
     // endregion
 
     private final ExecutorService remoteLogQueue = Executors.newSingleThreadExecutor();
@@ -285,18 +309,20 @@ protected static class LogEvent {
     }
 }
 
+// Guarded by queuedLogEvents. Host callbacks are never invoked while holding that lock.
 private boolean processedQueuedLogEvents = false;
+private boolean drainingQueuedLogEvents = false;
 private final ArrayList<LogEvent> queuedLogEvents = new ArrayList<>();
 
 protected void log(final @NonNull Level logLevel, final @NonNull String eventType, @Nullable Map<String, Object> eventData) {
     LogEvent logEvent = new LogEvent(logLevel, eventType, eventData);
     synchronized (queuedLogEvents) {
-        if (processedQueuedLogEvents) {
-            this.logEvent(logEvent, this.sdkRaven);
-        } else {
+        if (!processedQueuedLogEvents) {
             queuedLogEvents.add(logEvent);
+            return;
         }
     }
+    this.logEvent(logEvent, this.sdkRaven);
 }
 
 private void logEvent(final @NonNull LogEvent logEvent, final @Nullable Raven currentRaven) {
@@ -372,8 +398,9 @@ private void logEvent(final @NonNull LogEvent logEvent, final @Nullable Raven cu
     }
 
     // Log to listeners
-    if (this.logListener != null) {
-        this.logListener.logEvent(logEvent.eventType, logEvent.logLevel.name, payload);
+    final Teak.LogListener listener = this.logListener;
+    if (listener != null) {
+        listener.logEvent(logEvent.eventType, logEvent.logLevel.name, payload);
     }
 
     // Fan out to Raven breadcrumbs (skip "exception" — it creates its own report)
