@@ -122,9 +122,10 @@ Public documentation is built with **Antora** and lives under `docs/`. API docs 
 
 The changelog is published to the documentation site. Source of truth is YAML files in `docs/modules/changelog/versions/`. AsciiDoc partials and the main changelog page are **generated** by `doxygen2adoc` and gitignored — never edit `.adoc` files under `docs/modules/changelog/`.
 
-- **Adding entries:** Edit `docs/modules/changelog/unreleased.yaml`. When a user-facing change is made, add a line under the appropriate category.
-- **Important:** `unreleased.yaml` lives in `docs/modules/changelog/`, NOT in `versions/`. The `versions/` directory is read by `doxygen2adoc` which requires valid semver filenames — `unreleased.yaml` in that directory will break doc generation.
-- **At release time:** Move `unreleased.yaml` into `versions/<version>.yaml` and create a fresh `unreleased.yaml`.
+- **Adding entries:** When a user-facing change is made, add a fragment named for its issue, e.g. `docs/modules/changelog/unreleased/c-834.yaml`, with the entry under the appropriate category. One file per change, so parallel PRs don't conflict. Never edit someone else's fragment to add yours.
+- **Important:** fragments live in `unreleased/`, NOT in `versions/`. `doxygen2adoc` requires version file names in `versions/`.
+- **Check:** `yarn changelog check` validates every fragment and version file (CI runs it). Unknown categories would silently not render, so it rejects them.
+- **At release time:** `yarn changelog roll <version>` appends every fragment to `versions/<version>.yaml` (creating it if needed) and deletes the fragments.
 - **YAML categories:** `new`, `bug`, `enhancement`, `breaking`, `deprecation`, `upgrade_note`, `known_issue`
 - **Format:** Each category is a list of strings. Use backticks for code references.
 
