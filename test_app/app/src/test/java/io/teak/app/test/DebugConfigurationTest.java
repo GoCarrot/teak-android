@@ -1,5 +1,8 @@
 package io.teak.app.test;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -14,6 +17,7 @@ import io.teak.sdk.configuration.DebugConfiguration;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -99,6 +103,33 @@ public class DebugConfigurationTest extends TeakUnitTest {
         TeakConfiguration.get().debugConfiguration.setLogPreferences(false, false);
 
         assertFalse("logRemotely should be false after server disables it", getLogRemotely());
+    }
+
+    // --- Cold start from persisted preferences ---
+
+    private void persistLogPreferences(boolean logLocal, boolean logRemote) {
+        SharedPreferences preferences = mock(SharedPreferences.class);
+        when(preferences.getBoolean("io.teak.sdk.Preferences.LogLocal", false)).thenReturn(logLocal);
+        when(preferences.getBoolean("io.teak.sdk.Preferences.LogRemote", false)).thenReturn(logRemote);
+        when(context.getSharedPreferences(Teak.PREFERENCES_FILE, Context.MODE_PRIVATE)).thenReturn(preferences);
+    }
+
+    @Test
+    public void persistedLogRemoteTrue_coldStartEnablesRemoteLogging() throws Exception {
+        persistLogPreferences(false, true);
+        reinitializeWithCurrentMocks();
+
+        assertTrue("logRemotely should be true when persisted LogRemote is true", getLogRemotely());
+        assertFalse("logLocally should be false when persisted LogLocal is false", getLogLocally());
+    }
+
+    @Test
+    public void persistedLogLocalTrueLogRemoteFalse_coldStartLeavesRemoteLoggingOff() throws Exception {
+        persistLogPreferences(true, false);
+        reinitializeWithCurrentMocks();
+
+        assertTrue("logLocally should be true when persisted LogLocal is true", getLogLocally());
+        assertFalse("logRemotely should be false when persisted LogRemote is false", getLogRemotely());
     }
 
     @Test

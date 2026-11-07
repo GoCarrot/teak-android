@@ -58,7 +58,7 @@ public class DebugConfiguration {
         // TODO: This should be listener based
 
         // Set up Logs
-        Teak.log.setLoggingEnabled(this.logLocal || this.isDevelopmentBuild, this.logLocal || this.isDevelopmentBuild);
+        Teak.log.setLoggingEnabled(this.logLocal || this.isDevelopmentBuild, this.logRemote || this.isDevelopmentBuild);
         Teak.log.useRapidIngestionEndpoint(this.isDevelopmentBuild);
     }
 
