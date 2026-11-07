@@ -1,5 +1,5 @@
 new:
-  - Push notification remote syntax is now versioned (non-breaking), new features:
+  - "Push notification remote syntax is now versioned (non-breaking), new features:"
   - Large/small image background
   - Support setting credentials in ``<meta-data>`` for Adobe Air.
 bug:
