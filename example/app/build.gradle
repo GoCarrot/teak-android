@@ -39,8 +39,14 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // -Pminify=true runs R8 the way a shipping game does, so the consumer rules in
+            // Teak's proguard.txt get exercised. -PextraProguard=<file> layers a host-side
+            // rules file on top (e.g. to check a customer workaround snippet).
+            minifyEnabled project.findProperty('minify') == 'true'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (project.findProperty('extraProguard')) {
+                proguardFiles project.findProperty('extraProguard')
+            }
         }
     }
     buildFeatures {
