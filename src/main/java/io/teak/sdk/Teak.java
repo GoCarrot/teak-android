@@ -1687,6 +1687,8 @@ public class Teak extends BroadcastReceiver implements Unobfuscable {
 
     /**
      * Used to listen for Teak log events.
+     *
+     * Callbacks may be invoked concurrently from multiple threads.
      */
     public static abstract class LogListener {
         /**
