@@ -41,6 +41,11 @@ import io.teak.sdk.event.PurchaseEvent;
 // Every other call — client construction, purchases-updated, the product-details query itself,
 // and the price read — is a single native call site valid on all four versions (verified against
 // the 6.2.1 / 7.1.1 / 8.3.0 / 9.1.0 runtime interfaces).
+//
+// Billing ships no keep rules for its api package, so in a minified host app R8 renames or strips
+// everything this class reaches only by name: the proxied listener method,
+// QueryProductDetailsResult.getProductDetailsList, and BuildConfig.VERSION_NAME. proguard.txt keeps
+// them, and the proxy dispatches without looking at the method name.
 public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
     private final BillingClient billingClient;
 
@@ -95,14 +100,29 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
     @Override
     public void onBillingSetupFinished(@NonNull BillingResult billingResult) {
+        if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+            Teak.log.i("billing.google.setup", "Google Play Billing connected.");
+        } else {
+            Teak.log.e("billing.google.setup", "Google Play Billing setup failed.", billingResultPayload(billingResult));
+        }
     }
 
     @Override
     public void onBillingServiceDisconnected() {
+        Teak.log.w("billing.google.setup", "Google Play Billing service disconnected.");
     }
 
     @Override
     public void onPurchasesUpdated(@NonNull BillingResult billingResult, @Nullable List<Purchase> purchaseList) {
+        final Map<String, Object> resultPayload = billingResultPayload(billingResult);
+        resultPayload.put("purchase_count", purchaseList == null ? 0 : purchaseList.size());
+        final int responseCode = billingResult.getResponseCode();
+        if (responseCode == BillingClient.BillingResponseCode.OK || responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+            Teak.log.i("billing.google.purchase", "Purchases updated.", resultPayload);
+        } else {
+            Teak.log.w("billing.google.purchase", "Purchases updated with a non-OK result.", resultPayload);
+        }
+
         if (purchaseList == null) {
             return;
         }
@@ -143,8 +163,9 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
                 if (method.getDeclaringClass() == Object.class) {
                     return objectMethod(proxy, method, args);
                 }
-                if ("onProductDetailsResponse".equals(method.getName()) && args != null && args.length == 2) {
-                    onProductDetails(purchaseSku, payload, normalizeProductDetails(args[1]));
+                if (isProductDetailsCallback(method, args)) {
+                    final BillingResult billingResult = args[0] instanceof BillingResult ? (BillingResult) args[0] : null;
+                    onProductDetails(purchaseSku, payload, billingResult, normalizeProductDetails(args[1]));
                 }
                 return defaultReturn(method.getReturnType());
             }
@@ -155,22 +176,49 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
             handler);
     }
 
-    private void onProductDetails(String purchaseSku, Map<String, Object> payload, @Nullable List<ProductDetails> productDetailsList) {
+    // ProductDetailsResponseListener declares exactly one method, so any non-Object call into the
+    // proxy is the product-details callback. Matching on the method name instead would silently
+    // drop every callback once R8 renames the method in a minified host app.
+    // Package-private so the dispatch is unit-testable with a method of any name.
+    static boolean isProductDetailsCallback(@NonNull Method method, @Nullable Object[] args) {
+        return method.getDeclaringClass() != Object.class && args != null && args.length == 2;
+    }
+
+    // Prices the purchase payload and posts it. The event is posted even without a price, so each
+    // unpriced path logs why before it goes out.
+    private static void onProductDetails(String purchaseSku, Map<String, Object> payload, @Nullable BillingResult billingResult, @Nullable List<ProductDetails> productDetailsList) {
         try {
-            if (productDetailsList != null && !productDetailsList.isEmpty()) {
-                final ProductDetails.OneTimePurchaseOfferDetails otpDetails = productDetailsList.get(0).getOneTimePurchaseOfferDetails();
+            final ProductDetails.OneTimePurchaseOfferDetails otpDetails =
+                (productDetailsList != null && !productDetailsList.isEmpty()) ? productDetailsList.get(0).getOneTimePurchaseOfferDetails() : null;
+
+            if (otpDetails != null) {
                 payload.put("price_amount_micros", otpDetails.getPriceAmountMicros());
                 payload.put("price_currency_code", otpDetails.getPriceCurrencyCode());
 
                 Teak.log.i("billing.google.sku", "SKU Details retrieved.", payload);
             } else {
-                Teak.log.e("billing.google.sku", "SKU Details query failed.", payload);
+                final Map<String, Object> logPayload = new HashMap<>(payload);
+                if (billingResult != null) {
+                    logPayload.putAll(billingResultPayload(billingResult));
+                }
+                if (productDetailsList == null || productDetailsList.isEmpty()) {
+                    Teak.log.e("billing.google.sku", "SKU Details query failed.", logPayload);
+                } else {
+                    Teak.log.e("billing.google.sku", "SKU Details have no one-time purchase price.", logPayload);
+                }
             }
 
             TeakEvent.postEvent(new PurchaseEvent(payload));
         } catch (Exception e) {
             Teak.log.exception(e);
         }
+    }
+
+    private static Map<String, Object> billingResultPayload(@NonNull BillingResult billingResult) {
+        final Map<String, Object> payload = new HashMap<>();
+        payload.put("response_code", billingResult.getResponseCode());
+        payload.put("debug_message", billingResult.getDebugMessage());
+        return payload;
     }
 
     // Billing 6-7: the argument is already the List<ProductDetails>. Billing 8+: it is a
