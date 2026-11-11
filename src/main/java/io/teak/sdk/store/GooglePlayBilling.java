@@ -56,6 +56,11 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         this.billingClient.startConnection(this);
     }
 
+    // Package-private so tests can inject a BillingClient.
+    GooglePlayBilling(BillingClient billingClient) {
+        this.billingClient = billingClient;
+    }
+
     // billing 7+ has the PendingPurchasesParams-typed overload; billing 6.x only has the
     // deprecated no-arg one (removed again in 8+, which is why 7+ always prefers the typed
     // overload here). Gate on class presence rather than calling the no-arg overload
@@ -130,6 +135,14 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
             }
 
             for (Purchase purchase : purchaseList) {
+                // A pending purchase is delivered again as PURCHASED once payment completes, and may
+                // never complete, so only completed purchases are reported.
+                if (purchase.getPurchaseState() != Purchase.PurchaseState.PURCHASED) {
+                    Teak.log.i("billing.google.purchase", "Skipping purchase that is not completed.",
+                        Helpers.mm.h("purchase_state", purchase.getPurchaseState(), "product_ids", purchase.getProducts()));
+                    continue;
+                }
+
                 for (String purchaseSku : purchase.getProducts()) {
                     final Map<String, Object> payload = new HashMap<>();
                     payload.put("purchase_token", purchase.getPurchaseToken());
