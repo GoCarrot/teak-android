@@ -4,16 +4,19 @@ import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.BillingResult;
 import com.android.billingclient.api.Purchase;
 import com.android.billingclient.api.PurchasesResponseListener;
+import com.android.billingclient.api.QueryPurchasesParams;
 
 import org.junit.After;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -46,7 +49,7 @@ public class QueryPurchasesTest {
         when(client.isReady()).thenReturn(true);
         billing.onResumed();
         final ArgumentCaptor<PurchasesResponseListener> listener = ArgumentCaptor.forClass(PurchasesResponseListener.class);
-        verify(client, org.mockito.Mockito.atLeastOnce()).queryPurchasesAsync(any(com.android.billingclient.api.QueryPurchasesParams.class), listener.capture());
+        verify(client, atLeastOnce()).queryPurchasesAsync(any(QueryPurchasesParams.class), listener.capture());
         listener.getValue().onQueryPurchasesResponse(result, purchases);
     }
 
@@ -75,7 +78,7 @@ public class QueryPurchasesTest {
 
     @Test
     public void distinctPurchases_areEachReported() {
-        query(OK, java.util.Arrays.asList(purchased("t1"), purchased("t2")));
+        query(OK, Arrays.asList(purchased("t1"), purchased("t2")));
         verify(client, times(2)).queryProductDetailsAsync(any(), any());
     }
 
@@ -109,16 +112,26 @@ public class QueryPurchasesTest {
     @Test
     public void setupFinished_queriesPurchases() {
         billing.onBillingSetupFinished(OK);
-        verify(client, times(1)).queryPurchasesAsync(any(com.android.billingclient.api.QueryPurchasesParams.class), any());
+        verify(client, times(1)).queryPurchasesAsync(any(QueryPurchasesParams.class), any());
     }
 
     @Test
-    public void resumeWhileDisconnected_reconnectsInsteadOfQuerying() {
+    public void resumeAfterServiceDisconnect_reconnectsInsteadOfQuerying() {
+        billing.onBillingServiceDisconnected();
         when(client.isReady()).thenReturn(false);
         when(client.getConnectionState()).thenReturn(BillingClient.ConnectionState.DISCONNECTED);
         billing.onResumed();
         verify(client, times(1)).startConnection(billing);
-        verify(client, never()).queryPurchasesAsync(any(com.android.billingclient.api.QueryPurchasesParams.class), any());
+        verify(client, never()).queryPurchasesAsync(any(QueryPurchasesParams.class), any());
+    }
+
+    @Test
+    public void resumeAfterFailedSetup_doesNotReconnect() {
+        billing.onBillingSetupFinished(BillingResult.newBuilder().setResponseCode(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE).build());
+        when(client.isReady()).thenReturn(false);
+        when(client.getConnectionState()).thenReturn(BillingClient.ConnectionState.DISCONNECTED);
+        billing.onResumed();
+        verify(client, never()).startConnection(any());
     }
 
     @Test
@@ -127,6 +140,6 @@ public class QueryPurchasesTest {
         when(client.getConnectionState()).thenReturn(BillingClient.ConnectionState.CONNECTING);
         billing.onResumed();
         verify(client, never()).startConnection(any());
-        verify(client, never()).queryPurchasesAsync(any(com.android.billingclient.api.QueryPurchasesParams.class), any());
+        verify(client, never()).queryPurchasesAsync(any(QueryPurchasesParams.class), any());
     }
 }

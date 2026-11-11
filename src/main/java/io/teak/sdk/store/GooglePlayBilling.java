@@ -68,6 +68,10 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     // the game consumes it, so without this every query would re-report it.
     private final Set<String> reportedPurchaseTokens = new HashSet<>();
 
+    // Set when an established connection drops. A failed setup also leaves the client
+    // DISCONNECTED, but retrying that on every resume would just fail again.
+    private volatile boolean serviceDisconnected = false;
+
     public GooglePlayBilling(Context context) {
         // Log the version before registering so a failure in build()/startConnection() still
         // tells us which billing version was being set up.
@@ -132,6 +136,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     public void onBillingSetupFinished(@NonNull BillingResult billingResult) {
         try {
             if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+                this.serviceDisconnected = false;
                 Teak.log.i("billing.google.setup", "Google Play Billing connected.");
                 queryPurchases();
             } else {
@@ -144,6 +149,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
     @Override
     public void onBillingServiceDisconnected() {
+        this.serviceDisconnected = true;
         Teak.log.w("billing.google.setup", "Google Play Billing service disconnected.");
     }
 
@@ -176,9 +182,10 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         try {
             if (this.billingClient.isReady()) {
                 queryPurchases();
-            } else if (this.billingClient.getConnectionState() == BillingClient.ConnectionState.DISCONNECTED) {
+            } else if (this.serviceDisconnected && this.billingClient.getConnectionState() == BillingClient.ConnectionState.DISCONNECTED) {
                 // Nothing else reconnects after onBillingServiceDisconnected. The query runs from
                 // onBillingSetupFinished once connected.
+                this.serviceDisconnected = false;
                 Teak.log.i("billing.google.setup", "Reconnecting Google Play Billing.");
                 this.billingClient.startConnection(this);
             }
@@ -200,30 +207,37 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
             }
 
             final long oldestReported = System.currentTimeMillis() - QUERIED_PURCHASE_MAX_AGE_MS;
+            int reported = 0;
+            int tooOld = 0;
             for (Purchase purchase : purchaseList) {
                 if (purchase.getPurchaseTime() < oldestReported) {
+                    tooOld++;
                     continue;
                 }
-                reportPurchase(purchase);
+                if (reportPurchase(purchase)) {
+                    reported++;
+                }
             }
+            Teak.log.i("billing.google.query", "Purchase query finished.",
+                Helpers.mm.h("returned", purchaseList.size(), "reported", reported, "too_old", tooOld));
         } catch (Exception e) {
             Teak.log.exception(e);
         }
     };
 
     // Single gate for both onPurchasesUpdated and queried purchases: reports a completed purchase
-    // once per process.
-    private void reportPurchase(@NonNull Purchase purchase) {
+    // once per process. Returns whether it was reported now.
+    private boolean reportPurchase(@NonNull Purchase purchase) {
         // A pending purchase may never complete, so only completed purchases are reported.
         if (purchase.getPurchaseState() != Purchase.PurchaseState.PURCHASED) {
             Teak.log.i("billing.google.purchase", "Skipping purchase that is not completed.",
                 Helpers.mm.h("purchase_state", purchase.getPurchaseState(), "product_ids", purchase.getProducts()));
-            return;
+            return false;
         }
 
         synchronized (this.reportedPurchaseTokens) {
             if (!this.reportedPurchaseTokens.add(purchase.getPurchaseToken())) {
-                return;
+                return false;
             }
         }
 
@@ -244,6 +258,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
             this.billingClient.queryProductDetailsAsync(params, productDetailsListener(payload));
         }
+        return true;
     }
 
     // Billing 6-7 invokes the listener with a List<ProductDetails>; billing 8+ invokes it with a
