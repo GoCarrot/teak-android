@@ -184,28 +184,19 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         return args != null && args.length == 2;
     }
 
-    // Prices the purchase payload and posts it. The event is posted even without a price, so each
-    // unpriced path logs why before it goes out.
+    // The event is posted even without a price, so each unpriced path logs why before it goes out.
     private static void onProductDetails(Map<String, Object> payload, @Nullable BillingResult billingResult, @Nullable List<ProductDetails> productDetailsList) {
         try {
-            final ProductDetails.OneTimePurchaseOfferDetails otpDetails =
-                (productDetailsList != null && !productDetailsList.isEmpty()) ? productDetailsList.get(0).getOneTimePurchaseOfferDetails() : null;
-
-            if (otpDetails != null) {
+            final ProductDetails.OneTimePurchaseOfferDetails otpDetails;
+            if (productDetailsList == null || productDetailsList.isEmpty()) {
+                Teak.log.e("billing.google.sku", "SKU Details query failed.", unpricedLogPayload(payload, billingResult));
+            } else if ((otpDetails = productDetailsList.get(0).getOneTimePurchaseOfferDetails()) == null) {
+                Teak.log.e("billing.google.sku", "SKU Details have no one-time purchase price.", unpricedLogPayload(payload, billingResult));
+            } else {
                 payload.put("price_amount_micros", otpDetails.getPriceAmountMicros());
                 payload.put("price_currency_code", otpDetails.getPriceCurrencyCode());
 
                 Teak.log.i("billing.google.sku", "SKU Details retrieved.", payload);
-            } else {
-                final Map<String, Object> logPayload = new HashMap<>(payload);
-                if (billingResult != null) {
-                    logPayload.putAll(billingResultPayload(billingResult));
-                }
-                if (productDetailsList == null || productDetailsList.isEmpty()) {
-                    Teak.log.e("billing.google.sku", "SKU Details query failed.", logPayload);
-                } else {
-                    Teak.log.e("billing.google.sku", "SKU Details have no one-time purchase price.", logPayload);
-                }
             }
 
             TeakEvent.postEvent(new PurchaseEvent(payload));
@@ -215,10 +206,15 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     }
 
     private static Map<String, Object> billingResultPayload(@NonNull BillingResult billingResult) {
-        final Map<String, Object> payload = new HashMap<>();
-        payload.put("response_code", billingResult.getResponseCode());
-        payload.put("debug_message", billingResult.getDebugMessage());
-        return payload;
+        return Helpers.mm.h("response_code", billingResult.getResponseCode(), "debug_message", billingResult.getDebugMessage());
+    }
+
+    private static Map<String, Object> unpricedLogPayload(Map<String, Object> payload, @Nullable BillingResult billingResult) {
+        final Map<String, Object> logPayload = new HashMap<>(payload);
+        if (billingResult != null) {
+            logPayload.putAll(billingResultPayload(billingResult));
+        }
+        return logPayload;
     }
 
     // Billing 6-7: the argument is already the List<ProductDetails>. Billing 8+: it is a
