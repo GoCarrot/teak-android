@@ -4,4 +4,4 @@ bug:
   - "Log events emitted while the SDK is configuring no longer risk a `ConcurrentModificationException` or missing common fields."
   - "Google Play purchases are now tracked in apps built with R8 or ProGuard minification that renamed or stripped `ProductDetailsResponseListener.onProductDetailsResponse`, `QueryProductDetailsResult.getProductDetailsList`, or `BuildConfig.VERSION_NAME`."
   - "Google Play Billing setup failures, service disconnects, and purchases that can't be priced are now logged."
-  - "Google Play purchases that are still pending payment are no longer reported as completed."
+  - "Google Play purchases that are still pending payment are no longer sent to Teak."
