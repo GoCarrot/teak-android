@@ -52,7 +52,7 @@ import io.teak.sdk.event.PurchaseEvent;
 //
 // Purchases that complete while the game isn't running never reach onPurchasesUpdated, so Teak also
 // queries owned purchases, through its own BillingClient, and never consumes or acknowledges them.
-public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
+public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener, PurchasesResponseListener {
     // Queried purchases older than this aren't reported, so purchases made before Teak was
     // integrated (or otherwise never seen) don't turn into new, historic purchase records.
     // getPurchaseTime() is when the purchase was started, not when its payment cleared, so this
@@ -193,10 +193,11 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
     private void queryPurchases() {
         final QueryPurchasesParams params = QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build();
-        this.billingClient.queryPurchasesAsync(params, purchasesResponseListener);
+        this.billingClient.queryPurchasesAsync(params, this);
     }
 
-    private final PurchasesResponseListener purchasesResponseListener = (billingResult, purchaseList) -> {
+    @Override
+    public void onQueryPurchasesResponse(@NonNull BillingResult billingResult, @NonNull List<Purchase> purchaseList) {
         try {
             if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK) {
                 Teak.log.w("billing.google.query", "Purchase query failed.", billingResultPayload(billingResult));
@@ -220,10 +221,9 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         } catch (Exception e) {
             Teak.log.exception(e);
         }
-    };
+    }
 
-    // Single gate for both onPurchasesUpdated and queried purchases: reports a completed purchase
-    // once per process. Returns whether it was reported now.
+    // Reports a completed purchase once per process. Returns whether it was reported now.
     private boolean reportPurchase(@NonNull Purchase purchase) {
         // A pending purchase may never complete, so only completed purchases are reported.
         if (purchase.getPurchaseState() != Purchase.PurchaseState.PURCHASED) {

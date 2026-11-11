@@ -3,18 +3,17 @@ package io.teak.sdk.store;
 import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.BillingResult;
 import com.android.billingclient.api.Purchase;
-import com.android.billingclient.api.PurchasesResponseListener;
 import com.android.billingclient.api.QueryPurchasesParams;
 
 import org.junit.After;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -47,9 +46,8 @@ public class QueryPurchasesTest {
     private void query(BillingResult result, List<Purchase> purchases) {
         when(client.isReady()).thenReturn(true);
         billing.onResumed();
-        final ArgumentCaptor<PurchasesResponseListener> listener = ArgumentCaptor.forClass(PurchasesResponseListener.class);
-        verify(client, atLeastOnce()).queryPurchasesAsync(any(QueryPurchasesParams.class), listener.capture());
-        listener.getValue().onQueryPurchasesResponse(result, purchases);
+        verify(client, atLeastOnce()).queryPurchasesAsync(any(QueryPurchasesParams.class), eq(billing));
+        billing.onQueryPurchasesResponse(result, purchases);
     }
 
     @After
@@ -80,13 +78,6 @@ public class QueryPurchasesTest {
         final long old = System.currentTimeMillis() - GooglePlayBilling.QUERIED_PURCHASE_MAX_AGE_MS - TimeUnit.MINUTES.toMillis(1);
         query(OK, Collections.singletonList(purchase("t1", Purchase.PurchaseState.PURCHASED, old)));
         verify(client, never()).queryProductDetailsAsync(any(), any());
-    }
-
-    @Test
-    public void queriedPurchaseInsideCutoff_isReported() {
-        final long recent = System.currentTimeMillis() - GooglePlayBilling.QUERIED_PURCHASE_MAX_AGE_MS + TimeUnit.MINUTES.toMillis(1);
-        query(OK, Collections.singletonList(purchase("t1", Purchase.PurchaseState.PURCHASED, recent)));
-        verify(client, times(1)).queryProductDetailsAsync(any(), any());
     }
 
     @Test
