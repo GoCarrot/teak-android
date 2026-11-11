@@ -56,6 +56,11 @@ dependencies {
     // SDK pulls in as `implementation` (not exposed to the test compile classpath transitively).
     testImplementation 'com.google.android.gms:play-services-base:17.1.0'
 
+    // DeviceScreenStateTest drives the SDK's WorkManager worker and EventBus events, which the SDK
+    // pulls in as `implementation`. Versions match build.gradle.
+    testImplementation 'androidx.work:work-runtime:2.5.0'
+    testImplementation 'org.greenrobot:eventbus:3.3.1'
+
     // TODO: Investigate using Robolectric
 //    testImplementation "org.robolectric:robolectric:4.6.1"
 

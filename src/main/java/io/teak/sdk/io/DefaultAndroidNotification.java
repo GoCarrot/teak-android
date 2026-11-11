@@ -94,12 +94,11 @@ public class DefaultAndroidNotification implements IAndroidNotification {
 
     private void scheduleScreenStateWork() {
         try {
-            if (this.animatedNotifications.size() > 0) {
-                final Data data = new Data.Builder()
-                                      .putInt(IAndroidNotification.ANIMATED_NOTIFICATION_COUNT_KEY, this.animatedNotifications.size())
-                                      .build();
-                this.deviceScreenState.scheduleScreenStateWork(data);
-            }
+            // Forwarded even at zero, which is what stops the screen state polling
+            final Data data = new Data.Builder()
+                                  .putInt(IAndroidNotification.ANIMATED_NOTIFICATION_COUNT_KEY, this.animatedNotifications.size())
+                                  .build();
+            this.deviceScreenState.scheduleScreenStateWork(data);
         } catch (Exception e) {
             Teak.log.exception(e, false);
         }
@@ -364,6 +363,8 @@ public class DefaultAndroidNotification implements IAndroidNotification {
 
                         DefaultAndroidNotification.this.notificationManager.notify(NOTIFICATION_TAG, entry.bundle.getInt("platformId"), entry.notification);
                         TeakEvent.postEvent(new NotificationReDisplayEvent(entry.bundle, entry.notification));
+                        Teak.log.i("notification.animation.redisplay",
+                            Helpers.mm.h("teakNotifId", entry.bundle.getString("teakNotifId"), "platformId", entry.bundle.getInt("platformId")));
                     } catch (Exception e) {
                         Teak.log.exception(e);
                     }
