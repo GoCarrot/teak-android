@@ -135,8 +135,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
             }
 
             for (Purchase purchase : purchaseList) {
-                // A pending purchase is delivered again as PURCHASED once payment completes, and may
-                // never complete, so only completed purchases are reported.
+                // A pending purchase may never complete, so only completed purchases are reported.
                 if (purchase.getPurchaseState() != Purchase.PurchaseState.PURCHASED) {
                     Teak.log.i("billing.google.purchase", "Skipping purchase that is not completed.",
                         Helpers.mm.h("purchase_state", purchase.getPurchaseState(), "product_ids", purchase.getProducts()));
