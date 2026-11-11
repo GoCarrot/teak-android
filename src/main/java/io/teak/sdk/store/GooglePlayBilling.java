@@ -44,6 +44,8 @@ import io.teak.sdk.event.PurchaseEvent;
 //
 // Everything reached here by name or reflection needs a keep rule in proguard.txt.
 public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
+    private static final String QUERY_PRODUCT_DETAILS_RESULT = "com.android.billingclient.api.QueryProductDetailsResult";
+
     private final BillingClient billingClient;
 
     public GooglePlayBilling(Context context) {
@@ -164,9 +166,10 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
                 if (method.getDeclaringClass() == Object.class) {
                     return objectMethod(proxy, method, args);
                 }
-                if (isProductDetailsCallback(method, args)) {
-                    final BillingResult billingResult = args[0] instanceof BillingResult ? (BillingResult) args[0] : null;
-                    onProductDetails(payload, billingResult, normalizeProductDetails(args[1]));
+                if (isProductDetailsCallback(method) && args != null && args.length == 2) {
+                    onProductDetails(payload, (BillingResult) args[0], normalizeProductDetails(args[1]));
+                } else {
+                    Teak.log.w("billing.google.sku", "Unexpected product-details listener call.", Helpers.mm.h("method", method.getName()));
                 }
                 return defaultReturn(method.getReturnType());
             }
@@ -177,11 +180,14 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
             handler);
     }
 
-    // ProductDetailsResponseListener declares exactly one method, so any non-Object call into the
-    // proxy is the product-details callback, whatever R8 has renamed it to.
+    // Recognizes the product-details callback by signature, (BillingResult, List<ProductDetails>) on
+    // billing 6-7 and (BillingResult, QueryProductDetailsResult) on 8+, not by name. proguard.txt
+    // keeps the name; this covers a host app that drops consumer rules and lets R8 rename it.
     // Package-private so the dispatch is unit-testable with a method of any name.
-    static boolean isProductDetailsCallback(@NonNull Method method, @Nullable Object[] args) {
-        return args != null && args.length == 2;
+    static boolean isProductDetailsCallback(@NonNull Method method) {
+        final Class<?>[] params = method.getParameterTypes();
+        return params.length == 2 && params[0] == BillingResult.class &&
+            (List.class.isAssignableFrom(params[1]) || QUERY_PRODUCT_DETAILS_RESULT.equals(params[1].getName()));
     }
 
     // The event is posted even without a price, so each unpriced path logs why before it goes out.
