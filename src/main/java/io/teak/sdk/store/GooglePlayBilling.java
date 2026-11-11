@@ -190,9 +190,9 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         try {
             final ProductDetails.OneTimePurchaseOfferDetails otpDetails;
             if (productDetailsList == null || productDetailsList.isEmpty()) {
-                Teak.log.e("billing.google.sku", "SKU Details query failed.", unpricedLogPayload(payload, billingResult));
+                Teak.log.e("billing.google.sku", "SKU Details query failed.", withBillingResult(payload, billingResult));
             } else if ((otpDetails = productDetailsList.get(0).getOneTimePurchaseOfferDetails()) == null) {
-                Teak.log.e("billing.google.sku", "SKU Details have no one-time purchase price.", unpricedLogPayload(payload, billingResult));
+                Teak.log.e("billing.google.sku", "SKU Details have no one-time purchase price.", withBillingResult(payload, billingResult));
             } else {
                 payload.put("price_amount_micros", otpDetails.getPriceAmountMicros());
                 payload.put("price_currency_code", otpDetails.getPriceCurrencyCode());
@@ -210,7 +210,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         return Helpers.mm.h("response_code", billingResult.getResponseCode(), "debug_message", billingResult.getDebugMessage());
     }
 
-    private static Map<String, Object> unpricedLogPayload(Map<String, Object> payload, @Nullable BillingResult billingResult) {
+    private static Map<String, Object> withBillingResult(Map<String, Object> payload, @Nullable BillingResult billingResult) {
         final Map<String, Object> logPayload = new HashMap<>(payload);
         if (billingResult != null) {
             logPayload.putAll(billingResultPayload(billingResult));
