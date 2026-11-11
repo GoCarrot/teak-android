@@ -119,20 +119,21 @@ public class NotificationBuilder {
         }
     }
 
-    static class PendingIntentHelper {
+    /// @cond hide_from_doxygen
+    public static class PendingIntentHelper {
         private final Context context;
         private final SecureRandom rng;
         private final ComponentName cn;
         private final Bundle bundle;
 
-        PendingIntentHelper(Context context, Bundle bundle) {
+        public PendingIntentHelper(Context context, Bundle bundle) {
             this.context = context;
             this.bundle = bundle;
             this.rng = new SecureRandom();
             this.cn = new ComponentName(context.getPackageName(), "io.teak.sdk.Teak");
         }
 
-        PendingIntent getDeleteIntent() {
+        public PendingIntent getDeleteIntent() {
             final String action = context.getPackageName() + TeakNotification.TEAK_NOTIFICATION_CLEARED_INTENT_ACTION_SUFFIX;
             final Bundle bundleCopy = new Bundle(bundle);
             final Intent deleteIntent = new Intent(action);
@@ -145,7 +146,7 @@ public class NotificationBuilder {
             return PendingIntent.getBroadcast(context, rng.nextInt(), deleteIntent, flags);
         }
 
-        PendingIntent getLaunchIntent(String deepLink) {
+        public PendingIntent getLaunchIntent(String deepLink) {
             // If this is Android 11 or 12, direct-launch the app
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 return getLaunchIntentInternal(deepLink);
@@ -196,6 +197,7 @@ public class NotificationBuilder {
             return PendingIntent.getBroadcast(context, rng.nextInt(), pushOpenedIntent, flags);
         }
     }
+    /// @endcond
 
     private static void addDefaultIcons(Context context, ResourceHelper R, NotificationCompat.Builder builder) {
         int smallNotificationIcon = R.appIconResourceId;

@@ -2,8 +2,6 @@ package io.teak.sdk.io;
 
 import android.app.Notification;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
@@ -306,6 +304,15 @@ public class DefaultAndroidNotification implements IAndroidNotification {
         });
     }
 
+    // The re-displayed notification needs fresh intents. The content intent is built the same way
+    // as on first display so that taps on Android 12+ launch the app directly instead of going
+    // through a notification trampoline.
+    static void refreshIntents(@NonNull final Context context, @NonNull final Notification notification, @NonNull final Bundle bundle) {
+        final NotificationBuilder.PendingIntentHelper pendingIntent = new NotificationBuilder.PendingIntentHelper(context, bundle);
+        notification.deleteIntent = pendingIntent.getDeleteIntent();
+        notification.contentIntent = pendingIntent.getLaunchIntent(null);
+    }
+
     @Subscribe
     public void onScreenState(final DeviceScreenState.ScreenStateChangeEvent event) {
         if (event.newState == DeviceScreenState.State.ScreenOn) return;
@@ -353,20 +360,7 @@ public class DefaultAndroidNotification implements IAndroidNotification {
                             }
                         }
 
-                        // Now it needs new intents
-                        ComponentName cn = new ComponentName(event.context.getPackageName(), "io.teak.sdk.Teak");
-
-                        // Create intent to fire if/when notification is cleared
-                        Intent pushClearedIntent = new Intent(event.context.getPackageName() + TeakNotification.TEAK_NOTIFICATION_CLEARED_INTENT_ACTION_SUFFIX);
-                        pushClearedIntent.putExtras(entry.bundle);
-                        pushClearedIntent.setComponent(cn);
-                        entry.notification.deleteIntent = PendingIntent.getBroadcast(event.context, rng.nextInt(), pushClearedIntent, PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE);
-
-                        // Create intent to fire if/when notification is opened, attach bundle info
-                        Intent pushOpenedIntent = new Intent(event.context.getPackageName() + TeakNotification.TEAK_NOTIFICATION_OPENED_INTENT_ACTION_SUFFIX);
-                        pushOpenedIntent.putExtras(entry.bundle);
-                        pushOpenedIntent.setComponent(cn);
-                        entry.notification.contentIntent = PendingIntent.getBroadcast(event.context, rng.nextInt(), pushOpenedIntent, PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE);
+                        refreshIntents(event.context, entry.notification, entry.bundle);
 
                         DefaultAndroidNotification.this.notificationManager.notify(NOTIFICATION_TAG, entry.bundle.getInt("platformId"), entry.notification);
                         TeakEvent.postEvent(new NotificationReDisplayEvent(entry.bundle, entry.notification));

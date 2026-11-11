@@ -2,3 +2,4 @@ bug:
   - Remote logging on app launch now follows the saved `log_remote` setting rather than `verbose_logging`
   - "A `Teak.LogListener` that logs from inside its callback during startup no longer risks a `ConcurrentModificationException`, and a throwing listener no longer interrupts the startup log replay. Callbacks may now be invoked concurrently from multiple threads."
   - "Log events emitted while the SDK is configuring no longer risk a `ConcurrentModificationException` or missing common fields."
+  - "Tapping an animated notification that was re-displayed after the screen turned off now opens the app on Android 12+ (API 31+) hosts."
