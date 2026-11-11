@@ -14,13 +14,15 @@
 ### Billing v4 ###
 -keep public class com.android.billingclient.api.Purchase { public *; }
 
-### Billing 8+ ###
-# GooglePlayBilling reaches these by name: the product-details listener through a dynamic proxy,
-# the QueryProductDetailsResult unwrap and the billing version through reflection. Billing ships
-# no keep rules for them, so a minified host app would otherwise rename or strip them.
+### Billing, reached by name or reflection ###
+# Billing ships no keep rules for these, so a minified host app would otherwise rename or strip
+# them. The product-details listener goes through a dynamic proxy (all billing versions); the
+# QueryProductDetailsResult unwrap (8+), the billing version and the PendingPurchasesParams probe
+# go through reflection.
 -keep interface com.android.billingclient.api.ProductDetailsResponseListener { *; }
 -keep class com.android.billingclient.api.QueryProductDetailsResult { *; }
 -keep class com.android.billingclient.BuildConfig { *; }
+-keepnames class com.android.billingclient.api.PendingPurchasesParams
 
 ### Facebook ###
 -keep class com.facebook.** { *; }
