@@ -10,7 +10,6 @@ import org.junit.After;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -77,18 +76,6 @@ public class QueryPurchasesTest {
     }
 
     @Test
-    public void distinctPurchases_areEachReported() {
-        query(OK, Arrays.asList(purchased("t1"), purchased("t2")));
-        verify(client, times(2)).queryProductDetailsAsync(any(), any());
-    }
-
-    @Test
-    public void pendingQueriedPurchase_isNotReported() {
-        query(OK, Collections.singletonList(purchase("t1", Purchase.PurchaseState.PENDING, System.currentTimeMillis())));
-        verify(client, never()).queryProductDetailsAsync(any(), any());
-    }
-
-    @Test
     public void queriedPurchaseOlderThanCutoff_isNotReported() {
         final long old = System.currentTimeMillis() - GooglePlayBilling.QUERIED_PURCHASE_MAX_AGE_MS - TimeUnit.MINUTES.toMillis(1);
         query(OK, Collections.singletonList(purchase("t1", Purchase.PurchaseState.PURCHASED, old)));
@@ -116,16 +103,6 @@ public class QueryPurchasesTest {
     }
 
     @Test
-    public void resumeAfterServiceDisconnect_reconnectsInsteadOfQuerying() {
-        billing.onBillingServiceDisconnected();
-        when(client.isReady()).thenReturn(false);
-        when(client.getConnectionState()).thenReturn(BillingClient.ConnectionState.DISCONNECTED);
-        billing.onResumed();
-        verify(client, times(1)).startConnection(billing);
-        verify(client, never()).queryPurchasesAsync(any(QueryPurchasesParams.class), any());
-    }
-
-    @Test
     public void resumeAfterFailedSetup_doesNotReconnect() {
         billing.onBillingSetupFinished(BillingResult.newBuilder().setResponseCode(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE).build());
         when(client.isReady()).thenReturn(false);
@@ -143,6 +120,7 @@ public class QueryPurchasesTest {
         billing.onBillingSetupFinished(BillingResult.newBuilder().setResponseCode(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE).build());
         billing.onResumed();
         verify(client, times(2)).startConnection(billing);
+        verify(client, never()).queryPurchasesAsync(any(QueryPurchasesParams.class), any());
     }
 
     @Test

@@ -50,11 +50,8 @@ import io.teak.sdk.event.PurchaseEvent;
 //
 // Everything reached here by name or reflection needs a keep rule in proguard.txt.
 //
-// Purchases that complete while the game isn't running (e.g. a pending cash payment clearing)
-// never reach onPurchasesUpdated, so Teak also queries owned purchases on connect and on resume.
-// This is read-only: Teak queries through its own BillingClient and never consumes or
-// acknowledges anything, so the game's own client and listener see exactly what they would
-// without Teak.
+// Purchases that complete while the game isn't running never reach onPurchasesUpdated, so Teak also
+// queries owned purchases, through its own BillingClient, and never consumes or acknowledges them.
 public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
     // Queried purchases older than this aren't reported, so purchases made before Teak was
     // integrated (or otherwise never seen) don't turn into new, historic purchase records. Sized to
@@ -68,8 +65,8 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     // the game consumes it, so without this every query would re-report it.
     private final Set<String> reportedPurchaseTokens = new HashSet<>();
 
-    // Set when an established connection drops. A failed setup also leaves the client
-    // DISCONNECTED, but retrying that on every resume would just fail again.
+    // Set when an established connection drops; cleared only when setup succeeds, so a failed
+    // reconnect is retried on the next resume. A failed initial setup never sets it.
     private volatile boolean serviceDisconnected = false;
 
     public GooglePlayBilling(Context context) {
@@ -184,8 +181,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
                 queryPurchases();
             } else if (this.serviceDisconnected && this.billingClient.getConnectionState() == BillingClient.ConnectionState.DISCONNECTED) {
                 // Nothing else reconnects after onBillingServiceDisconnected. The query runs from
-                // onBillingSetupFinished once connected. The flag stays set until setup succeeds,
-                // so a failed reconnect is retried on the next resume.
+                // onBillingSetupFinished once connected.
                 Teak.log.i("billing.google.setup", "Reconnecting Google Play Billing.");
                 this.billingClient.startConnection(this);
             }
