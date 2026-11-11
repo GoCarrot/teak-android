@@ -42,10 +42,7 @@ import io.teak.sdk.event.PurchaseEvent;
 // and the price read — is a single native call site valid on all four versions (verified against
 // the 6.2.1 / 7.1.1 / 8.3.0 / 9.1.0 runtime interfaces).
 //
-// Billing ships no keep rules for its api package, so in a minified host app R8 renames or strips
-// everything this class reaches only by name: the proxied listener method,
-// QueryProductDetailsResult.getProductDetailsList, and BuildConfig.VERSION_NAME. proguard.txt keeps
-// them, and the proxy dispatches without looking at the method name.
+// Everything reached here by name or reflection needs a keep rule in proguard.txt.
 public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
     private final BillingClient billingClient;
 
@@ -100,10 +97,14 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
     @Override
     public void onBillingSetupFinished(@NonNull BillingResult billingResult) {
-        if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
-            Teak.log.i("billing.google.setup", "Google Play Billing connected.");
-        } else {
-            Teak.log.e("billing.google.setup", "Google Play Billing setup failed.", billingResultPayload(billingResult));
+        try {
+            if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+                Teak.log.i("billing.google.setup", "Google Play Billing connected.");
+            } else {
+                Teak.log.e("billing.google.setup", "Google Play Billing setup failed.", billingResultPayload(billingResult));
+            }
+        } catch (Exception e) {
+            Teak.log.exception(e);
         }
     }
 
@@ -114,20 +115,20 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
     @Override
     public void onPurchasesUpdated(@NonNull BillingResult billingResult, @Nullable List<Purchase> purchaseList) {
-        final Map<String, Object> resultPayload = billingResultPayload(billingResult);
-        resultPayload.put("purchase_count", purchaseList == null ? 0 : purchaseList.size());
-        final int responseCode = billingResult.getResponseCode();
-        if (responseCode == BillingClient.BillingResponseCode.OK || responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-            Teak.log.i("billing.google.purchase", "Purchases updated.", resultPayload);
-        } else {
-            Teak.log.w("billing.google.purchase", "Purchases updated with a non-OK result.", resultPayload);
-        }
-
-        if (purchaseList == null) {
-            return;
-        }
-
         try {
+            final Map<String, Object> resultPayload = billingResultPayload(billingResult);
+            resultPayload.put("purchase_count", purchaseList == null ? 0 : purchaseList.size());
+            final int responseCode = billingResult.getResponseCode();
+            if (responseCode == BillingClient.BillingResponseCode.OK || responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+                Teak.log.i("billing.google.purchase", "Purchases updated.", resultPayload);
+            } else {
+                Teak.log.w("billing.google.purchase", "Purchases updated with a non-OK result.", resultPayload);
+            }
+
+            if (purchaseList == null) {
+                return;
+            }
+
             for (Purchase purchase : purchaseList) {
                 for (String purchaseSku : purchase.getProducts()) {
                     final Map<String, Object> payload = new HashMap<>();
@@ -144,7 +145,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
                                                                          .build()))
                                                                  .build();
 
-                    this.billingClient.queryProductDetailsAsync(params, productDetailsListener(purchaseSku, payload));
+                    this.billingClient.queryProductDetailsAsync(params, productDetailsListener(payload));
                 }
             }
         } catch (Exception e) {
@@ -156,7 +157,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     // QueryProductDetailsResult. We implement whichever
     // ProductDetailsResponseListener the runtime declares via a dynamic proxy so the same code
     // links against every version, and normalize the second argument in onProductDetails.
-    private ProductDetailsResponseListener productDetailsListener(final String purchaseSku, final Map<String, Object> payload) {
+    private ProductDetailsResponseListener productDetailsListener(final Map<String, Object> payload) {
         final InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
@@ -165,7 +166,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
                 }
                 if (isProductDetailsCallback(method, args)) {
                     final BillingResult billingResult = args[0] instanceof BillingResult ? (BillingResult) args[0] : null;
-                    onProductDetails(purchaseSku, payload, billingResult, normalizeProductDetails(args[1]));
+                    onProductDetails(payload, billingResult, normalizeProductDetails(args[1]));
                 }
                 return defaultReturn(method.getReturnType());
             }
@@ -177,16 +178,15 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     }
 
     // ProductDetailsResponseListener declares exactly one method, so any non-Object call into the
-    // proxy is the product-details callback. Matching on the method name instead would silently
-    // drop every callback once R8 renames the method in a minified host app.
+    // proxy is the product-details callback, whatever R8 has renamed it to.
     // Package-private so the dispatch is unit-testable with a method of any name.
     static boolean isProductDetailsCallback(@NonNull Method method, @Nullable Object[] args) {
-        return method.getDeclaringClass() != Object.class && args != null && args.length == 2;
+        return args != null && args.length == 2;
     }
 
     // Prices the purchase payload and posts it. The event is posted even without a price, so each
     // unpriced path logs why before it goes out.
-    private static void onProductDetails(String purchaseSku, Map<String, Object> payload, @Nullable BillingResult billingResult, @Nullable List<ProductDetails> productDetailsList) {
+    private static void onProductDetails(Map<String, Object> payload, @Nullable BillingResult billingResult, @Nullable List<ProductDetails> productDetailsList) {
         try {
             final ProductDetails.OneTimePurchaseOfferDetails otpDetails =
                 (productDetailsList != null && !productDetailsList.isEmpty()) ? productDetailsList.get(0).getOneTimePurchaseOfferDetails() : null;

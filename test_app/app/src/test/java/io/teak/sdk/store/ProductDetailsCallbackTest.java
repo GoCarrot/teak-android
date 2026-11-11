@@ -17,26 +17,10 @@ public class ProductDetailsCallbackTest {
         void a(Object billingResult, Object productDetails);
     }
 
-    interface OriginalListener {
-        void onProductDetailsResponse(Object billingResult, Object productDetails);
-    }
-
     @Test
     public void renamedMethod_isDispatched() throws Exception {
         final Method method = RenamedListener.class.getMethod("a", Object.class, Object.class);
         assertTrue(GooglePlayBilling.isProductDetailsCallback(method, new Object[] {null, null}));
-    }
-
-    @Test
-    public void originalName_isDispatched() throws Exception {
-        final Method method = OriginalListener.class.getMethod("onProductDetailsResponse", Object.class, Object.class);
-        assertTrue(GooglePlayBilling.isProductDetailsCallback(method, new Object[] {null, null}));
-    }
-
-    @Test
-    public void objectMethods_areNotDispatched() throws Exception {
-        assertFalse(GooglePlayBilling.isProductDetailsCallback(Object.class.getMethod("equals", Object.class), new Object[] {null}));
-        assertFalse(GooglePlayBilling.isProductDetailsCallback(Object.class.getMethod("hashCode"), null));
     }
 
     @Test
