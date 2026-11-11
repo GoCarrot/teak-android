@@ -184,8 +184,8 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
                 queryPurchases();
             } else if (this.serviceDisconnected && this.billingClient.getConnectionState() == BillingClient.ConnectionState.DISCONNECTED) {
                 // Nothing else reconnects after onBillingServiceDisconnected. The query runs from
-                // onBillingSetupFinished once connected.
-                this.serviceDisconnected = false;
+                // onBillingSetupFinished once connected. The flag stays set until setup succeeds,
+                // so a failed reconnect is retried on the next resume.
                 Teak.log.i("billing.google.setup", "Reconnecting Google Play Billing.");
                 this.billingClient.startConnection(this);
             }

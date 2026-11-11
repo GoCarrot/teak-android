@@ -135,7 +135,19 @@ public class QueryPurchasesTest {
     }
 
     @Test
+    public void failedReconnect_isRetriedOnNextResume() {
+        billing.onBillingServiceDisconnected();
+        when(client.isReady()).thenReturn(false);
+        when(client.getConnectionState()).thenReturn(BillingClient.ConnectionState.DISCONNECTED);
+        billing.onResumed();
+        billing.onBillingSetupFinished(BillingResult.newBuilder().setResponseCode(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE).build());
+        billing.onResumed();
+        verify(client, times(2)).startConnection(billing);
+    }
+
+    @Test
     public void resumeWhileConnecting_doesNothing() {
+        billing.onBillingServiceDisconnected();
         when(client.isReady()).thenReturn(false);
         when(client.getConnectionState()).thenReturn(BillingClient.ConnectionState.CONNECTING);
         billing.onResumed();
