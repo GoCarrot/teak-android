@@ -182,7 +182,8 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
     // Recognizes the product-details callback by signature, (BillingResult, List<ProductDetails>) on
     // billing 6-7 and (BillingResult, QueryProductDetailsResult) on 8+, not by name. proguard.txt
-    // keeps the name; this covers a host app that drops consumer rules and lets R8 rename it.
+    // keeps the name. On 6-7 this also covers a host app that drops consumer rules; on 8+ the
+    // QueryProductDetailsResult match relies on the keep rule, and without it the call is logged.
     // Package-private so the dispatch is unit-testable with a method of any name.
     static boolean isProductDetailsCallback(@NonNull Method method) {
         final Class<?>[] params = method.getParameterTypes();
