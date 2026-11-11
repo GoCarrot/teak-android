@@ -54,9 +54,10 @@ import io.teak.sdk.event.PurchaseEvent;
 // queries owned purchases, through its own BillingClient, and never consumes or acknowledges them.
 public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
     // Queried purchases older than this aren't reported, so purchases made before Teak was
-    // integrated (or otherwise never seen) don't turn into new, historic purchase records. Sized to
-    // cover a pending payment (cancelled after ~3 days) plus the 3-day acknowledgement window that
-    // starts when it clears; an unacknowledged purchase is refunded and revoked after that.
+    // integrated (or otherwise never seen) don't turn into new, historic purchase records.
+    // getPurchaseTime() is when the purchase was started, not when its payment cleared, so this
+    // covers the pending window (Play doesn't publish one; developers report about 3 days) plus
+    // the 3-day acknowledgement window that starts when it clears, with margin.
     static final long QUERIED_PURCHASE_MAX_AGE_MS = TimeUnit.DAYS.toMillis(7);
 
     private final BillingClient billingClient;
