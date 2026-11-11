@@ -41,6 +41,8 @@ import io.teak.sdk.event.PurchaseEvent;
 // Every other call — client construction, purchases-updated, the product-details query itself,
 // and the price read — is a single native call site valid on all four versions (verified against
 // the 6.2.1 / 7.1.1 / 8.3.0 / 9.1.0 runtime interfaces).
+//
+// Everything reached here by name or reflection needs a keep rule in proguard.txt.
 public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
     private final BillingClient billingClient;
 
@@ -95,19 +97,38 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
     @Override
     public void onBillingSetupFinished(@NonNull BillingResult billingResult) {
+        try {
+            if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+                Teak.log.i("billing.google.setup", "Google Play Billing connected.");
+            } else {
+                Teak.log.e("billing.google.setup", "Google Play Billing setup failed.", billingResultPayload(billingResult));
+            }
+        } catch (Exception e) {
+            Teak.log.exception(e);
+        }
     }
 
     @Override
     public void onBillingServiceDisconnected() {
+        Teak.log.w("billing.google.setup", "Google Play Billing service disconnected.");
     }
 
     @Override
     public void onPurchasesUpdated(@NonNull BillingResult billingResult, @Nullable List<Purchase> purchaseList) {
-        if (purchaseList == null) {
-            return;
-        }
-
         try {
+            final Map<String, Object> resultPayload = billingResultPayload(billingResult);
+            resultPayload.put("purchase_count", purchaseList == null ? 0 : purchaseList.size());
+            final int responseCode = billingResult.getResponseCode();
+            if (responseCode == BillingClient.BillingResponseCode.OK || responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+                Teak.log.i("billing.google.purchase", "Purchases updated.", resultPayload);
+            } else {
+                Teak.log.w("billing.google.purchase", "Purchases updated with a non-OK result.", resultPayload);
+            }
+
+            if (purchaseList == null) {
+                return;
+            }
+
             for (Purchase purchase : purchaseList) {
                 for (String purchaseSku : purchase.getProducts()) {
                     final Map<String, Object> payload = new HashMap<>();
@@ -124,7 +145,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
                                                                          .build()))
                                                                  .build();
 
-                    this.billingClient.queryProductDetailsAsync(params, productDetailsListener(purchaseSku, payload));
+                    this.billingClient.queryProductDetailsAsync(params, productDetailsListener(payload));
                 }
             }
         } catch (Exception e) {
@@ -136,15 +157,17 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     // QueryProductDetailsResult. We implement whichever
     // ProductDetailsResponseListener the runtime declares via a dynamic proxy so the same code
     // links against every version, and normalize the second argument in onProductDetails.
-    private ProductDetailsResponseListener productDetailsListener(final String purchaseSku, final Map<String, Object> payload) {
+    private ProductDetailsResponseListener productDetailsListener(final Map<String, Object> payload) {
         final InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if (method.getDeclaringClass() == Object.class) {
                     return objectMethod(proxy, method, args);
                 }
-                if ("onProductDetailsResponse".equals(method.getName()) && args != null && args.length == 2) {
-                    onProductDetails(purchaseSku, payload, normalizeProductDetails(args[1]));
+                if (isProductDetailsCallback(method) && args != null && args.length == 2) {
+                    onProductDetails(payload, (BillingResult) args[0], normalizeProductDetails(args[1]));
+                } else {
+                    Teak.log.w("billing.google.sku", "Unexpected product-details listener call.", Helpers.mm.h("method", method.getName()));
                 }
                 return defaultReturn(method.getReturnType());
             }
@@ -155,22 +178,44 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
             handler);
     }
 
-    private void onProductDetails(String purchaseSku, Map<String, Object> payload, @Nullable List<ProductDetails> productDetailsList) {
+    // proguard.txt keeps ProductDetailsResponseListener's method name, so the callback can be matched
+    // by name. Anything else reaching the proxy is logged rather than dropped silently.
+    // Package-private so the dispatch is unit-testable.
+    static boolean isProductDetailsCallback(@NonNull Method method) {
+        return "onProductDetailsResponse".equals(method.getName()) && method.getParameterTypes().length == 2;
+    }
+
+    // The event is posted even without a price, so each unpriced path logs why before it goes out.
+    private static void onProductDetails(Map<String, Object> payload, @Nullable BillingResult billingResult, @Nullable List<ProductDetails> productDetailsList) {
         try {
-            if (productDetailsList != null && !productDetailsList.isEmpty()) {
-                final ProductDetails.OneTimePurchaseOfferDetails otpDetails = productDetailsList.get(0).getOneTimePurchaseOfferDetails();
+            final ProductDetails.OneTimePurchaseOfferDetails otpDetails;
+            if (productDetailsList == null || productDetailsList.isEmpty()) {
+                Teak.log.e("billing.google.sku", "SKU Details query failed.", withBillingResult(payload, billingResult));
+            } else if ((otpDetails = productDetailsList.get(0).getOneTimePurchaseOfferDetails()) == null) {
+                Teak.log.e("billing.google.sku", "SKU Details have no one-time purchase price.", withBillingResult(payload, billingResult));
+            } else {
                 payload.put("price_amount_micros", otpDetails.getPriceAmountMicros());
                 payload.put("price_currency_code", otpDetails.getPriceCurrencyCode());
 
                 Teak.log.i("billing.google.sku", "SKU Details retrieved.", payload);
-            } else {
-                Teak.log.e("billing.google.sku", "SKU Details query failed.", payload);
             }
 
             TeakEvent.postEvent(new PurchaseEvent(payload));
         } catch (Exception e) {
             Teak.log.exception(e);
         }
+    }
+
+    private static Map<String, Object> billingResultPayload(@NonNull BillingResult billingResult) {
+        return Helpers.mm.h("response_code", billingResult.getResponseCode(), "debug_message", billingResult.getDebugMessage());
+    }
+
+    private static Map<String, Object> withBillingResult(Map<String, Object> payload, @Nullable BillingResult billingResult) {
+        final Map<String, Object> logPayload = new HashMap<>(payload);
+        if (billingResult != null) {
+            logPayload.putAll(billingResultPayload(billingResult));
+        }
+        return logPayload;
     }
 
     // Billing 6-7: the argument is already the List<ProductDetails>. Billing 8+: it is a

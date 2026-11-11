@@ -32,6 +32,13 @@ The `example/` harness app takes gradle property overrides (`-P…`):
 
 `-PbillingVersion` links the example against that Play Billing version so you can exercise Teak's store path on 8.x/9.x without editing the build file (any 8.x/9.x value works as-is; 7.x also needs `MainActivity`'s product-details callback reverted to the `List<ProductDetails>` shape).
 
+```bash
+(cd example && ./gradlew :app:assembleGoogleRelease -Pminify=true)                           # R8 on, so Teak's consumer proguard.txt is exercised
+(cd example && ./gradlew :app:assembleGoogleRelease -Pminify=true -PextraProguard=/abs/rules.pro)  # layer host-side rules on top
+```
+
+`-PextraProguard` resolves relative to `example/app`, so pass an absolute path. The release APK comes out unsigned: `zipalign -p 4` then `apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android` to install it over a debug build. Release builds log nothing locally; launch with `adb shell am start -a android.intent.action.VIEW -d 'teak<appId>://x?teak_log=true'` to force Teak logging.
+
 ## CI Checks to Know About
 
 These run in CI and will fail the build if violated:
