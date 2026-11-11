@@ -9,16 +9,21 @@ import com.android.billingclient.api.PendingPurchasesParams;
 import com.android.billingclient.api.ProductDetails;
 import com.android.billingclient.api.ProductDetailsResponseListener;
 import com.android.billingclient.api.Purchase;
+import com.android.billingclient.api.PurchasesResponseListener;
 import com.android.billingclient.api.PurchasesUpdatedListener;
 import com.android.billingclient.api.QueryProductDetailsParams;
+import com.android.billingclient.api.QueryPurchasesParams;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -26,6 +31,7 @@ import io.teak.sdk.Helpers;
 import io.teak.sdk.Teak;
 import io.teak.sdk.TeakEvent;
 import io.teak.sdk.Unobfuscable;
+import io.teak.sdk.event.LifecycleEvent;
 import io.teak.sdk.event.PurchaseEvent;
 
 // Single Google Play Billing store. Teak compiles against billing 7.1.1 but the host game
@@ -43,8 +49,26 @@ import io.teak.sdk.event.PurchaseEvent;
 // the 6.2.1 / 7.1.1 / 8.3.0 / 9.1.0 runtime interfaces).
 //
 // Everything reached here by name or reflection needs a keep rule in proguard.txt.
-public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
+//
+// Purchases that complete while the game isn't running never reach onPurchasesUpdated, so Teak also
+// queries owned purchases, through its own BillingClient, and never consumes or acknowledges them.
+public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener, PurchasesResponseListener {
+    // Queried purchases older than this aren't reported, so purchases made before Teak was
+    // integrated (or otherwise never seen) don't turn into new, historic purchase records.
+    // getPurchaseTime() is when the purchase was started, not when its payment cleared, so this
+    // covers the pending window (Play doesn't publish one; developers report about 3 days) plus
+    // the 3-day acknowledgement window that starts when it clears, with margin.
+    static final long QUERIED_PURCHASE_MAX_AGE_MS = TimeUnit.DAYS.toMillis(7);
+
     private final BillingClient billingClient;
+
+    // Purchase tokens already reported this process. queryPurchasesAsync returns a purchase until
+    // the game consumes it, so without this every query would re-report it.
+    private final Set<String> reportedPurchaseTokens = new HashSet<>();
+
+    // Set when an established connection drops; cleared only when setup succeeds, so a failed
+    // reconnect is retried on the next resume. A failed initial setup never sets it.
+    private volatile boolean serviceDisconnected = false;
 
     public GooglePlayBilling(Context context) {
         // Log the version before registering so a failure in build()/startConnection() still
@@ -54,6 +78,12 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
         this.billingClient = enablePendingPurchases(BillingClient.newBuilder(context).setListener(this), pendingPurchasesParamsAvailable()).build();
 
         this.billingClient.startConnection(this);
+
+        TeakEvent.addEventListener(event -> {
+            if (LifecycleEvent.Resumed.equals(event.eventType)) {
+                onResumed();
+            }
+        });
     }
 
     // Package-private so tests can inject a BillingClient.
@@ -104,7 +134,9 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
     public void onBillingSetupFinished(@NonNull BillingResult billingResult) {
         try {
             if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+                this.serviceDisconnected = false;
                 Teak.log.i("billing.google.setup", "Google Play Billing connected.");
+                queryPurchases();
             } else {
                 Teak.log.e("billing.google.setup", "Google Play Billing setup failed.", billingResultPayload(billingResult));
             }
@@ -115,6 +147,7 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
 
     @Override
     public void onBillingServiceDisconnected() {
+        this.serviceDisconnected = true;
         Teak.log.w("billing.google.setup", "Google Play Billing service disconnected.");
     }
 
@@ -135,34 +168,94 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
             }
 
             for (Purchase purchase : purchaseList) {
-                // A pending purchase may never complete, so only completed purchases are reported.
-                if (purchase.getPurchaseState() != Purchase.PurchaseState.PURCHASED) {
-                    Teak.log.i("billing.google.purchase", "Skipping purchase that is not completed.",
-                        Helpers.mm.h("purchase_state", purchase.getPurchaseState(), "product_ids", purchase.getProducts()));
-                    continue;
-                }
-
-                for (String purchaseSku : purchase.getProducts()) {
-                    final Map<String, Object> payload = new HashMap<>();
-                    payload.put("purchase_token", purchase.getPurchaseToken());
-                    payload.put("purchase_time", purchase.getPurchaseTime());
-                    payload.put("product_id", purchaseSku);
-                    payload.put("order_id", purchase.getOrderId());
-
-                    final QueryProductDetailsParams params = QueryProductDetailsParams
-                                                                 .newBuilder()
-                                                                 .setProductList(Collections.singletonList(QueryProductDetailsParams.Product.newBuilder()
-                                                                         .setProductId(purchaseSku)
-                                                                         .setProductType(BillingClient.ProductType.INAPP)
-                                                                         .build()))
-                                                                 .build();
-
-                    this.billingClient.queryProductDetailsAsync(params, productDetailsListener(payload));
-                }
+                reportPurchase(purchase);
             }
         } catch (Exception e) {
             Teak.log.exception(e);
         }
+    }
+
+    // Package-private so tests can drive the resume path without the TeakEvent bus.
+    void onResumed() {
+        try {
+            if (this.billingClient.isReady()) {
+                queryPurchases();
+            } else if (this.serviceDisconnected && this.billingClient.getConnectionState() == BillingClient.ConnectionState.DISCONNECTED) {
+                // Nothing else reconnects after onBillingServiceDisconnected. The query runs from
+                // onBillingSetupFinished once connected.
+                Teak.log.i("billing.google.setup", "Reconnecting Google Play Billing.");
+                this.billingClient.startConnection(this);
+            }
+        } catch (Exception e) {
+            Teak.log.exception(e);
+        }
+    }
+
+    private void queryPurchases() {
+        final QueryPurchasesParams params = QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build();
+        this.billingClient.queryPurchasesAsync(params, this);
+    }
+
+    @Override
+    public void onQueryPurchasesResponse(@NonNull BillingResult billingResult, @NonNull List<Purchase> purchaseList) {
+        try {
+            if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK) {
+                Teak.log.w("billing.google.query", "Purchase query failed.", billingResultPayload(billingResult));
+                return;
+            }
+
+            final long oldestReported = System.currentTimeMillis() - QUERIED_PURCHASE_MAX_AGE_MS;
+            int reported = 0;
+            int tooOld = 0;
+            for (Purchase purchase : purchaseList) {
+                if (purchase.getPurchaseTime() < oldestReported) {
+                    tooOld++;
+                    continue;
+                }
+                if (reportPurchase(purchase)) {
+                    reported++;
+                }
+            }
+            Teak.log.i("billing.google.query", "Purchase query finished.",
+                Helpers.mm.h("returned", purchaseList.size(), "reported", reported, "too_old", tooOld));
+        } catch (Exception e) {
+            Teak.log.exception(e);
+        }
+    }
+
+    // Reports a completed purchase once per process. Returns whether it was reported now.
+    private boolean reportPurchase(@NonNull Purchase purchase) {
+        // A pending purchase may never complete, so only completed purchases are reported.
+        if (purchase.getPurchaseState() != Purchase.PurchaseState.PURCHASED) {
+            Teak.log.i("billing.google.purchase", "Skipping purchase that is not completed.",
+                Helpers.mm.h("purchase_state", purchase.getPurchaseState(), "product_ids", purchase.getProducts()));
+            return false;
+        }
+
+        synchronized (this.reportedPurchaseTokens) {
+            if (!this.reportedPurchaseTokens.add(purchase.getPurchaseToken())) {
+                return false;
+            }
+        }
+
+        for (String purchaseSku : purchase.getProducts()) {
+            final Map<String, Object> payload = new HashMap<>();
+            payload.put("purchase_token", purchase.getPurchaseToken());
+            payload.put("purchase_time", purchase.getPurchaseTime());
+            payload.put("product_id", purchaseSku);
+            payload.put("order_id", purchase.getOrderId());
+
+            final QueryProductDetailsParams params = QueryProductDetailsParams
+                                                         .newBuilder()
+                                                         .setProductList(Collections.singletonList(QueryProductDetailsParams.Product.newBuilder()
+                                                                 .setProductId(purchaseSku)
+                                                                 .setProductType(BillingClient.ProductType.INAPP)
+                                                                 .build()))
+                                                         .build();
+
+            this.billingClient.queryProductDetailsAsync(params, productDetailsListener(payload));
+        }
+        return true;
     }
 
     // Billing 6-7 invokes the listener with a List<ProductDetails>; billing 8+ invokes it with a
