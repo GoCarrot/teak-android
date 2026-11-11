@@ -44,8 +44,6 @@ import io.teak.sdk.event.PurchaseEvent;
 //
 // Everything reached here by name or reflection needs a keep rule in proguard.txt.
 public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdatedListener, BillingClientStateListener {
-    private static final String QUERY_PRODUCT_DETAILS_RESULT = "com.android.billingclient.api.QueryProductDetailsResult";
-
     private final BillingClient billingClient;
 
     public GooglePlayBilling(Context context) {
@@ -180,15 +178,11 @@ public class GooglePlayBilling implements Unobfuscable, IStore, PurchasesUpdated
             handler);
     }
 
-    // Recognizes the product-details callback by signature, (BillingResult, List<ProductDetails>) on
-    // billing 6-7 and (BillingResult, QueryProductDetailsResult) on 8+, not by name. proguard.txt
-    // keeps the name. On 6-7 this also covers a host app that drops consumer rules; on 8+ the
-    // QueryProductDetailsResult match relies on the keep rule, and without it the call is logged.
-    // Package-private so the dispatch is unit-testable with a method of any name.
+    // proguard.txt keeps ProductDetailsResponseListener's method name, so the callback can be matched
+    // by name. Anything else reaching the proxy is logged rather than dropped silently.
+    // Package-private so the dispatch is unit-testable.
     static boolean isProductDetailsCallback(@NonNull Method method) {
-        final Class<?>[] params = method.getParameterTypes();
-        return params.length == 2 && params[0] == BillingResult.class &&
-            (List.class.isAssignableFrom(params[1]) || QUERY_PRODUCT_DETAILS_RESULT.equals(params[1].getName()));
+        return "onProductDetailsResponse".equals(method.getName()) && method.getParameterTypes().length == 2;
     }
 
     // The event is posted even without a price, so each unpriced path logs why before it goes out.
