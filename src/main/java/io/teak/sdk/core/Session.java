@@ -163,6 +163,7 @@ public class Session {
         this.launchDataSource = launchDataSource;
         if (session != null) {
             this.userId = session.userId;
+            this.email = session.email;
             this.facebookAccessToken = session.facebookAccessToken;
             this.facebookId = session.facebookId;
         }
@@ -768,11 +769,12 @@ public class Session {
                     needsIdentifyUser = true;
                 }
 
-                currentSession.stateLock.unlock();
-
+                // Write under stateLock so the Configured hook can't read a null userId in between
                 currentSession.userId = userId;
                 currentSession.email = email;
                 currentSession.facebookId = facebookId;
+
+                currentSession.stateLock.unlock();
 
                 if (needsIdentifyUser) {
                     currentSession.identifyUser();
