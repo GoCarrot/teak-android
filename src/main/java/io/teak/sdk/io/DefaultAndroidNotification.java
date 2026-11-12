@@ -19,7 +19,6 @@ import java.util.Objects;
 import java.util.Arrays;
 
 import androidx.annotation.NonNull;
-import androidx.work.Data;
 import io.teak.sdk.Helpers;
 import io.teak.sdk.NotificationBuilder;
 import io.teak.sdk.Teak;
@@ -95,10 +94,7 @@ public class DefaultAndroidNotification implements IAndroidNotification {
     private void scheduleScreenStateWork() {
         try {
             // Forwarded even at zero, which is what stops the screen state polling
-            final Data data = new Data.Builder()
-                                  .putInt(IAndroidNotification.ANIMATED_NOTIFICATION_COUNT_KEY, this.animatedNotifications.size())
-                                  .build();
-            this.deviceScreenState.scheduleScreenStateWork(data);
+            this.deviceScreenState.scheduleScreenStateWork(this.animatedNotifications.size());
         } catch (Exception e) {
             Teak.log.exception(e, false);
         }
@@ -221,7 +217,9 @@ public class DefaultAndroidNotification implements IAndroidNotification {
                 }
             }
             this.animatedNotifications.removeAll(removeList);
-            this.scheduleScreenStateWork();
+            if (!removeList.isEmpty()) {
+                this.scheduleScreenStateWork();
+            }
         }
     }
 

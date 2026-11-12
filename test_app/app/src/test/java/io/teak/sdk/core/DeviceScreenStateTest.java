@@ -1,4 +1,4 @@
-package io.teak.app.test;
+package io.teak.sdk.core;
 
 import android.content.Context;
 
@@ -15,9 +15,7 @@ import java.lang.reflect.Modifier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.teak.sdk.core.DeviceScreenState;
 import io.teak.sdk.core.DeviceScreenState.DeviceScreenStateWorker;
-import io.teak.sdk.io.IAndroidNotification;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -57,12 +55,6 @@ public class DeviceScreenStateTest {
         }
     }
 
-    @Test
-    public void request_keepsTheInputData() {
-        final Data data = new Data.Builder().putInt("keep", 7).build();
-        assertEquals(7, DeviceScreenState.buildRequest(data).getWorkSpec().input.getInt("keep", -1));
-    }
-
     public static class ScreenStateCounter {
         final AtomicInteger count = new AtomicInteger();
 
@@ -76,7 +68,7 @@ public class DeviceScreenStateTest {
     @Test
     public void worker_doesNothingWhenNothingIsAnimated() {
         final DeviceScreenState deviceScreenState = new DeviceScreenState(mock(Context.class));
-        deviceScreenState.scheduleScreenStateWork(new Data.Builder().putInt(IAndroidNotification.ANIMATED_NOTIFICATION_COUNT_KEY, 0).build());
+        deviceScreenState.scheduleScreenStateWork(0);
 
         final ScreenStateCounter counter = new ScreenStateCounter();
         EventBus.getDefault().register(counter);

@@ -6,4 +6,4 @@ bug:
   - "Google Play Billing setup failures, service disconnects, and purchases that can't be priced are now logged."
   - "Google Play purchases that are still pending payment are no longer sent to Teak."
   - "Google Play purchases that complete while the game isn't running, such as a pending payment that clears later, are now sent to Teak the next time the game opens. Only purchases from the last 7 days are sent."
-  - Animated notifications keep animating after the screen turns off.
+  - "Animated notifications keep animating after the screen turns off."
