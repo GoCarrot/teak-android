@@ -4,6 +4,7 @@ import android.content.Intent;
 
 import androidx.annotation.NonNull;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -35,10 +36,7 @@ public class IdentifyBeforeSession extends TeakUnitTest {
 
     @Before
     public void resetSessionAndListen() throws Exception {
-        setStaticField("currentSession", null);
-        setStaticField("pendingUserId", null);
-        setStaticField("pendingEmail", null);
-        setStaticField("pendingFacebookId", null);
+        resetSessionStatics();
 
         final Method register = Session.class.getDeclaredMethod("registerStaticEventListeners");
         register.setAccessible(true);
@@ -97,6 +95,14 @@ public class IdentifyBeforeSession extends TeakUnitTest {
             600,
             new ArrayList<Teak.Channel.Category>(),
             true);
+    }
+
+    @After
+    public void resetSessionStatics() throws Exception {
+        setStaticField("currentSession", null);
+        setStaticField("pendingUserId", null);
+        setStaticField("pendingEmail", null);
+        setStaticField("pendingFacebookId", null);
     }
 
     private static void setStaticField(String name, Object value) throws Exception {
