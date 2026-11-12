@@ -788,6 +788,14 @@ public class Session {
     private static void logout() {
         currentSessionLock.lock();
         try {
+            // No session yet, so the only user state is the pending id from identifyUser
+            if (currentSession == null) {
+                Session.pendingUserId = null;
+                Session.pendingEmail = null;
+                Session.pendingFacebookId = null;
+                return;
+            }
+
             final Session _lockedSession = currentSession;
             _lockedSession.stateLock.lock();
             try {
