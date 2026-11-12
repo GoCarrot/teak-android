@@ -990,6 +990,8 @@ public class Session {
                 currentSession = new Session(oldSession, launchDataSource);
                 if (oldSession != null) {
                     oldSession.forceExpire();
+                } else {
+                    adoptPendingUserId();
                 }
             } else {
                 // Reset state on current session, if it is expiring
@@ -1094,12 +1096,28 @@ public class Session {
                     if (oldSession.userId != null) {
                         setUserId(oldSession.userId, oldSession.email, oldSession.facebookId);
                     }
-                } else if (Session.pendingUserId != null) {
-                    setUserId(Session.pendingUserId, Session.pendingEmail, Session.pendingFacebookId);
-                    Session.pendingUserId = null;
-                    Session.pendingEmail = null;
-                    Session.pendingFacebookId = null;
+                } else {
+                    adoptPendingUserId();
                 }
+            }
+        } finally {
+            currentSessionLock.unlock();
+        }
+    }
+
+    // Hand a user id that was set before any session existed to the newly created session.
+    // Every path that creates the first session must call this, or that identify is lost.
+    private static void adoptPendingUserId() {
+        currentSessionLock.lock();
+        try {
+            if (Session.pendingUserId != null) {
+                final String userId = Session.pendingUserId;
+                final String email = Session.pendingEmail;
+                final String facebookId = Session.pendingFacebookId;
+                Session.pendingUserId = null;
+                Session.pendingEmail = null;
+                Session.pendingFacebookId = null;
+                setUserId(userId, email, facebookId);
             }
         } finally {
             currentSessionLock.unlock();
