@@ -163,6 +163,7 @@ public class Session {
         this.launchDataSource = launchDataSource;
         if (session != null) {
             this.userId = session.userId;
+            this.email = session.email;
             this.facebookAccessToken = session.facebookAccessToken;
             this.facebookId = session.facebookId;
         }
@@ -768,11 +769,12 @@ public class Session {
                     needsIdentifyUser = true;
                 }
 
-                currentSession.stateLock.unlock();
-
+                // Set before releasing stateLock, so a state change can't land between the check and the write
                 currentSession.userId = userId;
                 currentSession.email = email;
                 currentSession.facebookId = facebookId;
+
+                currentSession.stateLock.unlock();
 
                 if (needsIdentifyUser) {
                     currentSession.identifyUser();
@@ -990,6 +992,8 @@ public class Session {
                 currentSession = new Session(oldSession, launchDataSource);
                 if (oldSession != null) {
                     oldSession.forceExpire();
+                } else {
+                    adoptPendingUserId();
                 }
             } else {
                 // Reset state on current session, if it is expiring
@@ -1094,15 +1098,24 @@ public class Session {
                     if (oldSession.userId != null) {
                         setUserId(oldSession.userId, oldSession.email, oldSession.facebookId);
                     }
-                } else if (Session.pendingUserId != null) {
-                    setUserId(Session.pendingUserId, Session.pendingEmail, Session.pendingFacebookId);
-                    Session.pendingUserId = null;
-                    Session.pendingEmail = null;
-                    Session.pendingFacebookId = null;
+                } else {
+                    adoptPendingUserId();
                 }
             }
         } finally {
             currentSessionLock.unlock();
+        }
+    }
+
+    // Hand a user id that was set before any session existed to the newly created session.
+    // Every path that creates the first session must call this, or that identify is lost.
+    // Caller must hold currentSessionLock with currentSession set.
+    private static void adoptPendingUserId() {
+        if (Session.pendingUserId != null) {
+            setUserId(Session.pendingUserId, Session.pendingEmail, Session.pendingFacebookId);
+            Session.pendingUserId = null;
+            Session.pendingEmail = null;
+            Session.pendingFacebookId = null;
         }
     }
 
