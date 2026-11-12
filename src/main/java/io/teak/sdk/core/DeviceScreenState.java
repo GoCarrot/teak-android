@@ -10,6 +10,7 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -21,8 +22,6 @@ import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 import io.teak.sdk.Helpers;
 import io.teak.sdk.Teak;
-import io.teak.sdk.io.IAndroidNotification;
-import io.teak.sdk.raven.Sender;
 
 public class DeviceScreenState {
     public static final String DELAY_INDEX_KEY = "DeviceScreenState.DelayIndex";
@@ -75,13 +74,20 @@ public class DeviceScreenState {
         }
     }
 
+    private static final String UNIQUE_WORK_NAME = "io.teak.sdk.screenState";
+
+    // The worker runs outside any object graph, so it finds the live instance here
+    private static volatile DeviceScreenState Instance = null;
+
     private State state = State.Unknown;
     private final Object stateMutex = new Object();
     private final Context context;
+    private volatile int animatedCount = 0;
 
     public DeviceScreenState(final Context context) {
         this.context = context;
         EventBus.getDefault().register(this);
+        DeviceScreenState.Instance = this;
     }
 
     @Subscribe
@@ -96,7 +102,8 @@ public class DeviceScreenState {
         }
     }
 
-    private static final int[][] ExecutionWindow = new int[][] {
+    // Seconds, {earliest, latest}. Indexed by the delay index carried in the work's input data.
+    static final int[][] ExecutionWindow = new int[][] {
         {15, 16},
         {5, 10},  // Not an ordering error, this is to prevent the device re-checking if the screen
         {10, 20}, // gets turned on from re-issuing the notification in the case of a state change to OFF
@@ -107,34 +114,40 @@ public class DeviceScreenState {
         {150, 300},
         {600, 900}};
 
-    public void scheduleScreenStateWork(@Nullable Data data) {
-        int delayIndex = 0;
-        if (data != null) {
-            // Do not schedule if there is no remaining animated notifications
-            if (data.getInt(IAndroidNotification.ANIMATED_NOTIFICATION_COUNT_KEY, 0) < 1) {
-                return;
-            }
-            delayIndex = data.getInt(DeviceScreenState.DELAY_INDEX_KEY, -1) + 1;
-        }
-        delayIndex = Math.max(0, Math.min(delayIndex, ExecutionWindow.length - 1));
+    // Next link in the polling chain: one step further along ExecutionWindow than the previous
+    // link's delay index (null starts the chain), run after a delay drawn from that window.
+    static OneTimeWorkRequest buildRequest(@Nullable Data previous) {
+        final int delayIndex = Math.max(0, Math.min(previous == null ? 0 : previous.getInt(DELAY_INDEX_KEY, -1) + 1, ExecutionWindow.length - 1));
+        final int[] window = ExecutionWindow[delayIndex];
+        final long delaySeconds = window[0] + (long) (Math.random() * (window[1] - window[0] + 1));
 
-        final Data.Builder dataBuilder = new Data.Builder();
-        if (data != null) {
-            dataBuilder.putAll(data);
-        }
-        dataBuilder.putInt(DeviceScreenState.DELAY_INDEX_KEY, delayIndex);
-
-        Teak.log.i("teak.animation", Helpers.mm.h("delay_index", delayIndex, "timestamp", new Date().getTime() / 1000));
-
-        int[] executionWindow = DeviceScreenState.ExecutionWindow[delayIndex];
-        final OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(Sender.class)
-                                               .setInputData(dataBuilder.build())
-                                               .build();
-        WorkManager.getInstance(this.context)
-            .enqueueUniqueWork("io.teak.sdk.screenState", ExistingWorkPolicy.REPLACE, request);
+        return new OneTimeWorkRequest.Builder(DeviceScreenStateWorker.class)
+            .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
+            .setInputData(new Data.Builder().putInt(DELAY_INDEX_KEY, delayIndex).build())
+            .build();
     }
 
-    public class DeviceScreenStateWorker extends Worker {
+    // Starts the polling chain over. At zero the pending work is cancelled, which is what ends
+    // the polling once the last animated notification is gone.
+    public void scheduleScreenStateWork(int animatedCount) {
+        final int previousCount = this.animatedCount;
+        this.animatedCount = animatedCount;
+        if (animatedCount < 1) {
+            if (previousCount > 0) {
+                WorkManager.getInstance(this.context).cancelUniqueWork(UNIQUE_WORK_NAME);
+            }
+            return;
+        }
+        this.enqueueScreenStateWork(null);
+    }
+
+    private void enqueueScreenStateWork(@Nullable Data previous) {
+        final OneTimeWorkRequest request = buildRequest(previous);
+        Teak.log.i("teak.animation", Helpers.mm.h("delay_index", request.getWorkSpec().input.getInt(DELAY_INDEX_KEY, -1), "timestamp", new Date().getTime() / 1000));
+        WorkManager.getInstance(this.context).enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.REPLACE, request);
+    }
+
+    public static class DeviceScreenStateWorker extends Worker {
         public DeviceScreenStateWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
             super(context, workerParams);
         }
@@ -142,28 +155,40 @@ public class DeviceScreenState {
         @NonNull
         @Override
         public Result doWork() {
-            boolean isScreenOn = false;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
-                final DisplayManager dm = (DisplayManager) this.getApplicationContext().getSystemService(Context.DISPLAY_SERVICE);
-                if (dm != null && dm.getDisplays() != null) {
-                    for (Display display : dm.getDisplays()) {
-                        final int displayState = display.getState();
-                        isScreenOn |= (displayState == Display.STATE_ON);
-                    }
-                }
-            } else {
-                final PowerManager powerManager = (PowerManager) this.getApplicationContext().getSystemService(Context.POWER_SERVICE);
-                @SuppressWarnings("deprecation")
-                final boolean suppressDeprecation = powerManager != null && powerManager.isScreenOn();
-                isScreenOn = suppressDeprecation;
+            // No instance, or nothing animated: a restarted process or a stale chain, so stop here
+            final DeviceScreenState instance = DeviceScreenState.Instance;
+            if (instance == null || instance.animatedCount < 1) {
+                return Result.success();
             }
 
-            EventBus.getDefault().post(new ScreenStateEvent(isScreenOn ? State.ScreenOn : State.ScreenOff));
+            try {
+                boolean isScreenOn = false;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
+                    final DisplayManager dm = (DisplayManager) this.getApplicationContext().getSystemService(Context.DISPLAY_SERVICE);
+                    if (dm != null && dm.getDisplays() != null) {
+                        for (Display display : dm.getDisplays()) {
+                            final int displayState = display.getState();
+                            isScreenOn |= (displayState == Display.STATE_ON);
+                        }
+                    }
+                } else {
+                    final PowerManager powerManager = (PowerManager) this.getApplicationContext().getSystemService(Context.POWER_SERVICE);
+                    @SuppressWarnings("deprecation")
+                    final boolean suppressDeprecation = powerManager != null && powerManager.isScreenOn();
+                    isScreenOn = suppressDeprecation;
+                }
 
-            // Re-schedule ourselves
-            DeviceScreenState.this.scheduleScreenStateWork(this.getInputData());
+                EventBus.getDefault().post(new ScreenStateEvent(isScreenOn ? State.ScreenOn : State.ScreenOff));
 
-            return Result.success();
+                // Re-schedule ourselves, unless a dismissal cancelled the work while this ran
+                if (instance.animatedCount > 0) {
+                    instance.enqueueScreenStateWork(this.getInputData());
+                }
+                return Result.success();
+            } catch (Exception e) {
+                Teak.log.exception(e, false);
+                return Result.failure();
+            }
         }
     }
 }
