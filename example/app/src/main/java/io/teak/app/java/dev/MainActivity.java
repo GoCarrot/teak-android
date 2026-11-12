@@ -10,6 +10,8 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.StrictMode;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -239,69 +241,38 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra("version", "1");
         intent.putExtra("message", "Teak");
 
-        // UI template
-        JSONObject teak_notif_animated = new JSONObject();
+        // Small view
+        JSONObject smallView = new JSONObject();
+        try {
+            smallView.put("left_image", "BUILTIN_APP_ICON");
+            smallView.put("notification_background", "assets:///jackpotparty.png");
+        } catch (Exception ignored) {
+        }
+
+        // Big view: the sprite sheet is 1024x1024, so 512x512 frames makes 4 of them
+        JSONObject bigView = new JSONObject();
         try {
             JSONObject animated = new JSONObject();
-            /*animated.put("sprite_sheet", "assets:///777-animated-phone-it-in-snow.png");
+            animated.put("sprite_sheet", "assets:///777-animated-phone-it-in-snow.png");
+            animated.put("display_ms", 200);
             animated.put("width", 512);
-            animated.put("height", 256);*/
+            animated.put("height", 512);
 
-            animated.put("sprite_sheet", "https://assets.teakcdn.com/creative_translations-media/53532/original-base64Default.txt?1518130762");//"assets:///teak-slots-banner-sprite.jpg");
-            animated.put("display_ms", 200);
-            animated.put("width", 1920);
-            animated.put("height", 225);
-
-            //teak_notif_animated.put("text", "This is the text that doesn't end. Yes it goes on and on my friend. Some people started translating not knowing what it was, and they'll blow their translation budget just because...");
-            //teak_notif_animated.put("view_animator", animated);
-            teak_notif_animated.put("left_image", "BUILTIN_APP_ICON");
-            //teak_notif_animated.put("left_image", "NONE");
-            teak_notif_animated.put("notification_background", "assets:///AndroidPushGrid.png");
+            bigView.put("text", "Animated notification");
+            bigView.put("view_animator", animated);
         } catch (Exception ignored) {
         }
 
-        JSONObject teak_big_notif_image_text = new JSONObject();
-        try {
-            JSONObject button0 = new JSONObject();
-            button0.put("text", "The Google");
-            button0.put("deepLink", "https://google.com");
-            teak_big_notif_image_text.put("button0", button0);
-
-            JSONObject button2 = new JSONObject();
-            button2.put("text", "Store");
-            button2.put("deepLink", "teak1136371193060244:///store/com.teakio.pushtest.dollar");
-            teak_big_notif_image_text.put("button2", button2);
-
-            teak_big_notif_image_text.put("text", "teak_big_notif_image_text");
-            teak_big_notif_image_text.put("notification_background", "assets:///1700x550.png");
-
-            JSONObject animated = new JSONObject();
-            animated.put("sprite_sheet", "assets:///pixelgrid_2000x2000.png");
-            animated.put("display_ms", 200);
-            animated.put("width", 2000);
-            animated.put("height", 2000);
-
-            //teak_big_notif_image_text.put("text", "This is the text that doesn't end. Yes it goes on and on my friend. Some people started translating not knowing what it was, and they'll blow their translation budget just because...");
-            teak_big_notif_image_text.put("view_animator", animated);
-        } catch (Exception ignored) {
-        }
-
-        // Display
         JSONObject display = new JSONObject();
         try {
-            //display.put("contentView", "teak_notif_animated");
-            //display.put("teak_notif_animated", teak_notif_animated);
             display.put("contentView", "teak_notif_no_title");
-            display.put("teak_notif_no_title", teak_notif_animated);
+            display.put("teak_notif_no_title", smallView);
 
-            //display.put("bigContentView", "teak_big_notif_image_text");
-            //display.put("teak_big_notif_image_text", teak_big_notif_image_text);
             display.put("bigContentView", "teak_big_notif_animated");
-            display.put("teak_big_notif_animated", teak_big_notif_image_text);
+            display.put("teak_big_notif_animated", bigView);
         } catch (Exception ignored) {
         }
 
-        // Add display to intent
         intent.putExtra("display", display.toString());
 
         TeakEvent.postEvent(new PushNotificationEvent(PushNotificationEvent.Received, context, intent));
@@ -354,15 +325,12 @@ public class MainActivity extends AppCompatActivity {
 
         // Background the app
         moveTaskToBack(true);
+    }
 
-        // Simulate Notification
-//        final Handler handler = new Handler();
-//        handler.postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                simulateNotification(MainActivity.this);
-//            }
-//        }, 1000);
+    public void testSimulatedNotification(View view) {
+        // A foregrounded game suppresses display, so fire after the app is backgrounded
+        moveTaskToBack(true);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> simulateNotification(MainActivity.this), 3000);
     }
 
     public void makePurchase(View view) {
