@@ -40,6 +40,7 @@ public class LogoutBeforeSession extends TeakUnitTest {
     private CountDownLatch created;
     private CountDownLatch configured;
     private CountDownLatch identifying;
+    private CountDownLatch loggedOut;
 
     @Before
     public void resetSessionAndListen() throws Exception {
@@ -55,6 +56,15 @@ public class LogoutBeforeSession extends TeakUnitTest {
         created = new CountDownLatch(1);
         configured = new CountDownLatch(1);
         identifying = new CountDownLatch(1);
+        loggedOut = new CountDownLatch(1);
+
+        // Registered after Session's listener and run in order on a single executor, so this firing means Session's handler has run
+        TeakEvent.addEventListener(new TeakEvent.EventListener() {
+            @Override
+            public void onNewEvent(@NonNull TeakEvent event) {
+                if (event instanceof LogoutEvent) loggedOut.countDown();
+            }
+        });
         TeakEvent.addEventListener(new TeakEvent.EventListener() {
             @Override
             public void onNewEvent(@NonNull TeakEvent event) {
@@ -87,12 +97,7 @@ public class LogoutBeforeSession extends TeakUnitTest {
         TeakEvent.postEvent(new UserIdEvent("logout_before_session", new Teak.UserConfiguration()));
         TeakEvent.postEvent(new LogoutEvent());
 
-        // Events are dispatched on an executor, so wait for both to have been handled
-        final long deadline = System.currentTimeMillis() + 5000;
-        while (System.currentTimeMillis() < deadline && getStaticField("pendingUserId") == null && uncaught.isEmpty()) {
-            Thread.sleep(10);
-        }
-        Thread.sleep(250);
+        assertTrue("Logout was never processed", loggedOut.await(5, TimeUnit.SECONDS));
 
         assertEquals("Logout before a session threw: " + uncaught, 0, uncaught.size());
         assertNull("pendingUserId survived logout", getStaticField("pendingUserId"));
