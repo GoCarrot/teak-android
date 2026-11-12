@@ -769,7 +769,7 @@ public class Session {
                     needsIdentifyUser = true;
                 }
 
-                // Write under stateLock so the Configured hook can't read a null userId in between
+                // Set before releasing stateLock, so a state change can't land between the check and the write
                 currentSession.userId = userId;
                 currentSession.email = email;
                 currentSession.facebookId = facebookId;
@@ -1109,20 +1109,13 @@ public class Session {
 
     // Hand a user id that was set before any session existed to the newly created session.
     // Every path that creates the first session must call this, or that identify is lost.
+    // Caller must hold currentSessionLock with currentSession set.
     private static void adoptPendingUserId() {
-        currentSessionLock.lock();
-        try {
-            if (Session.pendingUserId != null) {
-                final String userId = Session.pendingUserId;
-                final String email = Session.pendingEmail;
-                final String facebookId = Session.pendingFacebookId;
-                Session.pendingUserId = null;
-                Session.pendingEmail = null;
-                Session.pendingFacebookId = null;
-                setUserId(userId, email, facebookId);
-            }
-        } finally {
-            currentSessionLock.unlock();
+        if (Session.pendingUserId != null) {
+            setUserId(Session.pendingUserId, Session.pendingEmail, Session.pendingFacebookId);
+            Session.pendingUserId = null;
+            Session.pendingEmail = null;
+            Session.pendingFacebookId = null;
         }
     }
 
