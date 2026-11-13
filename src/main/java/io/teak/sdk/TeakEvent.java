@@ -76,13 +76,17 @@ public class TeakEvent implements Unobfuscable {
         }
 
         void processEvent(final TeakEvent event) {
-            // Because events can cause other event listeners to get added (and that should be allowed)
-            // copy the list on each event
-            // TODO: There is probably a better way
-            ArrayList<EventListener> eventListenersForEvent;
+            synchronized (this.eventExecutor) {
+                this.eventExecutor.execute(() -> dispatchEvent(event));
+            }
+        }
+
+        // The listeners for an event are picked when its turn comes on the executor, not when it is dequeued.
+        // A handler that registers a listener (a new Session does) is then seen by every event queued behind it.
+        private void dispatchEvent(final TeakEvent event) {
+            final ArrayList<EventListener> eventListenersForEvent;
             synchronized (this.eventListenersMutex) {
-                eventListenersForEvent = this.eventListeners;
-                this.eventListeners = new ArrayList<>(this.eventListeners);
+                eventListenersForEvent = new ArrayList<>(this.eventListeners);
             }
 
             if (false && BuildConfig.DEBUG) {
@@ -92,13 +96,25 @@ public class TeakEvent implements Unobfuscable {
             }
         }
 
+        // A throwing listener must not stop the listeners after it from seeing the event, but the failure
+        // still has to reach the thread's uncaught exception handler, so rethrow once all have run.
         private void releaseProcessEventOnListeners(final TeakEvent event, ArrayList<EventListener> listeners) {
-            synchronized (this.eventExecutor) {
-                for (EventListener e : listeners) {
-                    final EventListener currentListener = e;
-                    this.eventExecutor.execute(() -> currentListener.onNewEvent(event));
+            Throwable failure = null;
+            for (EventListener e : listeners) {
+                try {
+                    e.onNewEvent(event);
+                } catch (Throwable t) {
+                    if (failure == null) {
+                        failure = t;
+                    } else {
+                        failure.addSuppressed(t);
+                    }
                 }
             }
+
+            if (failure instanceof RuntimeException) throw (RuntimeException) failure;
+            if (failure instanceof Error) throw (Error) failure;
+            if (failure != null) throw new RuntimeException(failure);
         }
 
         // This version makes sure no event handler is taking longer than 5 seconds to process.
