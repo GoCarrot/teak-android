@@ -1,7 +1,6 @@
 ** xref:android::page$quickstart/index.adoc[Android Native SDK]
 *** xref:android::page$quickstart/index.adoc[Getting Started in Android]
 *** xref:android::page$working-with-teak.adoc[Working With Teak]
-*** xref:android::page$play-billing-r8.adoc[Purchase Tracking with R8]
 *** xref:android::page$notification-icon.adoc[Notification Icons]
 *** xref:android::page$sdk5.adoc[SDK5 Preview]
 *** xref:android::page$android-12.adoc[Android 12]
