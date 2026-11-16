@@ -1,0 +1,2 @@
+bug:
+  - "Animated notifications keep animating after the screen turns off."

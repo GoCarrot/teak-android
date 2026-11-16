@@ -1,0 +1,2 @@
+bug:
+  - "Google Play purchases that are still pending payment are no longer sent to Teak."

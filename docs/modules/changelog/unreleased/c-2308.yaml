@@ -1,0 +1,2 @@
+bug:
+  - "`Teak.logout()` called before the first session starts, such as in the game's `onCreate`, no longer crashes the app, and no longer leaves a user id from an earlier `Teak.identifyUser` to be identified by the first session."

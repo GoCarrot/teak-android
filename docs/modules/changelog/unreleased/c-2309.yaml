@@ -1,0 +1,2 @@
+bug:
+  - "A session created at the moment the remote configuration arrived could stay unconfigured and never identify the user."
