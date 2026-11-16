@@ -1,0 +1,23 @@
+= Purchase Tracking with R8 on 4.3.17
+
+NOTE: Applies only to Teak SDK 4.3.17. Teak SDK 4.3.18 includes these rules, so remove them from your app when you upgrade.
+
+If your app uses Teak SDK 4.3.17 and minifies with R8 (`minifyEnabled true`), Google Play purchases may not be tracked by Teak.
+
+== Fix
+
+Add these rules to your app's ProGuard/R8 rules file, usually `proguard-rules.pro`:
+
+[source]
+----
+-keep interface com.android.billingclient.api.ProductDetailsResponseListener { *; }
+-keep class com.android.billingclient.api.QueryProductDetailsResult { *; }
+-keep class com.android.billingclient.BuildConfig { *; }
+-keepnames class com.android.billingclient.api.PendingPurchasesParams
+----
+
+TIP: In Unity, put the rules in the file set under *Player Settings > Publishing Settings > Custom Proguard File*.
+
+== How This Was Checked
+
+Checked against R8 output with Teak SDK 4.3.17 and Play Billing 8.3.0. Not tested with a device purchase.
