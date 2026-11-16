@@ -1,0 +1,2 @@
+bug:
+  - "The first session after install, or after a cold launch from a notification or link, now identifies the user when `Teak.identifyUser` was called before the session started. Previously that session never sent the identify call."

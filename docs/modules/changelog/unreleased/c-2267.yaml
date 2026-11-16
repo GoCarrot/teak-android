@@ -1,0 +1,3 @@
+bug:
+  - "Google Play purchases are now tracked in apps built with R8 or ProGuard minification that renamed or stripped `ProductDetailsResponseListener.onProductDetailsResponse`, `QueryProductDetailsResult.getProductDetailsList`, or `BuildConfig.VERSION_NAME`."
+  - "Google Play Billing setup failures, service disconnects, and purchases that can't be priced are now logged."

@@ -62,6 +62,27 @@ jobs:
       - store_test_results:
           path: test_app/app/build/test-results/
 
+  changelog_check:
+    docker:
+      - image: cimg/node:lts
+    steps:
+      - checkout
+      - run:
+          name: Check changelog fragments
+          command: |
+            yarn install --frozen-lockfile
+            yarn changelog check
+      - run:
+          name: Require a rolled changelog on promote commits
+          command: |
+            version=$(git log -1 --format=%B | sed -n 's/^Promote to: *\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)\(\.rc[0-9]*\)\{0,1\}\([[:space:]].*\)\{0,1\}$/\1/p' | head -1)
+            [ -n "$version" ] || exit 0
+            file="docs/modules/changelog/versions/$version.yaml"
+            [ -s "$file" ] || { echo "Promote to $version but $file is missing or empty. Run: yarn changelog roll $version"; exit 1; }
+            if find docs/modules/changelog/unreleased \( -name '*.yaml' -o -name '*.yml' \) | grep -q .; then
+              echo "Promote to $version but unreleased fragments remain. Run: yarn changelog roll $version"; exit 1
+            fi
+
   tag_build:
     docker:
       - image: cimg/base:current
@@ -135,9 +156,14 @@ workflows:
           filters:
             tags:
               ignore: /.*/
+      - changelog_check:
+          filters:
+            tags:
+              ignore: /.*/
       - tag_build:
           requires:
             - build
+            - changelog_check
           filters:
             tags:
               ignore: /.*/
