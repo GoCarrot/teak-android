@@ -60,3 +60,12 @@ This notification icon would be specified in ``res/values-v21/teak.xml`` as:
 ----
 <drawable name="io_teak_small_notification_icon">@drawable/icon_white</drawable>
 ----
+
+== Your App Icon in Teak Notifications
+
+Teak's notification layouts show your app's launcher icon (the `android:icon` in your manifest) in the left icon slot. It's drawn as is, so any transparent padding in the icon stays and the art shows smaller inside the circle.
+
+* An `<adaptive-icon>` with its art inside the 66dp safe zone fills the slot, the same as it does in a standard Android notification.
+* A legacy PNG launcher icon with transparent margins shows at a reduced size. Supply a launcher icon cropped to its art, or switch to an adaptive icon.
+
+This icon is separate from `io_teak_small_notification_icon`, which only controls the status bar icon and the icon at the top of the notification.
