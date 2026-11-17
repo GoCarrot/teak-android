@@ -338,6 +338,22 @@ Teak.setChannelState(Teak.Channel.Type.Email, Teak.Channel.State.OptOut);
 Teak.setCategoryState(Teak.Channel.Type.MobilePush, "daily_reminders", Teak.Channel.State.OptIn);
 ----
 
+== Purchase Tracking with R8 on 4.3.17
+
+NOTE: Applies only to Teak SDK 4.3.17. Teak SDK 4.3.18 includes these rules, so remove them from your app when you upgrade.
+
+If your app uses Teak SDK 4.3.17 and minifies with R8 (`minifyEnabled true`), Google Play purchases may not be tracked by Teak.
+
+Add these rules to your app's ProGuard/R8 rules file, usually `proguard-rules.pro`:
+
+[source]
+----
+-keep interface com.android.billingclient.api.ProductDetailsResponseListener { *; }
+-keep class com.android.billingclient.api.QueryProductDetailsResult { *; }
+-keep class com.android.billingclient.BuildConfig { *; }
+-keepnames class com.android.billingclient.api.PendingPurchasesParams
+----
+
 == Debugging with a Log Listener
 
 Teak emits internal log events as it runs. You can observe them by registering a `Teak.LogListener`, which is useful for debugging your integration or forwarding Teak's diagnostics into your own logging system.
