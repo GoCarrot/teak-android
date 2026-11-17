@@ -21,19 +21,19 @@ In the Teak dashboard for your game, we will create your first notification.
 
 . Click on **Notifications**, select the **Android Push** tab, and then click **New Message**.
 +
-image::unity::start/dashboard.png[Creating a new message, 600]
+image::start/dashboard.png[Creating a new message, 600]
 
 . **Fill out the form** in the modal. Give your message a **Name**, and **select the platforms** you want to create content for. Click **Next**.
 +
-image::unity::start/newmessage.png[Naming the message, 600]
+image::start/newmessage.png[Naming the message, 600]
 
 . Enter your desired **message** content, and click **Next**.
 +
-image::unity::start/newmessagecontent.png[Entering message content, 600]
+image::start/newmessagecontent.png[Entering message content, 600]
 
 . Review and **save** your message.
 +
-image::unity::start/savemessage.png[Saving the message, 600]
+image::start/savemessage.png[Saving the message, 600]
 +
 You'll now see it in the messages list.
 
@@ -48,7 +48,7 @@ To send a Preview, we need to tell Teak who we want to send to, and which of the
 [start=5]
 . You should see your message in the messages list on the Teak dashboard. Click **Preview**.
 +
-image::unity::start/previewbutton.png[The Preview button, 600]
+image::start/previewbutton.png[The Preview button, 600]
 
 . Then select **Add Recipients**.
 +
@@ -60,13 +60,13 @@ You can get this from your game on the test device (if it displays the player ID
 
 . Click **Search**, and then click **Register** when your device is found.
 +
-image::unity::start/searchrecipients.png[Searching for the test device, 600]
+image::start/searchrecipients.png[Searching for the test device, 600]
 
 . **Add a label** so you can keep your test devices straight, and click **Save**.
 +
 Other team members you invite to this game will be able to see your test devices, so choose a name that is helpful for the whole team.
 +
-image::unity::start/registerrecipients.png[Labeling the test device, 600]
+image::start/registerrecipients.png[Labeling the test device, 600]
 
 Your test device is now saved for this game. The next time you want to preview a message, you can just select your device from the list.
 
@@ -79,14 +79,14 @@ Almost there! Let's send the notification to your device.
 
 . Then, from the message preview in the Teak dashboard, click **Send Preview**.
 +
-image::unity::start/sendpreview.png[The Send Preview button, 600]
+image::start/sendpreview.png[The Send Preview button, 600]
 
 == Receive the Notification
 
 [start=12]
 . If everything is set up properly, **the notification will show up** on your device!
 +
-image::unity::start/hello.jpg[The first notification on a device, 600]
+image::start/hello.jpg[The first notification on a device, 600]
 
 Congratulations, you've sent your first push notification using Teak!
 
