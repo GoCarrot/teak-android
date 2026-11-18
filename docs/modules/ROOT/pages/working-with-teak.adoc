@@ -279,7 +279,7 @@ Future<Teak.Notification.Reply> scheduled =
     Teak.Notification.schedule("daily_bonus", 3600);
 ----
 
-NOTE: Schedule while your game is in the foreground, such as at session start or when the player's state changes, rather than as it pauses. Android blocks your app's network access a few seconds after it leaves the foreground, so a call made at pause time can fail if it doesn't go out right away. A failed call returns a `Reply` with `error` set to `true` and a `status` of `Unknown`. Schedule again once your game is back in the foreground.
+NOTE: Schedule while your game is in the foreground, such as at session start or when the player's state changes, rather than as it pauses. Recent versions of Android block your app's network access a few seconds after it leaves the foreground, so a call made at pause time can fail if it doesn't go out right away. A call blocked this way returns a `Reply` with `error` set to `true` and a `status` of `Unknown`. Schedule again once your game is back in the foreground.
 
 To template custom data into the notification, pass a `personalizationData` map. Tell your marketing team which keys you send so they can configure the matching xref:ROOT:user-guide:custom-tags.adoc#_local_notification_tags[Local Notification Tags].
 
