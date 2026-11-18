@@ -257,6 +257,11 @@ public class Request implements Runnable {
 
         @Override
         synchronized boolean add(@NonNull String endpoint, @Nullable Map<String, Object> payload, @Nullable Callback callback) {
+            // A sent batch's body is what a retry resends, so it can't take more events
+            if (this.sent) {
+                return false;
+            }
+
             // Check to see if current batchContents has action, and if so, sum the durations
             ListIterator<Map<String, Object>> itr = this.batchContents.listIterator();
             while (itr.hasNext()) {

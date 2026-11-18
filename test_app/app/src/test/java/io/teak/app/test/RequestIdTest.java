@@ -9,6 +9,7 @@ import org.junit.Test;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +21,7 @@ import io.teak.sdk.configuration.AppConfiguration;
 import io.teak.sdk.configuration.RemoteConfiguration;
 import io.teak.sdk.core.Session;
 import io.teak.sdk.core.UserProfile;
+import io.teak.sdk.event.TrackEventEvent;
 import io.teak.sdk.json.JSONObject;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -30,6 +32,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.mockito.Mockito.mock;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -48,9 +51,8 @@ public class RequestIdTest extends TeakHttpUnitTest {
 
         final JSONObject retry = new JSONObject("{\"times\":[0],\"jitter\":0}");
         final JSONObject endpoints = new JSONObject("{\"127.0.0.1\":{"
-            + "\"/me/events\":{\"batch\":{\"time\":0,\"count\":50}},"
-            + "\"/me/profile\":{\"batch\":{\"time\":0}},"
-            + "\"/test/retry\":{\"retry\":" + retry.toString() + "}"
+            + "\"/me/events\":{\"batch\":{\"time\":0,\"count\":50},\"retry\":" + retry.toString() + "},"
+            + "\"/me/profile\":{\"batch\":{\"time\":0}}"
             + "}}");
 
         final RemoteConfiguration remoteConfiguration =
@@ -114,19 +116,44 @@ public class RequestIdTest extends TeakHttpUnitTest {
     }
 
     @Test
-    public void retryAfterServerErrorKeepsRequestId() throws Exception {
-        stubFor(post(urlEqualTo("/test/retry")).inScenario("retry")
+    public void eventBatchRetryAfterServerErrorKeepsRequestId() throws Exception {
+        stubFor(post(urlEqualTo("/me/events")).inScenario("retry")
                     .whenScenarioStateIs(Scenario.STARTED)
                     .willReturn(aResponse().withStatus(503))
                     .willSetStateTo("recovered"));
-        stubFor(post(urlEqualTo("/test/retry")).inScenario("retry")
+        stubFor(post(urlEqualTo("/me/events")).inScenario("retry")
                     .whenScenarioStateIs("recovered")
                     .willReturn(aResponse().withStatus(200).withBody("{}")));
 
-        Request.submit(null, "POST", "/test/retry", new HashMap<>(), Session.NullSession, null);
+        Request.submit(null, "POST", "/me/events", TrackEventEvent.payloadForEvent("test", "test", null, 5), Session.NullSession, null);
 
-        final List<String> ids = awaitRequestIds("/test/retry", 2);
+        final List<String> ids = awaitRequestIds("/me/events", 2);
         assertEquals(ids.get(0), ids.get(1));
+    }
+
+    @Test
+    public void sentEventBatchTakesNoMoreEvents() throws Exception {
+        stubFor(post(urlEqualTo("/me/events")).willReturn(aResponse().withStatus(200).withBody("{}")));
+
+        final Class<?> batchedTrackEvent = Class.forName("io.teak.sdk.Request$BatchedTrackEventRequest");
+        final Method getCurrentBatch = batchedTrackEvent.getDeclaredMethod("getCurrentBatch", String.class, Session.class);
+        getCurrentBatch.setAccessible(true);
+        final Object batch = getCurrentBatch.invoke(null, "127.0.0.1", Session.NullSession);
+
+        final Method add = batchedTrackEvent.getDeclaredMethod("add", String.class, Map.class, Request.Callback.class);
+        add.setAccessible(true);
+        assertTrue((Boolean) add.invoke(batch, "/me/events", TrackEventEvent.payloadForEvent("test", "test", null, 5), null));
+        awaitRequestIds("/me/events", 1);
+
+        // Same event again, through the now-sent batch
+        assertFalse((Boolean) add.invoke(batch, "/me/events", TrackEventEvent.payloadForEvent("test", "test", null, 5), null));
+
+        final Field contentsField = Class.forName("io.teak.sdk.Request$BatchedRequest").getDeclaredField("batchContents");
+        contentsField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> contents = (List<Map<String, Object>>) contentsField.get(batch);
+        assertEquals(1, contents.size());
+        assertEquals(1, ((Number) contents.get(0).get(TrackEventEvent.CountKey)).intValue());
     }
 
     @Test

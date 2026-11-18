@@ -1,2 +1,2 @@
 bug:
-  - "Requests now carry a `request_id`, and a request that is retried after a server error or a missing reply keeps the same one, so the server can recognize the retry as a duplicate. Previously the id was only logged, and a retried `/me/events` batch that had already reached the server was applied twice."
+  - "A `/me/events` batch that is retried after a server error or a dropped connection is no longer counted twice by the server."
