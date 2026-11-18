@@ -36,7 +36,7 @@ public class Request implements Runnable {
     private final String method;
     protected final Map<String, Object> payload;
     private final Session session;
-    private final String requestId;
+    private volatile String requestId;
     private final Callback callback;
     protected boolean sent;
 
@@ -380,7 +380,7 @@ public class Request implements Runnable {
         this.endpoint = endpoint;
         this.payload = new HashMap<>(payload);
         this.session = session;
-        this.requestId = UUID.randomUUID().toString().replace("-", "");
+        this.requestId = newRequestId();
         this.callback = callback;
         this.sent = false;
 
@@ -499,6 +499,7 @@ public class Request implements Runnable {
 
         final SecretKeySpec keySpec = new SecretKeySpec(Request.teakApiKey.getBytes(), "HmacSHA256");
         String sig;
+        this.payload.put("request_id", this.requestId);
         final JSONObject jsonPayload = new JSONObject(this.payload);
         final String requestBody = jsonPayload.toString();
 
@@ -608,6 +609,16 @@ public class Request implements Runnable {
         } else if (this.callback != null) {
             this.callback.onRequestCompleted(responseCode, responseBody);
         }
+    }
+
+    private static String newRequestId() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
+
+    // A retry re-runs this object and keeps its id. A request object that is sent again with
+    // new content calls this first, so the server doesn't treat the new send as a duplicate.
+    protected void renewRequestId() {
+        this.requestId = newRequestId();
     }
 
     private Map<String, Object> toMap() {

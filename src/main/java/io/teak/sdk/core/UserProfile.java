@@ -70,6 +70,7 @@ public class UserProfile extends Request {
             final long msElapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - this.firstSetTime);
             this.payload.put("ms_since_first_event", msElapsed);
 
+            renewRequestId();
             super.run();
 
             this.firstSetTime = 0;
