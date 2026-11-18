@@ -124,6 +124,17 @@ public class RequestCallbackTest extends TeakHttpUnitTest {
     }
 
     @Test
+    public void sendThatThrowsNullPointerCompletesWithErrorReply() throws Exception {
+        // A null report_client_error throws a NullPointerException inside the send
+        stubFor(post(urlEqualTo("/test/npe")).willReturn(aResponse().withStatus(200).withBody("{\"report_client_error\":null}")));
+
+        final Recorder recorder = new Recorder();
+        Request.submit(null, "POST", "/test/npe", new HashMap<>(), Session.NullSession, recorder);
+
+        recorder.assertErrorReply();
+    }
+
+    @Test
     public void failureWhileSigningCompletesWithErrorReply() throws Exception {
         final String apiKey = "test_teak_api_key";
         Request.setTeakApiKey(null);
