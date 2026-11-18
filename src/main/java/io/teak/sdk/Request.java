@@ -396,6 +396,7 @@ public class Request implements Runnable {
         this.payload = new HashMap<>(payload);
         this.session = session;
         this.requestId = newRequestId();
+        this.completed = false;
         this.callback = callback;
         this.sent = false;
 
@@ -636,7 +637,7 @@ public class Request implements Runnable {
         }
     }
 
-    // Run() gave up before a reply: tell the caller with the same reply a dropped connection gets.
+    // run() couldn't deliver a reply: tell the caller with the same reply a dropped connection gets.
     // Calls the callback directly, since an error code through onRequestCompleted would retry.
     protected void onRequestFailed() {
         if (this.completed) return;

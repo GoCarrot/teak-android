@@ -1,2 +1,2 @@
 bug:
-  - "A request that is blackholed by remote config, or that fails while signing or sending, now completes the caller's `Future` with an error reply instead of leaving it waiting forever."
+  - "The `Future` returned by `setChannelState`, `setCategoryState` and the notification schedule, cancel and reward calls now completes with an error reply when its request can't be sent, instead of never completing."

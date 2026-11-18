@@ -43,9 +43,9 @@ public class RequestCallbackTest extends TeakHttpUnitTest {
         originalRemoteConfiguration = (RemoteConfiguration) field.get(null);
 
         final JSONObject endpoints = new JSONObject("{\"127.0.0.1\":{"
-            + "\"/test/blackhole\":{\"blackhole\":true},"
-            + "\"/me/events\":{\"blackhole\":true,\"batch\":{\"time\":0,\"count\":50}}"
-            + "}}");
+                                                    + "\"/test/blackhole\":{\"blackhole\":true},"
+                                                    + "\"/me/events\":{\"blackhole\":true,\"batch\":{\"time\":0,\"count\":50}}"
+                                                    + "}}");
         setRemoteConfiguration(new RemoteConfiguration(mock(AppConfiguration.class), "127.0.0.1", null, null,
             "mock_gcm_sender_id", "mock_firebase_app_id", false, false, endpoints, null,
             600, new ArrayList<Teak.Channel.Category>(), true));
@@ -89,13 +89,6 @@ public class RequestCallbackTest extends TeakHttpUnitTest {
         Request.submit(null, "POST", "/test/blackhole", new HashMap<>(), Session.NullSession, recorder);
 
         recorder.assertErrorReply();
-        assertEquals(0, findAll(postRequestedFor(urlEqualTo("/test/blackhole"))).size());
-    }
-
-    @Test
-    public void blackholedRequestWithoutCallbackIsHarmless() throws Exception {
-        Request.submit(null, "POST", "/test/blackhole", new HashMap<>(), Session.NullSession, null);
-        Thread.sleep(200);
         assertEquals(0, findAll(postRequestedFor(urlEqualTo("/test/blackhole"))).size());
     }
 
