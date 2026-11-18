@@ -396,7 +396,6 @@ public class Request implements Runnable {
         this.payload = new HashMap<>(payload);
         this.session = session;
         this.requestId = newRequestId();
-        this.completed = false;
         this.callback = callback;
         this.sent = false;
 
@@ -655,6 +654,7 @@ public class Request implements Runnable {
     // new content calls this first, so the server doesn't treat the new send as a duplicate.
     protected void renewRequestId() {
         this.requestId = newRequestId();
+        this.completed = false;
     }
 
     private Map<String, Object> toMap() {
