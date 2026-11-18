@@ -42,6 +42,7 @@ public class Request implements Runnable {
 
     @SuppressWarnings("WeakerAccess")
     protected final boolean blackhole;
+    protected volatile boolean completed = false;
     @SuppressWarnings("WeakerAccess")
     protected final RetryConfiguration retry;
     @SuppressWarnings("WeakerAccess")
@@ -194,6 +195,15 @@ public class Request implements Runnable {
             super.onRequestCompleted(responseCode, responseBody);
             for (Callback callback : this.callbacks) {
                 callback.onRequestCompleted(responseCode, responseBody);
+            }
+        }
+
+        @Override
+        protected void onRequestFailed() {
+            if (this.completed) return;
+            super.onRequestFailed();
+            for (Callback callback : this.callbacks) {
+                callback.onRequestCompleted(IHttpRequest.Response.ERROR_RESPONSE.statusCode, IHttpRequest.Response.ERROR_RESPONSE.body);
             }
         }
     }
@@ -498,17 +508,21 @@ public class Request implements Runnable {
     public void run() {
         this.sent = true;
 
-        if (this.blackhole) return;
+        if (this.blackhole) {
+            Teak.log.i("request.blackholed", Helpers.mm.h("endpoint", this.endpoint));
+            this.onRequestFailed();
+            return;
+        }
 
         final boolean isMockedRequest = Request.remoteConfiguration != null && Request.remoteConfiguration.isMocked;
 
-        final SecretKeySpec keySpec = new SecretKeySpec(Request.teakApiKey.getBytes(), "HmacSHA256");
-        String sig;
-        this.payload.put("request_id", this.requestId);
-        final JSONObject jsonPayload = new JSONObject(this.payload);
-        final String requestBody = jsonPayload.toString();
-
+        final String requestBody;
+        final String sig;
         try {
+            final SecretKeySpec keySpec = new SecretKeySpec(Request.teakApiKey.getBytes(), "HmacSHA256");
+            this.payload.put("request_id", this.requestId);
+            requestBody = new JSONObject(this.payload).toString();
+
             if (this.hostname == null) {
                 throw new IllegalArgumentException("Hostname is NULL for " + this.endpoint);
             }
@@ -533,6 +547,7 @@ public class Request implements Runnable {
             }
         } catch (Exception e) {
             Teak.log.exception(e);
+            this.onRequestFailed();
             return;
         }
 
@@ -586,6 +601,7 @@ public class Request implements Runnable {
             } else {
                 Teak.log.exception(e);
             }
+            this.onRequestFailed();
         } catch (Exception e) {
             // DeadSystemException added in API 24 — typed instanceof check is safe.
             if (android.os.Build.VERSION.SDK_INT >= 24 && e instanceof android.os.DeadSystemException) {
@@ -593,6 +609,7 @@ public class Request implements Runnable {
             } else {
                 Teak.log.exception(e);
             }
+            this.onRequestFailed();
         }
     }
 
@@ -611,8 +628,21 @@ public class Request implements Runnable {
             this.retry.retryIndex++;
 
             Request.requestExecutor.schedule(this, (long) (delay * 1000.0f), TimeUnit.MILLISECONDS);
-        } else if (this.callback != null) {
-            this.callback.onRequestCompleted(responseCode, responseBody);
+        } else {
+            this.completed = true;
+            if (this.callback != null) {
+                this.callback.onRequestCompleted(responseCode, responseBody);
+            }
+        }
+    }
+
+    // Run() gave up before a reply: tell the caller with the same reply a dropped connection gets.
+    // Calls the callback directly, since an error code through onRequestCompleted would retry.
+    protected void onRequestFailed() {
+        if (this.completed) return;
+        this.completed = true;
+        if (this.callback != null) {
+            this.callback.onRequestCompleted(IHttpRequest.Response.ERROR_RESPONSE.statusCode, IHttpRequest.Response.ERROR_RESPONSE.body);
         }
     }
 

@@ -1,0 +1,2 @@
+bug:
+  - "A request that is blackholed by remote config, or that fails while signing or sending, now completes the caller's `Future` with an error reply instead of leaving it waiting forever."
