@@ -1,0 +1,2 @@
+bug:
+  - "A `/me/events` batch that is retried after a server error or a dropped connection is no longer counted twice by the server."
