@@ -1,0 +1,2 @@
+enhancement:
+  - "`setChannelState`, `setCategoryState`, `Teak.Notification.schedule` and `rewardFromRewardId` no longer start a thread per call to wait for their reply. Calls made before the user is identified hold no thread while they wait."

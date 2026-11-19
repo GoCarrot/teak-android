@@ -21,15 +21,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 
 import androidx.annotation.NonNull;
 import io.teak.sdk.configuration.RemoteConfiguration;
+import io.teak.sdk.core.CallbackFuture;
 import io.teak.sdk.core.Session;
 import io.teak.sdk.core.TeakCore;
-import io.teak.sdk.core.ThreadFactory;
 import io.teak.sdk.event.LifecycleEvent;
 import io.teak.sdk.event.LogoutEvent;
 import io.teak.sdk.event.RemoteConfigurationEvent;
@@ -171,16 +169,7 @@ public class TeakInstance implements Unobfuscable {
     ///// channels
 
     public Future<Teak.Channel.Reply> setChannelState(final Teak.Channel.Type channel, final Teak.Channel.State state) {
-        final ArrayBlockingQueue<Teak.Channel.Reply> q = new ArrayBlockingQueue<>(1);
-        final FutureTask<Teak.Channel.Reply> ret = new FutureTask<>(() -> {
-            try {
-                return q.take();
-            } catch (InterruptedException e) {
-                Teak.log.exception(e);
-            }
-            return null;
-        });
-        ThreadFactory.autoStart(ret);
+        final CallbackFuture<Teak.Channel.Reply> ret = new CallbackFuture<>();
 
         Session.whenUserIdIsReadyRun((session) -> {
             Map<String, Object> payload = new HashMap<>();
@@ -217,11 +206,10 @@ public class TeakInstance implements Unobfuscable {
                             }
                         }
 
-                        // Offer to queue
-                        q.offer(new Teak.Channel.Reply(error, replyState, replyType, replyErrors));
+                        ret.complete(new Teak.Channel.Reply(error, replyState, replyType, replyErrors));
                     } catch (Exception e) {
                         Teak.log.exception(e);
-                        q.offer(new Teak.Channel.Reply(true, Teak.Channel.State.Unknown, channel, Collections.singletonMap("sdk", e.toString().split("\n"))));
+                        ret.complete(new Teak.Channel.Reply(true, Teak.Channel.State.Unknown, channel, Collections.singletonMap("sdk", e.toString().split("\n"))));
                     }
                 });
         });
@@ -229,16 +217,7 @@ public class TeakInstance implements Unobfuscable {
     }
 
     public Future<Teak.Channel.Reply> setCategoryState(final Teak.Channel.Type channel, final String category, final Teak.Channel.State state) {
-        final ArrayBlockingQueue<Teak.Channel.Reply> q = new ArrayBlockingQueue<>(1);
-        final FutureTask<Teak.Channel.Reply> ret = new FutureTask<>(() -> {
-            try {
-                return q.take();
-            } catch (InterruptedException e) {
-                Teak.log.exception(e);
-            }
-            return null;
-        });
-        ThreadFactory.autoStart(ret);
+        final CallbackFuture<Teak.Channel.Reply> ret = new CallbackFuture<>();
 
         Session.whenUserIdIsReadyRun((session) -> {
             Map<String, Object> payload = new HashMap<>();
@@ -277,11 +256,10 @@ public class TeakInstance implements Unobfuscable {
                             }
                         }
 
-                        // Offer to queue
-                        q.offer(new Teak.Channel.Reply(error, replyState, replyType, replyCategory, replyErrors));
+                        ret.complete(new Teak.Channel.Reply(error, replyState, replyType, replyCategory, replyErrors));
                     } catch (Exception e) {
                         Teak.log.exception(e);
-                        q.offer(new Teak.Channel.Reply(true, Teak.Channel.State.Unknown, channel, Collections.singletonMap("sdk", e.toString().split("\n"))));
+                        ret.complete(new Teak.Channel.Reply(true, Teak.Channel.State.Unknown, channel, Collections.singletonMap("sdk", e.toString().split("\n"))));
                     }
                 });
         });
@@ -289,16 +267,7 @@ public class TeakInstance implements Unobfuscable {
     }
 
     public Future<Teak.Notification.Reply> scheduleNotification(final String creativeId, final long delayInSeconds, final Map<String, Object> personalizationData) {
-        final ArrayBlockingQueue<Teak.Notification.Reply> q = new ArrayBlockingQueue<>(1);
-        final FutureTask<Teak.Notification.Reply> ret = new FutureTask<>(() -> {
-            try {
-                return q.take();
-            } catch (InterruptedException e) {
-                Teak.log.exception(e);
-            }
-            return null;
-        });
-        ThreadFactory.autoStart(ret);
+        final CallbackFuture<Teak.Notification.Reply> ret = new CallbackFuture<>();
 
         Session.whenUserIdIsOrWasReadyRun((session) -> {
             Map<String, Object> payload = new HashMap<>();
@@ -343,11 +312,10 @@ public class TeakInstance implements Unobfuscable {
                             }
                         }
 
-                        // Offer to queue
-                        q.offer(new Teak.Notification.Reply(error, status, replyErrors, scheduleIds));
+                        ret.complete(new Teak.Notification.Reply(error, status, replyErrors, scheduleIds));
                     } catch (Exception e) {
                         Teak.log.exception(e);
-                        q.offer(new Teak.Notification.Reply(true, Teak.Notification.Reply.Status.Error, Collections.singletonMap("sdk", e.toString().split("\n")), null));
+                        ret.complete(new Teak.Notification.Reply(true, Teak.Notification.Reply.Status.Error, Collections.singletonMap("sdk", e.toString().split("\n")), null));
                     }
                 });
         });
