@@ -13,6 +13,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLException;
@@ -58,12 +59,12 @@ public class DefaultHttpRequest implements IHttpRequest {
             connection.setDoOutput(true);
             connection.setRequestProperty("Authorization", "TeakV2-HMAC-SHA256 Signature=" + sig);
             connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Content-Length",
-                "" + requestBody.getBytes().length);
+            final byte[] body = requestBody.getBytes(StandardCharsets.UTF_8);
+            connection.setRequestProperty("Content-Length", "" + body.length);
 
             // Send request
             DataOutputStream wr = new DataOutputStream(connection.getOutputStream());
-            wr.writeBytes(requestBody);
+            wr.write(body);
             wr.flush();
             wr.close();
 
@@ -74,7 +75,7 @@ public class DefaultHttpRequest implements IHttpRequest {
             } else {
                 is = connection.getErrorStream();
             }
-            rd = new BufferedReader(new InputStreamReader(is));
+            rd = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
             String line;
             StringBuilder response = new StringBuilder();
             while ((line = rd.readLine()) != null) {
