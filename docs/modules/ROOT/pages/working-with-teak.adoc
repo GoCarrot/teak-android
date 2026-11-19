@@ -294,9 +294,9 @@ Future<Teak.Notification.Reply> scheduled =
 
 Schedule while your game is in the foreground, such as at session start or when the player's state changes, rather than as it pauses.
 
-Starting with Android 15, the system fails network requests that start a few seconds after your game leaves the foreground (see link:https://developer.android.com/about/versions/15/behavior-changes-all[Android 15 behavior changes]). A schedule call hit by this resolves with a `Reply` whose `error` is `true` and whose `status` is `Unknown`.
+Starting with Android 15, the system fails network requests that start a few seconds after your game leaves the foreground (see link:https://developer.android.com/about/versions/15/behavior-changes-all[Android 15 behavior changes]).
 
-If that happens, schedule again once your game is back in the foreground.
+A schedule call hit by this resolves with a `Reply` whose `error` is `true` and whose `status` is `Unknown`. If you see that, schedule the notification again once your game is back in the foreground.
 
 === Cancel a Scheduled Notification
 
