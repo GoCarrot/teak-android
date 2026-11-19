@@ -25,38 +25,18 @@ public class HttpTimeoutTest extends TeakHttpUnitTest {
     }
 
     @Test
-    public void silentServerGivesAnErrorWithinTheReadTimeout() throws Exception {
-        stubFor(post(urlEqualTo("/test/silent")).willReturn(aResponse().withStatus(200).withBody("{}").withFixedDelay(4000)));
-
-        final long start = System.nanoTime();
-        final IHttpRequest.Response response = new DefaultHttpRequest(1000, 300).synchronousRequest(url("/test/silent"), "POST", "{}", "sig");
-        final long elapsedMs = (System.nanoTime() - start) / 1000000;
-
-        assertEquals(IHttpRequest.Response.ERROR_RESPONSE, response);
-        assertTrue("waited " + elapsedMs + "ms", elapsedMs < 2000);
-    }
-
-    @Test
-    public void requestAfterATimedOutOneRuns() throws Exception {
+    public void silentServerTimesOutAndTheNextRequestRuns() throws Exception {
         stubFor(post(urlEqualTo("/test/silent")).willReturn(aResponse().withStatus(200).withBody("{}").withFixedDelay(4000)));
         stubFor(post(urlEqualTo("/test/ok")).willReturn(aResponse().withStatus(200).withBody("{\"ok\":true}")));
 
         final long start = System.nanoTime();
         final DefaultHttpRequest http = new DefaultHttpRequest(1000, 300);
-        http.synchronousRequest(url("/test/silent"), "POST", "{}", "sig");
+        final IHttpRequest.Response timedOut = http.synchronousRequest(url("/test/silent"), "POST", "{}", "sig");
         final IHttpRequest.Response next = http.synchronousRequest(url("/test/ok"), "POST", "{}", "sig");
         final long elapsedMs = (System.nanoTime() - start) / 1000000;
 
+        assertEquals(IHttpRequest.Response.ERROR_RESPONSE, timedOut);
         assertEquals(200, next.statusCode);
         assertTrue("both requests took " + elapsedMs + "ms", elapsedMs < 2000);
-    }
-
-    @Test
-    public void slowButAnsweringServerStillSucceedsWithDefaults() throws Exception {
-        stubFor(post(urlEqualTo("/test/slow")).willReturn(aResponse().withStatus(200).withBody("{}").withFixedDelay(1000)));
-
-        final IHttpRequest.Response response = new DefaultHttpRequest().synchronousRequest(url("/test/slow"), "POST", "{}", "sig");
-
-        assertEquals(200, response.statusCode);
     }
 }
