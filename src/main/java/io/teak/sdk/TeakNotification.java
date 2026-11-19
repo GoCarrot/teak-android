@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
 
 import androidx.annotation.NonNull;
 import io.teak.sdk.Helpers.mm;
+import io.teak.sdk.core.CallbackFuture;
 import io.teak.sdk.core.Session;
-import io.teak.sdk.core.ThreadFactory;
 import io.teak.sdk.json.JSONArray;
 import io.teak.sdk.json.JSONException;
 import io.teak.sdk.json.JSONObject;
@@ -270,16 +270,7 @@ public class TeakNotification implements Unobfuscable {
                 return null;
             }
 
-            final ArrayBlockingQueue<Reward> q = new ArrayBlockingQueue<>(1);
-            final FutureTask<Reward> ret = new FutureTask<>(() -> {
-                try {
-                    return q.take();
-                } catch (InterruptedException e) {
-                    Teak.log.exception(e);
-                }
-                return null;
-            });
-            ThreadFactory.autoStart(ret);
+            final CallbackFuture<Reward> ret = new CallbackFuture<>();
 
             Session.whenUserIdIsReadyRun(session -> {
                 Teak.log.i("reward.claim.request", mm.h("teakRewardId", teakRewardId));
@@ -291,10 +282,10 @@ public class TeakNotification implements Unobfuscable {
                     payload.put("clicking_user_id", session.userId());
 
                     Request.submit("rewards.gocarrot.com", "/" + teakRewardId + "/clicks", payload, session,
-                        (responseCode, responseBody) -> q.offer(rewardFromClaimResponse(teakRewardId, responseBody)));
+                        (responseCode, responseBody) -> ret.complete(rewardFromClaimResponse(teakRewardId, responseBody)));
                 } catch (Exception e) {
                     Teak.log.exception(e);
-                    q.offer(unknownReward(teakRewardId));
+                    ret.complete(unknownReward(teakRewardId));
                 }
             });
 
