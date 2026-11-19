@@ -290,6 +290,8 @@ Future<Teak.Notification.Reply> scheduled =
     Teak.Notification.schedule("daily_bonus", 3600, personalizationData);
 ----
 
+NOTE: Scheduling a notification sends a request to Teak's servers, so call `Teak.Notification.schedule` while your game is in the foreground. If a call fails because your game was in the background, see <<Detecting and Resending Failed Scheduling Calls>>.
+
 === Cancel a Scheduled Notification
 
 Cancel a single scheduled notification with a schedule id from the reply, or cancel all of the current player's scheduled notifications. Note that cancellation is on `TeakNotification`, not `Teak.Notification`.
@@ -353,6 +355,14 @@ Add these rules to your app's ProGuard/R8 rules file, usually `proguard-rules.pr
 -keep class com.android.billingclient.BuildConfig { *; }
 -keepnames class com.android.billingclient.api.PendingPurchasesParams
 ----
+
+== Detecting and Resending Failed Scheduling Calls
+
+A scheduling call sends a request to Teak's servers. If your game isn't in the foreground when that request starts, the call can fail and the notification isn't scheduled. This section covers how to detect that failure and schedule again.
+
+Starting with Android 15, the system fails network requests that start a few seconds after your game leaves the foreground (see link:https://developer.android.com/about/versions/15/behavior-changes-all[Android 15 behavior changes]).
+
+A scheduling call that fails this way resolves with a `Reply` whose `error` is `true` and whose `status` is `Unknown`. When you receive that reply, call `Teak.Notification.schedule` again once your game is back in the foreground.
 
 == Debugging with a Log Listener
 
