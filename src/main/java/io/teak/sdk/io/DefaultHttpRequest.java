@@ -13,11 +13,29 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLException;
 
 public class DefaultHttpRequest implements IHttpRequest {
+    // Nothing has been sent when a connect times out, so it can be short. A read timeout fires
+    // after the body is out, and a retry would resend it, so it stays generous.
+    public static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;
+    public static final int DEFAULT_READ_TIMEOUT_MS = 60000;
+
+    private final int connectTimeoutMs;
+    private final int readTimeoutMs;
+
+    public DefaultHttpRequest() {
+        this(DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS);
+    }
+
+    public DefaultHttpRequest(int connectTimeoutMs, int readTimeoutMs) {
+        this.connectTimeoutMs = connectTimeoutMs;
+        this.readTimeoutMs = readTimeoutMs;
+    }
+
     @Override
     @SuppressWarnings("TryWithIdenticalCatches")
     public Response synchronousRequest(final URL url, final String method, final String requestBody, final String sig) throws IOException {
@@ -33,18 +51,20 @@ public class DefaultHttpRequest implements IHttpRequest {
                 connection = (HttpURLConnection) url.openConnection();
             }
 
+            connection.setConnectTimeout(connectTimeoutMs);
+            connection.setReadTimeout(readTimeoutMs);
             connection.setRequestMethod(method);
             connection.setRequestProperty("Accept-Charset", "UTF-8");
             connection.setUseCaches(false);
             connection.setDoOutput(true);
             connection.setRequestProperty("Authorization", "TeakV2-HMAC-SHA256 Signature=" + sig);
             connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Content-Length",
-                "" + requestBody.getBytes().length);
+            final byte[] body = requestBody.getBytes(StandardCharsets.UTF_8);
+            connection.setRequestProperty("Content-Length", "" + body.length);
 
             // Send request
             DataOutputStream wr = new DataOutputStream(connection.getOutputStream());
-            wr.writeBytes(requestBody);
+            wr.write(body);
             wr.flush();
             wr.close();
 
@@ -55,7 +75,7 @@ public class DefaultHttpRequest implements IHttpRequest {
             } else {
                 is = connection.getErrorStream();
             }
-            rd = new BufferedReader(new InputStreamReader(is));
+            rd = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
             String line;
             StringBuilder response = new StringBuilder();
             while ((line = rd.readLine()) != null) {

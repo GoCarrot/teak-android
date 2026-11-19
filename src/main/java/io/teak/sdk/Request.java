@@ -2,6 +2,7 @@ package io.teak.sdk;
 
 import java.math.BigInteger;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -534,14 +535,14 @@ public class Request implements Runnable {
                 {
                     final Mac mac = Mac.getInstance("HmacSHA256");
                     mac.init(keySpec);
-                    final byte[] result = mac.doFinal(requestBody.getBytes());
+                    final byte[] result = mac.doFinal(requestBody.getBytes(StandardCharsets.UTF_8));
                     requestBodyHash = Helpers.bytesToHex(result);
                 }
                 {
                     final String stringToSign = "TeakV2-HMAC-SHA256\n" + this.method + "\n" + this.hostname + "\n" + this.endpoint + "\n" + requestBodyHash + "\n";
                     final Mac mac = Mac.getInstance("HmacSHA256");
                     mac.init(keySpec);
-                    final byte[] result = mac.doFinal(stringToSign.getBytes());
+                    final byte[] result = mac.doFinal(stringToSign.getBytes(StandardCharsets.UTF_8));
                     sig = Helpers.bytesToHex(result);
                 }
             }
