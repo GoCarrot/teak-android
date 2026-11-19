@@ -8,8 +8,15 @@ import java.util.concurrent.FutureTask;
  */
 public class CallbackFuture<T> extends FutureTask<T> {
     public CallbackFuture() {
-        // The task is never run; complete() supplies the value
         super(() -> null);
+    }
+
+    /**
+     * Does nothing. Only {@link #complete(Object)} completes the future, so handing it to an
+     * executor can't complete it with a null value.
+     */
+    @Override
+    public void run() {
     }
 
     /**

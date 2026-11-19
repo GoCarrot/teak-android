@@ -19,6 +19,7 @@ import io.teak.sdk.TeakInstance;
 import io.teak.sdk.TeakNotification;
 import io.teak.sdk.configuration.AppConfiguration;
 import io.teak.sdk.configuration.RemoteConfiguration;
+import io.teak.sdk.core.CallbackFuture;
 import io.teak.sdk.core.Session;
 import io.teak.sdk.json.JSONObject;
 
@@ -154,6 +155,16 @@ public class FutureCallbackTest extends TeakHttpUnitTest {
             } catch (CancellationException expected) {
             }
         }
+    }
+
+    @Test
+    public void runningTheFutureDoesNotCompleteIt() throws Exception {
+        final CallbackFuture<String> future = new CallbackFuture<>();
+        future.run();
+        assertFalse(future.isDone());
+
+        future.complete("value");
+        assertEquals("value", future.get(1, TimeUnit.SECONDS));
     }
 
     @Test

@@ -206,7 +206,6 @@ public class TeakInstance implements Unobfuscable {
                             }
                         }
 
-                        // Complete the future
                         ret.complete(new Teak.Channel.Reply(error, replyState, replyType, replyErrors));
                     } catch (Exception e) {
                         Teak.log.exception(e);
@@ -257,7 +256,6 @@ public class TeakInstance implements Unobfuscable {
                             }
                         }
 
-                        // Complete the future
                         ret.complete(new Teak.Channel.Reply(error, replyState, replyType, replyCategory, replyErrors));
                     } catch (Exception e) {
                         Teak.log.exception(e);
@@ -314,7 +312,6 @@ public class TeakInstance implements Unobfuscable {
                             }
                         }
 
-                        // Complete the future
                         ret.complete(new Teak.Notification.Reply(error, status, replyErrors, scheduleIds));
                     } catch (Exception e) {
                         Teak.log.exception(e);
