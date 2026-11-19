@@ -18,6 +18,23 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLException;
 
 public class DefaultHttpRequest implements IHttpRequest {
+    // Nothing has been sent when a connect times out, so it can be short. A read timeout fires
+    // after the body is out, and a retry would resend it, so it stays generous.
+    public static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;
+    public static final int DEFAULT_READ_TIMEOUT_MS = 60000;
+
+    private final int connectTimeoutMs;
+    private final int readTimeoutMs;
+
+    public DefaultHttpRequest() {
+        this(DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS);
+    }
+
+    public DefaultHttpRequest(int connectTimeoutMs, int readTimeoutMs) {
+        this.connectTimeoutMs = connectTimeoutMs;
+        this.readTimeoutMs = readTimeoutMs;
+    }
+
     @Override
     @SuppressWarnings("TryWithIdenticalCatches")
     public Response synchronousRequest(final URL url, final String method, final String requestBody, final String sig) throws IOException {
@@ -33,6 +50,8 @@ public class DefaultHttpRequest implements IHttpRequest {
                 connection = (HttpURLConnection) url.openConnection();
             }
 
+            connection.setConnectTimeout(connectTimeoutMs);
+            connection.setReadTimeout(readTimeoutMs);
             connection.setRequestMethod(method);
             connection.setRequestProperty("Accept-Charset", "UTF-8");
             connection.setUseCaches(false);
