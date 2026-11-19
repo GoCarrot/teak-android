@@ -1,0 +1,4 @@
+bug:
+  - "Player properties and other request content with non-ASCII text, such as `é` or Japanese, were sent with each character cut to one byte. They now reach Teak as UTF-8."
+enhancement:
+  - "SDK requests now time out instead of waiting forever on a connection that stops replying: 10 seconds to connect and 60 seconds without a reply. A hung connection no longer holds up the requests behind it."
