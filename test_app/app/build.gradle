@@ -61,6 +61,10 @@ dependencies {
     testImplementation 'androidx.work:work-runtime:2.5.0'
     testImplementation 'org.greenrobot:eventbus:3.3.1'
 
+    // FutureCallbackTest loads TeakInstance, whose optional Facebook field type the SDK declares
+    // `compileOnly`. Matches the version build.gradle's 9+ range resolves to.
+    testImplementation 'com.facebook.android:facebook-login:9.1.1'
+
     // TODO: Investigate using Robolectric
 //    testImplementation "org.robolectric:robolectric:4.6.1"
 
