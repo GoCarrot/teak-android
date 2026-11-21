@@ -18,6 +18,8 @@ public class UserProfile extends Request {
     private final Map<String, Object> numberAttributes;
     private final String context;
 
+    // Numbers each payload so the server can order overlapping sends. A resend of a payload keeps its number.
+    private int profileSeq = 0;
     private long firstSetTime = 0L;
     private ScheduledFuture<?> scheduledSend;
 
@@ -69,6 +71,8 @@ public class UserProfile extends Request {
 
             final long msElapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - this.firstSetTime);
             this.payload.put("ms_since_first_event", msElapsed);
+
+            this.payload.put("profile_seq", ++this.profileSeq);
 
             renewRequestId();
             super.run();
