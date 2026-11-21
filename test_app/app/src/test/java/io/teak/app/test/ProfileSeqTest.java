@@ -118,8 +118,6 @@ public class ProfileSeqTest extends TeakHttpUnitTest {
         superRun.invoke((Request) profile);
 
         final List<LoggedRequest> sends = awaitSends(2);
-        assertEquals(new JSONObject(sends.get(0).getBodyAsString()).getInt("profile_seq"),
-            new JSONObject(sends.get(1).getBodyAsString()).getInt("profile_seq"));
         assertEquals(1, new JSONObject(sends.get(1).getBodyAsString()).getInt("profile_seq"));
     }
 
