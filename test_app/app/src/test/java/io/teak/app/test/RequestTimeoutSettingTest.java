@@ -16,6 +16,7 @@ import io.teak.sdk.Teak;
 import io.teak.sdk.configuration.AppConfiguration;
 import io.teak.sdk.configuration.RemoteConfiguration;
 import io.teak.sdk.core.Session;
+import io.teak.sdk.io.DefaultHttpRequest;
 import io.teak.sdk.json.JSONObject;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -30,7 +31,7 @@ import static org.mockito.Mockito.mock;
  * The per-game request_timeout_ms from settings.json becomes the read timeout of the next request.
  */
 public class RequestTimeoutSettingTest extends TeakHttpUnitTest {
-    private static final int DEFAULT_MS = 60000;
+    private static final int DEFAULT_MS = DefaultHttpRequest.DEFAULT_READ_TIMEOUT_MS;
 
     private RemoteConfiguration originalRemoteConfiguration;
 

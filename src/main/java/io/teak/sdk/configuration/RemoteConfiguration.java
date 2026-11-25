@@ -18,8 +18,8 @@ import io.teak.sdk.event.DeepLinksReadyEvent;
 import io.teak.sdk.event.RemoteConfigurationEvent;
 import io.teak.sdk.io.AndroidResources;
 import io.teak.sdk.io.DefaultAndroidResources;
-import io.teak.sdk.json.JSONException;
 import io.teak.sdk.io.DefaultHttpRequest;
+import io.teak.sdk.json.JSONException;
 import io.teak.sdk.json.JSONObject;
 
 public class RemoteConfiguration {
@@ -45,7 +45,6 @@ public class RemoteConfiguration {
     public final Map<String, Object> dynamicParameters;
     @SuppressWarnings("WeakerAccess")
     public final int heartbeatInterval;
-
     // Read timeout for SDK requests, from settings.json request_timeout_ms.
     public final int requestTimeoutMs;
     @SuppressWarnings("WeakerAccess")
