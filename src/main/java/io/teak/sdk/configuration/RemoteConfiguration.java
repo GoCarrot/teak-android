@@ -19,6 +19,7 @@ import io.teak.sdk.event.RemoteConfigurationEvent;
 import io.teak.sdk.io.AndroidResources;
 import io.teak.sdk.io.DefaultAndroidResources;
 import io.teak.sdk.json.JSONException;
+import io.teak.sdk.io.DefaultHttpRequest;
 import io.teak.sdk.json.JSONObject;
 
 public class RemoteConfiguration {
@@ -44,6 +45,9 @@ public class RemoteConfiguration {
     public final Map<String, Object> dynamicParameters;
     @SuppressWarnings("WeakerAccess")
     public final int heartbeatInterval;
+
+    // Read timeout for SDK requests, from settings.json request_timeout_ms.
+    public final int requestTimeoutMs;
     @SuppressWarnings("WeakerAccess")
     public final ArrayList<Teak.Channel.Category> categories;
     @SuppressWarnings("WeakerAccess")
@@ -127,10 +131,31 @@ public class RemoteConfiguration {
                                                       +
                                                       "}";
 
+    // Only a positive JSON number counts; anything else keeps the default.
+    public static int parseRequestTimeoutMs(JSONObject settings) {
+        final Object value = settings == null ? null : settings.opt("request_timeout_ms");
+        if (value instanceof Number) {
+            final long ms = ((Number) value).longValue();
+            if (ms > 0 && ms <= Integer.MAX_VALUE) return (int) ms;
+        }
+        return DefaultHttpRequest.DEFAULT_READ_TIMEOUT_MS;
+    }
+
     public RemoteConfiguration(@NonNull AppConfiguration appConfiguration, @NonNull String hostname,
         String sdkSentryDsn, String appSentryDsn, String gcmSenderId, String firebaseAppId,
         boolean ignoreDefaultFirebaseConfiguration, boolean enhancedIntegrationChecks,
         JSONObject endpointConfigurations, JSONObject dynamicParameters, int heartbeatInterval, ArrayList<Teak.Channel.Category> categories, boolean isMocked) {
+        this(appConfiguration, hostname, sdkSentryDsn, appSentryDsn, gcmSenderId, firebaseAppId, ignoreDefaultFirebaseConfiguration,
+            enhancedIntegrationChecks, endpointConfigurations, dynamicParameters, heartbeatInterval, categories, isMocked,
+            DefaultHttpRequest.DEFAULT_READ_TIMEOUT_MS);
+    }
+
+    public RemoteConfiguration(@NonNull AppConfiguration appConfiguration, @NonNull String hostname,
+        String sdkSentryDsn, String appSentryDsn, String gcmSenderId, String firebaseAppId,
+        boolean ignoreDefaultFirebaseConfiguration, boolean enhancedIntegrationChecks,
+        JSONObject endpointConfigurations, JSONObject dynamicParameters, int heartbeatInterval, ArrayList<Teak.Channel.Category> categories, boolean isMocked,
+        int requestTimeoutMs) {
+        this.requestTimeoutMs = requestTimeoutMs;
         this.appConfiguration = appConfiguration;
         this.hostname = hostname;
         this.appSentryDsn = appSentryDsn;
@@ -191,61 +216,7 @@ public class RemoteConfiguration {
                                 return;
                             }
 
-                            class ResponseHelper {
-                                final JSONObject json;
-                                private ResponseHelper(JSONObject json) {
-                                    this.json = json;
-                                }
-                                private String nullInsteadOfEmpty(String input) {
-                                    if (input != null && !input.trim().isEmpty()) {
-                                        return input;
-                                    }
-                                    return null;
-                                }
-                                private String strOrNull(String key) {
-                                    return nullInsteadOfEmpty(this.json.isNull(key) ? null : this.json.getString(key));
-                                }
-                                private boolean boolOrFalse(String key) {
-                                    return this.json.optBoolean(key, false);
-                                }
-                                private JSONObject jsonOrNull(String key) {
-                                    return this.json.has(key) ? this.json.getJSONObject(key) : null;
-                                }
-                            }
-                            final ResponseHelper helper = new ResponseHelper(response);
-
-                            final JSONObject availableCategories = helper.jsonOrNull("available_categories");
-                            final ArrayList<Teak.Channel.Category> categories = new ArrayList<>();
-                            if (availableCategories != null) {
-                                final Iterator<String> keys = availableCategories.keys();
-                                while (keys.hasNext()) {
-                                    final String key = keys.next();
-                                    final JSONObject categoryJson = availableCategories.getJSONObject(key);
-                                    final ResponseHelper categoryJsonHelper = new ResponseHelper(categoryJson);
-                                    categories.add(new Teak.Channel.Category(
-                                        key,
-                                        categoryJson.getString("name"),
-                                        categoryJsonHelper.strOrNull("description"),
-                                        categoryJsonHelper.strOrNull("sound"),
-                                        categoryJson.optBoolean("show_badge", false)));
-                                }
-                            }
-
-                            // Future-Ezri: This looks ugly, the reason we aren't moving it into the constructor itself is
-                            // so that it can be easily mocked for the functional tests.
-                            final RemoteConfiguration configuration = new RemoteConfiguration(teakConfiguration.appConfiguration,
-                                response.isNull("auth") ? RemoteConfiguration.defaultHostname : response.getString("auth"),
-                                helper.strOrNull("sdk_sentry_dsn"),
-                                helper.strOrNull("app_sentry_dsn"),
-                                helper.strOrNull("gcm_sender_id"),
-                                helper.strOrNull("firebase_app_id"),
-                                helper.boolOrFalse("ignore_default_firebase_configuration"),
-                                helper.boolOrFalse("enhanced_integration_checks"),
-                                helper.jsonOrNull("endpoint_configurations"),
-                                helper.jsonOrNull("dynamic_parameters"),
-                                response.optInt("heartbeat_interval", 60),
-                                categories,
-                                false);
+                            final RemoteConfiguration configuration = fromSettings(teakConfiguration.appConfiguration, response);
 
                             Teak.log.i("configuration.remote", configuration.toHash());
                             TeakEvent.postEvent(new RemoteConfigurationEvent(configuration));
@@ -257,6 +228,65 @@ public class RemoteConfiguration {
                 RemoteConfiguration.activeRemoteConfiguration = ((RemoteConfigurationEvent) event).remoteConfiguration;
             }
         });
+    }
+
+    public static RemoteConfiguration fromSettings(@NonNull AppConfiguration appConfiguration, @NonNull JSONObject response) {
+        class ResponseHelper {
+            final JSONObject json;
+            private ResponseHelper(JSONObject json) {
+                this.json = json;
+            }
+            private String nullInsteadOfEmpty(String input) {
+                if (input != null && !input.trim().isEmpty()) {
+                    return input;
+                }
+                return null;
+            }
+            private String strOrNull(String key) {
+                return nullInsteadOfEmpty(this.json.isNull(key) ? null : this.json.getString(key));
+            }
+            private boolean boolOrFalse(String key) {
+                return this.json.optBoolean(key, false);
+            }
+            private JSONObject jsonOrNull(String key) {
+                return this.json.has(key) ? this.json.getJSONObject(key) : null;
+            }
+        }
+        final ResponseHelper helper = new ResponseHelper(response);
+
+        final JSONObject availableCategories = helper.jsonOrNull("available_categories");
+        final ArrayList<Teak.Channel.Category> categories = new ArrayList<>();
+        if (availableCategories != null) {
+            final Iterator<String> keys = availableCategories.keys();
+            while (keys.hasNext()) {
+                final String key = keys.next();
+                final JSONObject categoryJson = availableCategories.getJSONObject(key);
+                final ResponseHelper categoryJsonHelper = new ResponseHelper(categoryJson);
+                categories.add(new Teak.Channel.Category(
+                    key,
+                    categoryJson.getString("name"),
+                    categoryJsonHelper.strOrNull("description"),
+                    categoryJsonHelper.strOrNull("sound"),
+                    categoryJson.optBoolean("show_badge", false)));
+            }
+        }
+
+        // Future-Ezri: This looks ugly, the reason we aren't moving it into the constructor itself is
+        // so that it can be easily mocked for the functional tests.
+        return new RemoteConfiguration(appConfiguration,
+            response.isNull("auth") ? RemoteConfiguration.defaultHostname : response.getString("auth"),
+            helper.strOrNull("sdk_sentry_dsn"),
+            helper.strOrNull("app_sentry_dsn"),
+            helper.strOrNull("gcm_sender_id"),
+            helper.strOrNull("firebase_app_id"),
+            helper.boolOrFalse("ignore_default_firebase_configuration"),
+            helper.boolOrFalse("enhanced_integration_checks"),
+            helper.jsonOrNull("endpoint_configurations"),
+            helper.jsonOrNull("dynamic_parameters"),
+            response.optInt("heartbeat_interval", 60),
+            categories,
+            false,
+            parseRequestTimeoutMs(response));
     }
 
     // region Hostnames
@@ -283,6 +313,7 @@ public class RemoteConfiguration {
         ret.put("hostname", this.hostname);
         ret.put("sdkSentryDsn", this.sdkSentryDsn);
         ret.put("appSentryDsn", this.appSentryDsn);
+        ret.put("requestTimeoutMs", this.requestTimeoutMs);
         return ret;
     }
 

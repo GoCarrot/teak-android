@@ -1,0 +1,2 @@
+enhancement:
+  - "SDK requests now use the per-game request timeout from your game's settings, 60 seconds by default."
