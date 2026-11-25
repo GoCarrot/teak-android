@@ -1,0 +1,2 @@
+enhancement:
+  - "SDK requests now use a per-game read timeout set by Teak, 60 seconds by default."

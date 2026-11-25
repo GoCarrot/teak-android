@@ -125,6 +125,12 @@ public class Request implements Runnable {
 
     protected static RemoteConfiguration remoteConfiguration;
 
+    // Per-game read timeout; the default until settings.json arrives.
+    public static int readTimeoutMs() {
+        final RemoteConfiguration configuration = Request.remoteConfiguration;
+        return configuration == null ? DefaultHttpRequest.DEFAULT_READ_TIMEOUT_MS : configuration.requestTimeoutMs;
+    }
+
     public static void registerStaticEventListeners() {
         TeakEvent.addEventListener(event -> {
             if (event.eventType.equals(RemoteConfigurationEvent.Type)) {
@@ -559,7 +565,7 @@ public class Request implements Runnable {
                 this.hostname,
                 isMockedRequest ? Request.MOCKED_PORT : Request.DEFAULT_PORT,
                 this.endpoint);
-            final IHttpRequest request = new DefaultHttpRequest();
+            final IHttpRequest request = new DefaultHttpRequest(DefaultHttpRequest.DEFAULT_CONNECT_TIMEOUT_MS, readTimeoutMs());
             final IHttpRequest.Response response = request.synchronousRequest(url, this.method, requestBody, sig);
 
             final int statusCode = response == null ? 0 : response.statusCode;
